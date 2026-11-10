@@ -26,7 +26,11 @@ import com.focusrecovery.domain.session.repository.WorkSessionRepository;
 import com.focusrecovery.domain.visit.repository.PageVisitRepository;
 import com.focusrecovery.domain.window.entity.AnalysisWindow;
 import com.focusrecovery.domain.window.repository.AnalysisWindowRepository;
+import com.focusrecovery.global.config.V2StorageGate;
+import com.focusrecovery.global.exception.ConflictException;
 import com.focusrecovery.global.exception.StoredDataException;
+
+
 
 // 조회 전용: 분석·알림을 만들거나 AI를 호출하거나 상태를 바꾸지 않는다
 @Service
@@ -41,21 +45,23 @@ public class AnalysisQueryService {
 	private final PageVisitRepository pageVisitRepository;
 	private final StoredJsonReader storedJsonReader;
 	private final AlertService alertService;
+	private final V2StorageGate v2Gate;
 
 	public AnalysisQueryService(WorkSessionRepository workSessionRepository,
 		AnalysisResultRepository analysisResultRepository, AnalysisWindowRepository analysisWindowRepository,
-		PageVisitRepository pageVisitRepository, StoredJsonReader storedJsonReader, AlertService alertService) {
+		PageVisitRepository pageVisitRepository, StoredJsonReader storedJsonReader, AlertService alertService, V2StorageGate v2Gate) {
 		this.workSessionRepository = workSessionRepository;
 		this.analysisResultRepository = analysisResultRepository;
 		this.analysisWindowRepository = analysisWindowRepository;
 		this.pageVisitRepository = pageVisitRepository;
 		this.storedJsonReader = storedJsonReader;
-		this.alertService = alertService;
+		this.alertService = alertService; this.v2Gate = v2Gate;
 	}
 
 	// 최신 여부는 windowIndex로만 판단한다(완료 시각·응답 도착 순서 무관). alert는 읽기만 하며 후보를 만들지 않는다
 	public AnalysisStatusResponse status(UUID sessionId) {
 		WorkSession session = workSessionRepository.findById(sessionId).orElseThrow(SessionNotFoundException::new);
+		legacyAccess(session);
 		AnalysisSummaryResponse latest = first(analysisResultRepository.findSummariesBySessionId(sessionId, FIRST).getContent());
 		AnalysisSummaryResponse latestCompleted = first(
 			analysisResultRepository.findSummariesBySessionIdAndStatus(sessionId, AnalysisStatus.COMPLETED, FIRST));
@@ -64,18 +70,14 @@ public class AnalysisQueryService {
 	}
 
 	public AnalysisPageResponse list(UUID sessionId, int page, int size) {
-		if (!workSessionRepository.existsById(sessionId)) {
-			throw new SessionNotFoundException();
-		}
+		legacyAccess(workSessionRepository.findById(sessionId).orElseThrow(SessionNotFoundException::new));
 		return AnalysisPageResponse.from(
 			analysisResultRepository.findSummariesBySessionId(sessionId, PageRequest.of(page, size)));
 	}
 
 	// 다른 세션의 분석은 이 세션에서 찾을 수 없는 리소스(404)로 처리한다
 	public AnalysisDetailResponse detail(UUID sessionId, UUID analysisId) {
-		if (!workSessionRepository.existsById(sessionId)) {
-			throw new SessionNotFoundException();
-		}
+		legacyAccess(workSessionRepository.findById(sessionId).orElseThrow(SessionNotFoundException::new));
 		AnalysisResult analysis = analysisResultRepository.findById(analysisId).orElseThrow(AnalysisNotFoundException::new);
 		AnalysisWindow window = analysisWindowRepository.findById(analysis.getWindowId())
 			.filter(found -> found.getSessionId().equals(sessionId))
@@ -104,6 +106,11 @@ public class AnalysisQueryService {
 			visits.add(new AnalysisDetailResponse.Visit(i + 1, visitIds.get(i), sequence));
 		}
 		return visits;
+	}
+
+	private void legacyAccess(WorkSession session) {
+		v2Gate.checkAccess(session);
+		if (session.isV2()) throw new ConflictException("V2_QUERY_NOT_IMPLEMENTED", "v2 분석 조회는 후속 구현 대상입니다.");
 	}
 
 	private static AnalysisSummaryResponse first(List<AnalysisSummaryResponse> summaries) {

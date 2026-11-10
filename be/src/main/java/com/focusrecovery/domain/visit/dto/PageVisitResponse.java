@@ -45,7 +45,9 @@ public record PageVisitResponse(
 	long behaviorVersion,
 	@Schema(description = "BE에서 기록한 마지막 행동 갱신 시각 (UTC). 갱신 전이면 null", types = {"string", "null"}, format = "date-time")
 	@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
-	Instant updatedAt
+	Instant updatedAt,
+	@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+	String extractionStatus
 ) {
 
 	public static PageVisitResponse from(PageVisit visit) {
@@ -53,7 +55,7 @@ public record PageVisitResponse(
 			visit.getVisitId(), visit.getSessionId(), visit.getSequence(), visit.getBrowserTabKey(),
 			visit.getNormalizedUrl(), visit.getDomain(), visit.getTitle(), visit.getContent(), visit.getSearchQuery(),
 			visit.isSearchResultPage(), visit.getVisitedAt(), visit.getActiveDurationMs(), visit.getTabSwitchCount(),
-			visit.getBehaviorVersion(), visit.getUpdatedAt()
+			visit.getBehaviorVersion(), visit.getUpdatedAt(), visit.getExtractionStatus()
 		);
 	}
 }

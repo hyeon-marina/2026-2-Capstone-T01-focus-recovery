@@ -17,6 +17,10 @@ import jakarta.persistence.LockModeType;
 
 public interface PageVisitRepository extends JpaRepository<PageVisit, UUID> {
 
+	List<PageVisit> findBySessionIdOrderBySequence(UUID sessionId);
+	List<PageVisit> findBySessionIdAndSequenceGreaterThanOrderBySequence(UUID sessionId, int sequence, Pageable limit);
+	List<PageVisit> findBySessionIdAndSequenceLessThanEqualOrderBySequenceDesc(UUID sessionId, int sequence, Pageable limit);
+
 	boolean existsBySessionIdAndSequence(UUID sessionId, int sequence);
 
 	// 구간 구성에는 ID와 순서만 필요하므로 content 등 큰 컬럼을 읽지 않는다

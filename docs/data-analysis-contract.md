@@ -4,6 +4,14 @@
 
 > #83: 공식 main `a1a5d97`에서 재대조했다. [승인 요청 대장](v2-contract-approval.md)의 P1~P6는 전부 PROPOSED, P2/P6 선결은 BLOCKED다. 과거 PR 병합을 정책 승인으로 해석하지 않는다.
 
+## #85 저장 구현의 적용 범위
+
+이 문서의 #79/#81/#83 기록은 당시 기준이다. #85에서 V11과 Java 저장 기반을 추가했다. 실제 범위는 [구현·검증 보고](be-v2-storage-foundation-validation.md)가 우선하며 아래 제안 전체의 완료를 뜻하지 않는다. collectionSpecVersion 미지정=1.0, 신규 v2=2.0, 같은 키의 목표+버전 비교, 세션 중 버전 변경 금지다. v2는 기본 false이며 정확히 test 프로필+명시 flag에서만 동작한다.
+
+수신 watermark/구성 cursor/privacy revision을 분리했다. tail+신규 identity stream을 영속 job에 고정하고 AI 구성 결과를 검증해 Window·분석·Outbox·Receipt·cursor를 원자 저장한다. 상태 이력은 계산 결과만 저장하며 최신 행동 snapshot과 성공 분석의 소속을 잠금 안에서 확인한다. 회수는 내부 QUARANTINED/tombstone/inventory만이며 공개 API·실제 삭제·PURGED 전이는 없다. P1~P6 PROPOSED/P2·P6 BLOCKED를 유지한다.
+
+기존 버전 없는 API/v1 data는 보존한다. v2 분석 조회 projection·알림·AI HTTP/결과 변환·자동 판단 worker는 후속이며 legacy 경로의 v2 사용은 명시 거절한다. v2 실패를 v1로 저장하지 않는다. extraction_status의 기존 NULL은 legacy 미확인으로 남긴다.
+
 ## 1. 기준·근거·변경 상태
 
 - #79 당시 분석 이력(현재 작업 Git 상태와 구분): 2026-11-10 KST, 공식 main `d0d40f892a8ed54253a12884fb6f64a149272f27`. 시작 worktree는 detached `5e49cb3`, 변경/미추적 파일 없음. origin=개인 Fork(hyeon-marina), upstream=공식 저장소. 같은 이름의 로컬/원격 브랜치 없음 확인 후 `docs/79/data-collection-analysis-contract` 생성.

@@ -59,7 +59,7 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
 		update AnalysisResult r set r.processingStatus = com.focusrecovery.domain.analysis.entity.AnalysisStatus.FAILED,
 			r.errorCode = :errorCode, r.completedAt = :now
 		where r.processingStatus = com.focusrecovery.domain.analysis.entity.AnalysisStatus.PENDING
-			and r.requestedAt < :cutoff""")
+			and r.apiContractVersion = 1 and r.requestedAt < :cutoff""")
 	int failPendingRequestedBefore(Instant cutoff, String errorCode, Instant now);
 
 	// started_at이 없는 RUNNING은 V5 이전에 시작된 행이다: 시작 시각을 모르므로 requested_at과 별도 기준(legacyCutoff)으로 판단한다
@@ -68,6 +68,6 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
 		update AnalysisResult r set r.processingStatus = com.focusrecovery.domain.analysis.entity.AnalysisStatus.FAILED,
 			r.errorCode = :errorCode, r.completedAt = :now
 		where r.processingStatus = com.focusrecovery.domain.analysis.entity.AnalysisStatus.RUNNING
-			and (r.startedAt < :cutoff or (r.startedAt is null and r.requestedAt < :legacyCutoff))""")
+			and r.apiContractVersion = 1 and (r.startedAt < :cutoff or (r.startedAt is null and r.requestedAt < :legacyCutoff))""")
 	int failRunningStartedBefore(Instant cutoff, Instant legacyCutoff, String errorCode, Instant now);
 }

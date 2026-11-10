@@ -73,7 +73,7 @@ public class WorkSessionController {
 		if (idempotencyKey != null && (idempotencyKey.isBlank() || idempotencyKey.length() > 255)) {
 			throw new InvalidRequestException("Idempotency-Key는 1~255자여야 합니다.");
 		}
-		return workSessionService.create(request.goalText(), idempotencyKey);
+		return workSessionService.create(request.goalText(), idempotencyKey, request.collectionSpecVersion());
 	}
 
 	@Operation(summary = "작업 세션 조회", description = "세션 ID로 작업 세션 하나를 조회합니다.")

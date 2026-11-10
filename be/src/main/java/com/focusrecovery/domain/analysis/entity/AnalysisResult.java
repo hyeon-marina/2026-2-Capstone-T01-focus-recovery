@@ -83,6 +83,34 @@ public class AnalysisResult implements Persistable<UUID> {
 	@Column(name = "error_code", length = 100)
 	private String errorCode;
 
+	@Column(name = "api_contract_version", nullable = false, updatable = false)
+	private int apiContractVersion = 1;
+	@Column(name = "input_fingerprint", columnDefinition = "CHAR(64)", updatable = false)
+	private String inputFingerprint;
+	@JdbcTypeCode(SqlTypes.JSON)
+	@Column(name = "page_results", columnDefinition = "JSON")
+	private String pageResults;
+	@JdbcTypeCode(SqlTypes.JSON)
+	@Column(name = "response_snapshot", columnDefinition = "JSON")
+	private String responseSnapshot;
+	public int getApiContractVersion() { return apiContractVersion; }
+	public String getInputFingerprint() { return inputFingerprint; }
+	public String getPageResults() { return pageResults; }
+	public String getResponseSnapshot() { return responseSnapshot; }
+	public static AnalysisResult requestV2(UUID id, UUID windowId, String snapshot, String fingerprint, Instant now) {
+		AnalysisResult analysis = request(id, windowId, snapshot, now);
+		analysis.apiContractVersion = 2; analysis.inputFingerprint = fingerprint; return analysis;
+	}
+	public void completeV2(String pages, String versions, String response, Instant analyzedAt, Instant now) {
+		if (apiContractVersion != 2 || processingStatus != AnalysisStatus.RUNNING)
+			throw new IllegalStateException("v2 analysis is not running");
+		pageResults = pages; modelVersions = versions; responseSnapshot = response;
+		this.analyzedAt = analyzedAt; completedAt = now; processingStatus = AnalysisStatus.COMPLETED;
+	}
+	public void invalidate(Instant now) {
+		processingStatus = AnalysisStatus.INVALIDATED; errorCode = "PRIVACY_RETRACTED"; completedAt = now;
+	}
+
 	// 서버가 ID를 발급하므로 save()가 merge(조회 후 INSERT)하지 않도록 항상 INSERT 하게 한다
 	@Transient
 	private boolean isNew = true;

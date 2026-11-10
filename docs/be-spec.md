@@ -2,6 +2,14 @@
 
 > Issue #79 목표 계약이다. 공식 main `6e15dd3`에는 세션·방문·Window·AI 비동기 분석·알림·조회가 이미 구현되어 있다. 제품 구현을 완료했다는 문서가 아니다. 유지할 설계 요구는 [수집 규격](data-collection-spec.md), v2 API/DB 및 승인 필요한 P1~P6는 [공통 계약](data-analysis-contract.md)을 따른다.
 
+## #85 실제 저장 구현 상태 — 비배포
+
+v1 1초/5개/10초/확률·기존 조회·알림은 유지한다. v2 저장만 V11과 서비스 경계로 구현했고 기본 비활성이다. `focus-recovery.v2.storage.enabled=true`도 활성 프로필이 정확히 `test`일 때만 허용한다. 운영 활성화 스위치가 아니다.
+
+세션 버전+멱등키, 5초·추출성공/필드 검증·watermark, compose job/cursor/Receipt, 분석 Outbox, 상태 이력 잠금/최신 snapshot, 내부 tombstone·QUARANTINED inventory를 구현했다. AI HTTP/dispatcher·최종 판단·행동 dirty worker·v2 조회/알림·인증 회수 API·실제 삭제는 미구현이며 해당 legacy v2 경로는 거절한다. 아래 3개 Window·판단·알림 흐름은 전체 목표 계약이다.
+
+H2·MySQL 8.4 합성 테스트와 실제 Spring 재시작 범위/명령·한계는 [#85 구현 검증](be-v2-storage-foundation-validation.md)에 기록한다. P1~P6 PROPOSED와 P2/P6 BLOCKED는 그대로다.
+
 ## 1. 문서 개요
 
 본 문서는 `BE-001.md`부터 `BE-009.md`까지의 기능 정의를 통합한 백엔드 기능명세서이다. 기존 기능 ID, 요구사항, 연관 기능 및 완료 조건을 유지하고 공통 처리 흐름과 기능 사이의 데이터 연결 기준을 정리한 문서이다.

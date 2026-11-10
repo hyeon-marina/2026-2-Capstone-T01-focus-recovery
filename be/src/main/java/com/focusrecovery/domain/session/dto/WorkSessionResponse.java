@@ -24,7 +24,8 @@ public record WorkSessionResponse(
 	Instant startedAt,
 	@Schema(description = "종료 시각 (UTC). 진행 중이면 null", types = {"string", "null"}, format = "date-time")
 	@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
-	Instant endedAt
+	Instant endedAt,
+	String collectionSpecVersion
 ) {
 
 	public static WorkSessionResponse from(WorkSession session) {
@@ -33,7 +34,8 @@ public record WorkSessionResponse(
 			session.getGoalText(),
 			session.getStatus(),
 			session.getStartedAt(),
-			session.getEndedAt()
+			session.getEndedAt(),
+			session.getCollectionSpecVersion()
 		);
 	}
 }

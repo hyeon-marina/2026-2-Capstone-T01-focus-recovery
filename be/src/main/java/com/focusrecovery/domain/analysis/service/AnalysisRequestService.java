@@ -80,6 +80,7 @@ public class AnalysisRequestService {
 
 	// 입력 스냅샷은 이 트랜잭션에서 고정하고, AI 호출은 커밋 후 AnalysisExecutor가 한다(롤백되면 호출되지 않음)
 	private void request(List<AnalysisWindow> windows, Instant now) {
+		windows = windows.stream().filter(window -> window.getApiContractVersion() == 1).toList();
 		if (windows.isEmpty()) {
 			return;
 		}

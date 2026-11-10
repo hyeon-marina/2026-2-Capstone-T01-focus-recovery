@@ -56,6 +56,23 @@ public class AnalysisWindow implements Persistable<UUID> {
 	@CollectionTable(name = "window_visit", joinColumns = @JoinColumn(name = "window_id"))
 	private List<WindowVisit> visits = new ArrayList<>();
 
+	@Column(name = "api_contract_version", nullable = false, updatable = false)
+	private int apiContractVersion = 1;
+	@Column(name = "last_state_version", nullable = false)
+	private long lastStateVersion;
+	@Column(name = "invalidated", nullable = false)
+	private boolean invalidated;
+	public int getApiContractVersion() { return apiContractVersion; }
+	public boolean isInvalidated() { return invalidated; }
+	public void invalidate() { invalidated = true; }
+	public long nextStateVersion() {
+		if (lastStateVersion >= 9007199254740991L) throw new IllegalStateException("state version exhausted");
+		return ++lastStateVersion;
+	}
+	public static AnalysisWindow v2(UUID sessionId, int index, List<UUID> ids, Instant now) {
+		AnalysisWindow window = of(sessionId, index, ids, now); window.apiContractVersion = 2; return window;
+	}
+
 	// 서버가 ID를 발급하므로 save()가 merge(조회 후 INSERT)하지 않도록 항상 INSERT 하게 한다
 	@Transient
 	private boolean isNew = true;

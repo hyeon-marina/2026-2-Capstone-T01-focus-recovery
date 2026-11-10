@@ -68,6 +68,11 @@ public class PageVisit implements Persistable<UUID> {
 	@Column(name = "updated_at", columnDefinition = "DATETIME(3)")
 	private Instant updatedAt;
 
+	@Column(name = "extraction_status", length = 30, updatable = false)
+	private String extractionStatus;
+	public void extracted(String status) { extractionStatus = status; }
+	public String getExtractionStatus() { return extractionStatus; }
+
 	// FE가 ID를 발급하므로 save()가 merge(조회 후 UPDATE)로 기존 행을 덮어쓰지 않도록 항상 INSERT 하게 한다
 	@Transient
 	private boolean isNew = true;
@@ -95,7 +100,8 @@ public class PageVisit implements Persistable<UUID> {
 	}
 
 	public boolean hasSameOriginal(PageVisit other) {
-		return sessionId.equals(other.sessionId)
+		return Objects.equals(extractionStatus, other.extractionStatus)
+			&& sessionId.equals(other.sessionId)
 			&& sequence == other.sequence
 			&& browserTabKey.equals(other.browserTabKey)
 			&& normalizedUrl.equals(other.normalizedUrl)
