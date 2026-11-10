@@ -275,3 +275,18 @@ it('fails closed if a compacted receipt is missing instead of inventing an ACK',
   });
   await expect(new V2Repository(API_BASE_URL).load()).rejects.toThrow('corrupt');
 });
+it('commits B before delayed inactive A, retaining A original identity after return-cache expiry', async () => {
+  const { runtime: r } = await setup();
+  for (let ms = 0; ms <= 5000; ms += 1000) await r.observe(observation(ms, { document: 'doc-1', snapshot: null }));
+  const firstId = r.snapshot().candidates[0].id, firstTime = r.snapshot().candidates[0].visitedAt;
+  await r.foreground(2, time(5000), true); await advance(r, 5000, 10000, 2);
+  await waitFor(() => r.snapshot().posts.entries[0]?.phase === 'acked');
+  expect(r.snapshot().posts.entries[0].visit.browserTabKey).not.toBe(r.snapshot().candidates[0].tabKey);
+  await r.compact(time(10000));
+  expect(r.snapshot().candidates.some(c => c.id === firstId && !c.post)).toBe(true);
+  await r.observe(observation(10500, { document: 'doc-1' }));
+  await waitFor(() => r.snapshot().posts.entries.length === 2 && r.snapshot().posts.entries[1].phase === 'acked');
+  const a = r.snapshot().posts.entries[1].visit;
+  expect(a.visitId).toBe(firstId); expect(a.visitedAt).toBe(firstTime); expect(a.sequence).toBe(2);
+  expect(a.activeDurationMs).toBe(5000); expect(r.snapshot().candidates.find(c => c.id === firstId)?.closed).toBe(true);
+});

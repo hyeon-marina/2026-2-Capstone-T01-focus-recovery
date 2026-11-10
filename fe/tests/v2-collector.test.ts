@@ -47,6 +47,7 @@ describe('v2 observation boundaries', () => {
     { target: 'b'.repeat(64), snapshot: { ...snapshot, identity: 'b'.repeat(64) } },
   ])('separates tab/document/content/target %o', change => {
     const c = setup(), first = c.state.candidates[0].id;
+    if (typeof change.tabId === 'number') c.foreground(change.tabId, time(1000), true);
     expect(c.observe(observation(1000, change))?.id).not.toBe(first);
   });
   it('gives sequence by validation order, not candidate observation order', () => {

@@ -73,7 +73,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     const permitted = await chrome.permissions.contains({ origins: ['http://127.0.0.1/*'] });
     if (!m.safe || !permitted) { await runtime.quarantine('SENSITIVE_CONTENT', t.wall); return; }
     await focus(t);
-    if (!m.visible) { await runtime.leave(tabId, t); return { collecting: runtime.collecting() }; }
+    if (!m.visible) await runtime.leave(tabId, t);
     const url = await describeUrl(m.raw);
     if (!url) return;
     if (documents.get(tabId) !== sender.documentId) {

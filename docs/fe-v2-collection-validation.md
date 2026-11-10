@@ -48,7 +48,7 @@ DB `focus-recovery`를 version1→2로 additive upgrade한다. 기존 `state/cur
 
 v2 상태에는 규격/세션/생명주기/시작 원본/nextSequence/후보·관측 세대/원본 POST/최신 행동/대기 PATCH/Sending·ACK/종료 요청·Receipt/격리·알림 영수증/revision이 있다. 단일 직렬 Writer가 유효화를 처리하고 revision CAS 트랜잭션이 nextSequence·visitId·sequence·POST snapshot을 함께 저장한다. transaction.complete 후에만 공개 committed 상태와 HTTP 가능 상태를 갱신한다. request.success는 Commit이 아니다.
 
-먼저 시작했지만 추출이 늦은 A보다 B가 먼저 유효화되면 B가 작은 sequence를 받는다. visitedAt은 최초 대상 관측 시각이다. 중복 유효화는 같은 후보의 frozen POST를 재사용한다. abort는 번호/원본을 확정하지 않는다. 저장된 번호는 불변이고 sparse sequence는 허용한다. 다른 Worker의 오래된 revision과 이미 저장된 원본 변경·sequence 역행·종료/격리 되돌리기는 거절한다. 손상 상태를 임의 수정하지 않는다.
+먼저 시작했지만 추출이 늦은 A보다 B가 먼저 유효화되면 B가 작은 sequence를 받는다. 이미5초 측정한 A의 추출이 비활성 상태에서 늦게 완료되는 경우는 복귀 이벤트가 아니며, 동일 문서/대상/콘텐츠 세대를 재검증한 뒤 원래 A의 ID/visitedAt/측정값으로 뒤 sequence를 Commit한다. 4초 캐시가 만료됐다고 이 원본 후보를 버리지 않는다. visitedAt은 최초 대상 관측 시각이다. 중복 유효화는 같은 후보의 frozen POST를 재사용한다. abort는 번호/원본을 확정하지 않는다. 저장된 번호는 불변이고 sparse sequence는 허용한다. 다른 Worker의 오래된 revision과 이미 저장된 원본 변경·sequence 역행·종료/격리 되돌리기는 거절한다. 손상 상태를 임의 수정하지 않는다.
 
 ## 7. POST/PATCH·5분·재전송
 
@@ -60,7 +60,7 @@ v2 상태에는 규격/세션/생명주기/시작 원본/nextSequence/후보·�
 
 최근 복귀 후보와 미확인 큐는 hot aggregate에 둔다. closed/복귀 간격 만료/POST ACK/PATCH ACK/최신 행동 포함/회수 없음인 완료 prefix만 정리한다. 원문 해시·visitId/sequence·POST/행동 ACK를 `v2-receipts`에 넣고 원문 제거와 watermark/count를 같은 트랜잭션으로 저장한다. 시작 번호를 되감지 않는다. 재시작 때 영수증 수·중복번호·최대번호·형식·ACK 포함관계를 검증한다. 영수증이 유실되면 성공을 합성하지 않고 손상으로 중지한다.
 
-진행 중 후보, 미전송/미확인 POST/PATCH, 재시도 snapshot, 필요한 복귀 정보, END_PENDING, 격리/종료 영수증은 정리하지 않는다. POST 없는 종료 후보는 건수 진단으로 정리한다. 200은 미정리 hot 후보의 backpressure 한도이며 세션 평생 한도가 아니다. 새 관측 전에 완료 자료를 정리하며 해결되지 않으면 마지막 committed 원본을 유지하고 수집/외부 전송을 중지한다. Quota/IDB 오류도 같은 fail-closed다. Fake IDB에서205개 방문과 완료 정리·재시작을 검사했다. 실제 디스크를 가득 채우는 테스트는 하지 않았다.
+진행 중 후보, 미전송/미확인 POST/PATCH, 재시도 snapshot, 필요한 복귀 정보, END_PENDING, 격리/종료 영수증은 정리하지 않는다. POST 없는 제외/5초 미만 종료 후보는 건수 진단으로 정리한다. 5초 이상 측정했지만 추출을 기다리는 후보는 복귀 캐시 만료만으로 삭제하지 않는다. 200은 미정리 hot 후보의 backpressure 한도이며 세션 평생 한도가 아니다. 새 관측 전에 완료 자료를 정리하며 해결되지 않으면 마지막 committed 원본을 유지하고 수집/외부 전송을 중지한다. Quota/IDB 오류도 같은 fail-closed다. Fake IDB에서205개 방문과 완료 정리·재시작을 검사했다. 실제 디스크를 가득 채우는 테스트는 하지 않았다.
 
 ## 9. END_PENDING·개인정보
 
@@ -98,7 +98,7 @@ FE91_REAL_BE_URL=http://127.0.0.1:8912 \
 git diff --check
 ```
 
-FE 최종 unit 결과는 **34파일/876테스트 통과**(기존787+신규89), typecheck·production/synthetic build 통과다. 공유 Fixture 중 POST/PATCH35개와 버전 분리1개를 실제 FE validator로 검사했다. 공통 reference 도구는 Schema30정의/80사례/139시나리오/216규칙/κ4, Markdown10/링크177을 통과했다. 문서 추가 후 링크 수만 늘며 Schema/Fixture 기대값은 변경하지 않았다.
+FE 최종 unit 결과는 **34파일/877테스트 통과**(기존787+신규90), typecheck·production/synthetic build 통과다. 공유 Fixture 중 POST/PATCH35개와 버전 분리1개를 실제 FE validator로 검사했다. 공통 reference 도구는 Schema30정의/80사례/139시나리오/216규칙/κ4, Markdown10/링크177을 통과했다. 문서 추가 후 링크 수만 늘며 Schema/Fixture 기대값은 변경하지 않았다.
 
 실제 BE는 소스를 바꾸지 않고 임시 Gradle init script의 JavaExec에 `sourceSets.test.runtimeClasspath`를 사용해 실행했다. main은 `com.focusrecovery.FocusRecoveryApplication`, 인자는 아래와 같다.
 

@@ -84,6 +84,17 @@ export class V2Collector {
       if (c && !c.post) { c.excluded = 'EXTRACTION_FAILED'; delete c.snapshot; }
       return;
     }
+    // A delayed extraction in an inactive, unchanged document is not a return event.
+    // It can complete the old measured visit even after its short-return cache expired.
+    if (s.foreground !== o.tabId && o.snapshot) {
+      const delayed = s.candidates.find(v => v.tabId === o.tabId && v.target === o.target && v.document === o.document
+        && v.generation === o.generation && !v.post && !v.excluded && v.behavior.activeDurationMs >= VALID_MS);
+      if (delayed) { delayed.snapshot = structuredClone(o.snapshot); this.freeze(delayed); return delayed; }
+    }
+    if (s.foreground !== o.tabId) {
+      if (c && !c.post && !c.excluded && o.snapshot && c.target === o.target && c.document === o.document && c.generation === o.generation) c.snapshot = structuredClone(o.snapshot);
+      return c; // Extraction completion cannot invent a background return or start a new visit.
+    }
     // Target/content generation is independently verified before choosing a visit.
     if (c && (c.target !== o.target || c.generation !== o.generation || c.document !== o.document)) {
       this.pause(o.tabId, o.stamp); c = undefined;

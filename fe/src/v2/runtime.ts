@@ -168,7 +168,7 @@ export class V2Runtime {
     await this.mutate(() => {
       this.collector.expire(stamp); this.sync(true);
       if (!this.state.quarantine) {
-        const removed = this.state.candidates.filter(c => c.closed && !c.post);
+        const removed = this.state.candidates.filter(c => c.closed && !c.post && (c.excluded || c.behavior.activeDurationMs < 5000));
         this.state.discardedCandidates += removed.length;
         this.state.candidates = this.state.candidates.filter(c => !removed.includes(c));
       }
@@ -188,7 +188,7 @@ export class V2Runtime {
     await this.mutate(() => {
       const ids = new Set(receipts.map(r => r.visitId));
       if (this.state.quarantine || receipts.some(r => !canCompact(this.state.candidates.find(c => c.id === r.visitId)!, this.state))) throw new Error('V2_COMPACTION_CONFLICT');
-      this.state.candidates = this.state.candidates.filter(c => !ids.has(c.id) && !(c.closed && !c.post));
+      this.state.candidates = this.state.candidates.filter(c => !ids.has(c.id));
       this.state.posts.entries = this.state.posts.entries.filter(e => !ids.has(e.visitId));
       this.state.behaviors.entries = this.state.behaviors.entries.filter(e => !ids.has(e.visitId));
       if (this.state.lastVisit && ids.has(this.state.lastVisit)) delete this.state.lastVisit;
