@@ -7,10 +7,10 @@ function validTime(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
     && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
 }
-export function isWorkSession(value: unknown): value is WorkSessionResponse {
+export function isWorkSession(value: unknown, version: '1.0' | '2.0' = '1.0'): value is WorkSessionResponse {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
-  return typeof v.sessionId === 'string' && UUID.test(v.sessionId)
+  return ((v.collectionSpecVersion ?? '1.0') === version) && typeof v.sessionId === 'string' && UUID.test(v.sessionId)
     && typeof v.goalText === 'string' && validGoal(v.goalText) && normalizeGoal(v.goalText) === v.goalText
     && validTime(v.startedAt) && (v.status === 'ACTIVE' ? v.endedAt === null : v.status === 'ENDED' && validTime(v.endedAt));
 }

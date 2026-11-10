@@ -12,7 +12,9 @@
     "build:dev": "vite build --mode development && vite build --config vite.content.config.ts --mode development",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:browser": "node scripts/browser-test.mjs"
+    "test:browser": "node scripts/browser-test.mjs",
+    "build:synthetic": "vite build --mode synthetic-test --config vite.synthetic.config.ts && vite build --config vite.synthetic.content.config.ts",
+    "test:v2:browser": "node scripts/v2-browser-test.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

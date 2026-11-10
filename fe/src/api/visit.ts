@@ -4,7 +4,7 @@ import type { PageVisit } from '../shared/types';
 
 const originals = ['visitId', 'sequence', 'browserTabKey', 'normalizedUrl', 'domain', 'title', 'content', 'searchQuery', 'isSearchResultPage', 'visitedAt'] as const;
 const counters = ['activeDurationMs', 'tabSwitchCount', 'behaviorVersion'] as const;
-const codes = ['INVALID_REQUEST', 'SESSION_NOT_FOUND', 'VISIT_NOT_FOUND', 'SESSION_ENDED', 'VISIT_ID_CONFLICT', 'VISIT_SEQUENCE_CONFLICT', 'VISIT_SEQUENCE_OUT_OF_ORDER'];
+const codes = ['PRIVACY_RETRACTED', 'V2_STORAGE_DISABLED', 'COLLECTION_VERSION_MISMATCH', 'INVALID_REQUEST', 'SESSION_NOT_FOUND', 'VISIT_NOT_FOUND', 'SESSION_ENDED', 'VISIT_ID_CONFLICT', 'VISIT_SEQUENCE_CONFLICT', 'VISIT_SEQUENCE_OUT_OF_ORDER'];
 export class VisitApiError extends ApiError {
   constructor(kind: ApiError['kind'], message: string, public retryable: boolean, status?: number, public code?: string) {
     super(kind, message, status);
@@ -12,7 +12,7 @@ export class VisitApiError extends ApiError {
 }
 export function visitRequest(visit: PageVisit): CreatePageVisitRequest {
   // Whitelist DTO fields; do not normalize or truncate the collector's original data.
-  return Object.fromEntries([...originals, ...counters].map(key => [key, visit[key]])) as unknown as CreatePageVisitRequest;
+  return Object.fromEntries([...originals, ...counters, ...(visit.extractionStatus ? ['extractionStatus' as const] : [])].map(key => [key, visit[key]])) as unknown as CreatePageVisitRequest;
 }
 export function validTime(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
@@ -21,7 +21,8 @@ export function validTime(value: unknown): value is string {
 export function matchesVisitResponse(value: unknown, visit: PageVisit, status: number): value is PageVisitResponse {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
-  return v.sessionId === visit.sessionId && originals.every(key => v[key] === visit[key]) && validTime(v.visitedAt)
+  return (visit.extractionStatus === undefined || v.extractionStatus === visit.extractionStatus
+    && Object.keys(v).every(key => [...originals, ...counters, 'extractionStatus', 'sessionId', 'updatedAt'].includes(key))) && v.sessionId === visit.sessionId && originals.every(key => v[key] === visit[key]) && validTime(v.visitedAt)
     && counters.every(key => Number.isSafeInteger(v[key]) && (v[key] as number) >= visit[key]
       && (status !== 201 || v[key] === visit[key]))
     && (status === 201 ? v.updatedAt === null : v.updatedAt === null || validTime(v.updatedAt));

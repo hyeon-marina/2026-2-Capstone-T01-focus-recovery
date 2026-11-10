@@ -6,5 +6,5 @@
     "types": ["chrome", "node", "vitest/globals"],
     "noUnusedLocals": true, "noUnusedParameters": true
   },
-  "include": ["src", "tests", "*.config.ts"]
+  "include": ["src", "tests", "synthetic", "*.config.ts"]
 }

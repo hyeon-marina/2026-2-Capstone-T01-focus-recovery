@@ -13,7 +13,7 @@ import { normalizeGoal, validGoal } from '../shared/goal';
 import type { CollectionState, PendingSessionStart } from '../shared/types';
 
 export const DB_NAME = 'focus-recovery';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 export const STORE = 'state';
 export const LEGACY_KEYS = ['collection', 'visitDelivery', 'behaviorDelivery'];
 export interface DurableState {
@@ -185,6 +185,8 @@ export class DurableRepository {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = event => {
         if ((event as IDBVersionChangeEvent).oldVersion === 0) request.result.createObjectStore(STORE);
+        if (!request.result.objectStoreNames.contains('v2')) request.result.createObjectStore('v2');
+        if (!request.result.objectStoreNames.contains('v2-receipts')) request.result.createObjectStore('v2-receipts');
       };
       let rejected = false;
       request.onerror = request.onblocked = () => { rejected = true; reject(new StorageFailure('storage')); };

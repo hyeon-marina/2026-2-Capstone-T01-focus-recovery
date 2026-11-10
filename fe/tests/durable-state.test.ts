@@ -44,7 +44,7 @@ describe('IndexedDB aggregate transactions', () => {
     expect((await repo().initialize({})).value).toEqual(state);
     await repository.save({ collection: emptyState() });
     const saved = await read(); expect(saved.value.collection.candidates).toEqual([]); expect(saved.value.visitDelivery).toBeUndefined(); expect(saved.sessionId).toBeNull();
-    expect(saved.revision).toBe(3); expect(DB_VERSION).toBe(1);
+    expect(saved.revision).toBe(3); expect(DB_VERSION).toBe(2);
   });
   it('resolves after transaction complete, never at put success', async () => {
     await repository.initialize({}); let committed = false;
@@ -70,7 +70,7 @@ describe('IndexedDB aggregate transactions', () => {
   });
   it('rejects unsupported database versions without replacing the database', async () => {
     await repository.initialize({}); await repository.close();
-    const db = await new Promise<IDBDatabase>(resolve => { const r = indexedDB.open(DB_NAME, 2); r.onsuccess = () => resolve(r.result); }); db.close();
+    const db = await new Promise<IDBDatabase>(resolve => { const r = indexedDB.open(DB_NAME, DB_VERSION + 1); r.onsuccess = () => resolve(r.result); }); db.close();
     await expect(repo().initialize({})).rejects.toBeDefined(); expect((await read()).format).toBe(1);
   });
   it('initialization races cannot overwrite a winner', async () => {

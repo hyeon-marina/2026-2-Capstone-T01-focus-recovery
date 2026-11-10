@@ -1,5 +1,11 @@
 # 데이터 수집·분석 계약 검증 — Issue #83
 
+## #91 FE 합성 전용 구현 — 승인 변경 없음
+
+FE Baseline787, 최종876개 테스트와 production/synthetic 빌드를 확인했다. 실제 Chrome151의 IndexedDB/재시작·Reload/SPA/전송 복구, 합성 Mock 알림 UI와 별도 실제 Spring/H2 HTTP를 구분해 검증했다. Schema·Fixture 기대값은 유지하며 운영 및 전체 삭제 완료를 주장하지 않는다.
+
+실제 구현·명령·Mock/Chrome/HTTP 구분·미구현/미검증 범위는 [FE v2 검증 보고](fe-v2-collection-validation.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.** 아래 과거 작업의 미구현 설명은 각 작업 당시 기록이다.
+
 ## #89 Backend 연동 실제 구현·검증
 
 공식 main `4f9b4fb570d0b0594b453a0a67b1f180d6411fb8`에서 #85 저장 기반과 #87 AI API를 연결했다. [BE–AI v2 구현 검증](be-ai-v2-integration-validation.md)에 Git/파일/트랜잭션/실제 명령/미구현·미검증 범위와 제출 정보를 기록한다. 아래 #87/#85/#83/#81은 당시 기록이다.
