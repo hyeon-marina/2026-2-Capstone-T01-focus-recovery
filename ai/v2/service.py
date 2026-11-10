@@ -39,13 +39,16 @@ class RequestRegistry:
 
 
 class V2Service:
-    def __init__(self, inference_lock=None, capacity=1000):
+    def __init__(self, inference_lock=None, capacity=1000, privacy_store=None):
         self.model = None
         self.lock = threading.RLock()
         self.inference_lock = inference_lock or threading.Lock()
         self.compositions, self.analyses = RequestRegistry(capacity), RequestRegistry(capacity)
         self.generation = 0
         self.blocked_visits = set()
+        self.blocked_sessions = set()
+        self.privacy_store = privacy_store
+        self.privacy_revision = -1
 
     def load(self, legacy_state):
         if not synthetic_enabled():
@@ -69,8 +72,19 @@ class V2Service:
             # Model exceptions can carry source text or paths; no exception dump.
             print("[API v2] AI_NOT_READY")
 
+    def refresh_privacy(self):
+        if self.privacy_store is None:
+            return
+        with self.lock:
+            revision, sessions, visits = self.privacy_store.snapshot()
+            if revision != self.privacy_revision:
+                self.invalidate_visits(visits)
+                self.blocked_sessions.update(sessions)
+                self.privacy_revision = revision
+
     def _privacy_check(self, body):
-        if any(v["visitId"] in self.blocked_visits for v in body["visits"]):
+        self.refresh_privacy()
+        if body["sessionId"] in self.blocked_sessions or any(v["visitId"] in self.blocked_visits for v in body["visits"]):
             raise V2Error(409, "PRIVACY_RETRACTED")
 
     def execute(self, kind, payload):
@@ -99,6 +113,7 @@ class V2Service:
                     raise V2Error(500, "AI_ANALYSIS_FAILED")
                 try:
                     with self.lock:
+                        self._privacy_check(body)
                         if generation != self.generation:
                             raise V2Error(409, "PRIVACY_RETRACTED")
                     response = model.analyze(body, cache_generation)
@@ -115,6 +130,7 @@ class V2Service:
                         for p, v in zip(response["pageResults"], body["visits"])):
                     raise ValueError("invalid response pairing")
             with self.lock:
+                self._privacy_check(body)
                 if generation != self.generation:
                     raise V2Error(409, "PRIVACY_RETRACTED")
                 token["response"], token["running"] = deepcopy(response), False
@@ -132,7 +148,8 @@ class V2Service:
         """Internal quarantine hook, NOT deletion or an authenticated BE retraction API.
 
         Conservatively clears all v2 receipts and all shared embedding entries.
-        The caller must fan out to every process and restore tombstones at restart.
+        A configured shared journal restores tombstones and clears stale local caches on use.
+        Other processes/GPU memory are not physically erased by this acknowledgement.
         """
         with self.lock:
             self.blocked_visits.update(visit_ids)

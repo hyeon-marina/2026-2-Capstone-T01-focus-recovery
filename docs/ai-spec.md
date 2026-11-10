@@ -1,5 +1,11 @@
 # AI 기능명세서
 
+## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
+
+명시적으로 주입한 RetractionJournal은 요청 ID/세션/방문과 revision만 SQLite에 영속화한다. 같은 파일을 쓰는 Worker는 요청/추론/결과저장 전 재검사하여 Registry replay·늦은 결과를 차단하고 로컬 embedding/Registry를 비운다. 내부 route는 main에 설치되지 않으며 test fixture만 Bearer 서비스 인증으로 설치한다. ACK는 영속 격리와 호출 Worker의 cache 무효화일 뿐 다른 Worker의 즉시 물리 삭제·GPU/모델/학습 Context 캐시 삭제가 아니다. 다중 호스트 저장소/운영 인증은 미구현이다.
+
+상세 구현·삭제/격리 Inventory·명령·실패/미검증 범위는 [개인정보 회수 검증 보고](v2-privacy-retraction-validation.md)를 따른다. 아래 과거 작업의 미구현 설명은 당시 기록이다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.**
+
 ## 1. 범위·변경 이유
 
 Issue #79 이후의 목표 명세와 #87 AI 구현 상태다. #79 당시 main `6e15dd3`에는 AI-001/002/003, FastAPI 연동, 학습 분류기 로드, Context 구성·캐시가 존재했다. #87은 공식 main `37706428`에서 v1을 보존하고 합성 테스트 전용 v2 API를 구현했다. 실제 범위·검증·제약은 [AI v2 검증 보고](ai-v2-window-analysis-validation.md)를 따른다. 모델 학습·운영 활성화·정책 승인은 수행하지 않았다. 유지할 설계 요구는 [수집 규격](data-collection-spec.md), P1~P6와 wire/DB는 [공통 계약](data-analysis-contract.md)을 따른다.

@@ -1,5 +1,11 @@
 # BE 기능명세서
 
+## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
+
+회수 API의 기본 RetractionAuthorization은 항상 거절한다. 운영 사용자/소유자 모델이 없어 인증 완료를 주장하지 않는다. test 소스에서만 인증 주체와 DB의 session 소유권을 대조한다. 기존 세션잠금·Tombstone·Revision·전체 세션 무효화를 재사용하고 V13은 대상별 책임역할·증거·claim token/lease/retry 시각만 추가한다. 기본 삭제 정책은 거절하며 합성 test 정책에서만 민감 Payload를 FK skeleton과 분리해 비운 뒤 DB 잔존 검사를 한다. HTTP는 트랜잭션 밖에서 실행한다.
+
+상세 구현·삭제/격리 Inventory·명령·실패/미검증 범위는 [개인정보 회수 검증 보고](v2-privacy-retraction-validation.md)를 따른다. 아래 과거 작업의 미구현 설명은 당시 기록이다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.**
+
 > Issue #79 목표 계약이다. 공식 main `6e15dd3`에는 세션·방문·Window·AI 비동기 분석·알림·조회가 이미 구현되어 있다. 제품 구현을 완료했다는 문서가 아니다. 유지할 설계 요구는 [수집 규격](data-collection-spec.md), v2 API/DB 및 승인 필요한 P1~P6는 [공통 계약](data-analysis-contract.md)을 따른다.
 
 ## #89 실제 연동 구현 상태 — 합성 테스트 전용

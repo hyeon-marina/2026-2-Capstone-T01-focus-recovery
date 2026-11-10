@@ -1,5 +1,11 @@
 # FE 기능명세서
 
+## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
+
+v2 RetractionEntry는 request 원본·phase·attempts·retry 시각·ACK를 기존 v2 aggregate에 additive 저장한다. 일반 Queue/ACK와 별도이며 보내기 전 sending Commit, 응답 후 ACK Commit, 같은 ID 재전송·재시작 복구를 한다. compacted 방문 ID도 포함하며 새 세션에는 이전 ID를 넘기지 않는다. QUARANTINED/PURGED 응답 어느 쪽도 로컬 hold·수집·END drain을 해제하지 않는다. production v1 진입점과 IndexedDB v1 값은 유지한다.
+
+상세 구현·삭제/격리 Inventory·명령·실패/미검증 범위는 [개인정보 회수 검증 보고](v2-privacy-retraction-validation.md)를 따른다. 아래 과거 작업의 미구현 설명은 당시 기록이다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.**
+
 ## #91 FE 합성 전용 구현 — 승인 변경 없음
 
 FE의 v1은 기존 1초/후보 종료 순서 수집을 유지한다. #91의 v2 수집기·5초/4초/5분·IndexedDB/ACK/END_PENDING·상태 어댑터는 별도 합성 확장 진입점으로 구현했다. production popup/background에는 v2 설정이나 활성화 경로가 없다.

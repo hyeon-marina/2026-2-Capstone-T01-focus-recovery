@@ -27,7 +27,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8897)
     parser.add_argument("--no-model", action="store_true")
+    parser.add_argument("--retraction-journal")
+    parser.add_argument("--retraction-secret")
     args = parser.parse_args()
+    if args.retraction_journal:
+        from v2.retractions import RetractionJournal, install_synthetic_retractions
+        install_synthetic_retractions(main.app, main.v2_service, RetractionJournal(args.retraction_journal), args.retraction_secret or "")
     main.app.router.lifespan_context = no_model_loading
     if not args.no_model:
         main.v2_service.model = PageAnalysisModel(FakeEmbedding(), FakeContext())

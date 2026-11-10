@@ -1,3 +1,4 @@
+import { validRetraction } from './retractions';
 import { validNotification } from './notifications';
 import { DB_NAME, DB_VERSION, StorageFailure, canonical } from '../background/durable-state';
 import { VisitDelivery } from '../background/visit-delivery';
@@ -53,6 +54,9 @@ export function validateV2(s: V2State, api: string) {
   for (const e of s.behaviors.entries) if (!coversBehavior(s.candidates.find(c => c.id === e.visitId)!.behavior, e.latest)) fail();
   for (const [id, visit] of Object.entries(s.tabs)) if (!s.candidates.some(c => c.id === visit && c.tabId === Number(id) && !c.closed)) fail();
   if (s.foreground !== null && !Number.isSafeInteger(s.foreground) || s.lastTab !== null && !Number.isSafeInteger(s.lastTab)) fail();
+  if (s.retractions && (!s.quarantine || !Array.isArray(s.retractions) || s.retractions.some(e => !validRetraction(e))
+    || new Set(s.retractions.map(e => e.request.visitId)).size !== s.retractions.length
+    || new Set(s.retractions.map(e => e.request.retractionId)).size !== s.retractions.length)) fail();
   if (s.quarantine && (s.quarantine.status !== 'RETRACTION_REQUIRED' || !validTime(s.quarantine.observedAt)
     || !['SENSITIVE_CONTENT', 'CONSENT_WITHDRAWN', 'PRIVACY_RETRACTED'].includes(s.quarantine.reason)
     || !Array.isArray(s.quarantine.visitIds) || s.quarantine.visitIds.some(id => !UUID4.test(id)))) fail();
@@ -135,6 +139,11 @@ export class V2Repository {
         || previous.session && canonical(saved.session) !== canonical(previous.session)
         || ['END_PENDING', 'ENDED'].includes(previous.lifecycle) && !['END_PENDING', 'ENDED'].includes(saved.lifecycle)
         || previous.quarantine && canonical(saved.quarantine) !== canonical(previous.quarantine)
+        || previous.retractions?.some(old => {
+          const current = saved.retractions?.find(e => e.request.retractionId === old.request.retractionId);
+          return !current || canonical(current.request) !== canonical(old.request)
+            || old.ack && canonical(current.ack) !== canonical(old.ack);
+        })
         || previous.posts.entries.some(old => {
           const current = saved.posts.entries.find(e => e.visitId === old.visitId);
           return current ? canonical(current.visit) !== canonical(old.visit)
@@ -148,6 +157,11 @@ export class V2Repository {
     };
     await done;
     next.revision = saved.revision;
+  }
+  async compactedVisitIds(sessionId: string): Promise<string[]> {
+    const db = await this.open(), tx = db.transaction('v2-receipts'), done = complete(tx);
+    const request = tx.objectStore('v2-receipts').getAll(IDBKeyRange.bound(`${sessionId}/`, `${sessionId}/\uffff`));
+    await done; return (request.result as CompactReceipt[]).map(r => r.visitId);
   }
   close() { this.db?.close(); this.db = undefined; }
 }

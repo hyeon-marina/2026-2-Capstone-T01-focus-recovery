@@ -1,5 +1,11 @@
 # v2 계약 패키지 — 2.0-proposed.2
 
+## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
+
+공통 Schema/Fixture 원문은 변경하지 않았다. PrivacyRetraction/RetractionAck의 정확한 필드와 lower-case UUID v4·UTC 밀리초·실제 날짜·Enum·중복 없는 Window ID를 구현에서 검사한다. 새 내부 합성 AI 경계의 durable ACK는 공개 RetractionAck와 별개이며 전체 삭제 완료를 뜻하지 않는다. 기본 BE401/403의 code는 기존 Enum INVALID_REQUEST, 추가 원문/인증정보는 반환하지 않는다.
+
+상세 구현·삭제/격리 Inventory·명령·실패/미검증 범위는 [개인정보 회수 검증 보고](../../v2-privacy-retraction-validation.md)를 따른다. 아래 과거 작업의 미구현 설명은 당시 기록이다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.**
+
 ## #91 FE 합성 전용 구현 — 승인 변경 없음
 
 FE는 공유 Schema의 PageVisitPost/BehaviorPatch를 실제 validator·Fixture와 대조하고 실제 Chrome→Spring/H2의 wire 요청/응답을 이 Schema로 재검증한다. DB version2의 v2 전용 store/receipt는 로컬 구현 세부이며 wire 필드를 늘리지 않는다. production FE는 v1이고 v2는 별도 synthetic-test 빌드만 허용한다.
