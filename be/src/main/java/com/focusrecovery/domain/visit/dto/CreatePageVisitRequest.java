@@ -6,16 +6,20 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.focusrecovery.domain.visit.entity.PageVisit;
+import com.focusrecovery.global.exception.InvalidRequestException;
 import com.focusrecovery.global.util.Uuids;
 import com.focusrecovery.global.validation.CodePointLength;
 import com.focusrecovery.global.validation.NormalizedUrl;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+
+
 
 // 주소·제목·검색어는 TEXT(65,535바이트)에 utf8mb4 최대 4바이트 문자로도 들어가는 길이로, 본문은 명세(data-collection-spec §4) 기준으로 제한한다
 @Schema(description = "방문 기록 저장 요청")
@@ -85,8 +89,32 @@ public record CreatePageVisitRequest(
 
 	@Schema(description = "행동 갱신 버전 (생략 시 0)", example = "0", minimum = "0")
 	@Min(value = 0, message = "행동 갱신 버전은 0 이상이어야 합니다.")
-	Long behaviorVersion
+	Long behaviorVersion,
+	String extractionStatus
 ) {
+
+	public CreatePageVisitRequest(String visitId, Integer sequence, String browserTabKey, String normalizedUrl,
+		String domain, String title, String content, String searchQuery, Boolean isSearchResultPage,
+		Instant visitedAt, Long activeDurationMs, Integer tabSwitchCount, Long behaviorVersion) {
+		this(visitId, sequence, browserTabKey, normalizedUrl, domain, title, content, searchQuery,
+			isSearchResultPage, visitedAt, activeDurationMs, tabSwitchCount, behaviorVersion, null);
+	}
+
+	public void validateV2() {
+		boolean search = Boolean.TRUE.equals(isSearchResultPage);
+		if (!"SUCCESS".equals(extractionStatus) || activeDurationMs == null || activeDurationMs < 5000
+			|| activeDurationMs > 9007199254740991L || behaviorVersion == null || behaviorVersion < 0
+			|| behaviorVersion > 9007199254740991L || tabSwitchCount == null || tabSwitchCount < 0
+			|| isSearchResultPage == null || title == null || codePoints(title) > 500
+			|| content == null || codePoints(content) < (search ? 1 : 50) || codePoints(content) > 5000
+			|| normalizedUrl == null || normalizedUrl.length() > 8192 || !normalizedUrl.matches("https?://[^/?#@\\s]+/[^?#\\s]*") || domain == null || domain.length() > 253
+			|| (search ? searchQuery == null || searchQuery.isBlank() || codePoints(searchQuery) > 500 : searchQuery != null)
+			|| visitId == null || !visitId.matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")) {
+			throw new InvalidRequestException("v2 방문 요청이 유효하지 않습니다.");
+		}
+	}
+
+	private static int codePoints(String value) { return value.codePointCount(0, value.length()); }
 
 	// DATETIME(3)에 저장되는 정밀도로 맞춰야 재전송 시 원본 비교가 일치한다
 	public CreatePageVisitRequest {
@@ -94,12 +122,14 @@ public record CreatePageVisitRequest(
 	}
 
 	public PageVisit toEntity(UUID sessionId) {
-		return new PageVisit(
+		PageVisit visit = new PageVisit(
 			UUID.fromString(visitId), sessionId, sequence, browserTabKey, normalizedUrl, domain, title, content,
 			searchQuery, Boolean.TRUE.equals(isSearchResultPage), visitedAt,
 			activeDurationMs,
 			tabSwitchCount == null ? 0 : tabSwitchCount,
 			behaviorVersion == null ? 0 : behaviorVersion
 		);
+		visit.extracted(extractionStatus);
+		return visit;
 	}
 }

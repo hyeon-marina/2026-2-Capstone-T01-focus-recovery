@@ -39,6 +39,39 @@ public class WorkSession {
 	@Column(name = "idempotency_key", unique = true, updatable = false)
 	private String idempotencyKey;
 
+	@Column(name = "collection_spec_version", length = 10, nullable = false, updatable = false)
+	private String collectionSpecVersion = "1.0";
+	@Column(name = "last_accepted_sequence", nullable = false)
+	private int lastAcceptedSequence;
+	@Column(name = "composed_through_sequence", nullable = false)
+	private int composedThroughSequence;
+	@Column(name = "privacy_revision", nullable = false)
+	private long privacyRevision;
+	@Column(name = "privacy_status", length = 20, nullable = false)
+	private String privacyStatus = "CLEAR";
+	@Column(name = "composition_dirty", nullable = false)
+	private boolean compositionDirty;
+
+	public static WorkSession start(String goalText, String key, String version) {
+		WorkSession session = start(goalText, key);
+		session.collectionSpecVersion = version;
+		return session;
+	}
+
+	public boolean isV2() { return "2.0".equals(collectionSpecVersion); }
+	public String getCollectionSpecVersion() { return collectionSpecVersion; }
+	public int getLastAcceptedSequence() { return lastAcceptedSequence; }
+	public int getComposedThroughSequence() { return composedThroughSequence; }
+	public long getPrivacyRevision() { return privacyRevision; }
+	public boolean isQuarantined() { return "QUARANTINED".equals(privacyStatus); }
+	public boolean isCompositionDirty() { return compositionDirty; }
+	public void acceptSequence(int sequence) { lastAcceptedSequence = sequence; compositionDirty = true; }
+	public void composedThrough(int sequence) {
+		composedThroughSequence = sequence;
+		compositionDirty = lastAcceptedSequence > sequence;
+	}
+	public void quarantine() { privacyStatus = "QUARANTINED"; privacyRevision = Math.incrementExact(privacyRevision); }
+
 	protected WorkSession() {
 	}
 

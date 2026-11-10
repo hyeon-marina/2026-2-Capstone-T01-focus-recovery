@@ -21,8 +21,11 @@ import com.focusrecovery.domain.session.entity.WorkSession;
 import com.focusrecovery.domain.session.entity.WorkSessionStatus;
 import com.focusrecovery.domain.session.exception.SessionNotFoundException;
 import com.focusrecovery.domain.session.repository.WorkSessionRepository;
+import com.focusrecovery.global.config.V2StorageGate;
 import com.focusrecovery.global.exception.ConflictException;
 import com.focusrecovery.global.exception.InvalidRequestException;
+
+
 
 // 실제 알림 표시 확인과 사용자 선택 저장. 둘 다 shownAt을 처음 기록할 수 있으므로 트랜잭션 시작부터 세션 배타 잠금을 잡고
 // 그다음 알림 행을 잠근다(공유 → 배타 전환 없음). AI 후보 생성은 세션 공유 잠금을 먼저 잡으므로, 표시 기록이 커밋될 때까지 기다린 뒤
@@ -37,10 +40,12 @@ public class AlertDisplayService {
 	private final AlertService alertService;
 	private final Clock clock;
 	private final Duration tolerance;
+	private final V2StorageGate v2Gate;
 
 	public AlertDisplayService(NotificationRepository notificationRepository,
 		NotificationResponseRepository responseRepository, WorkSessionRepository workSessionRepository,
-		AlertService alertService, Clock clock, AlertProperties properties) {
+		AlertService alertService, Clock clock, AlertProperties properties, V2StorageGate v2Gate) {
+		this.v2Gate = v2Gate;
 		this.notificationRepository = notificationRepository;
 		this.responseRepository = responseRepository;
 		this.workSessionRepository = workSessionRepository;
@@ -57,6 +62,8 @@ public class AlertDisplayService {
 	public AlertResponse markShown(UUID sessionId, UUID alertId, Instant shownAt) {
 		requireMillis(shownAt, "shownAt");
 		WorkSession session = workSessionRepository.findForUpdateBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
+		v2Gate.checkAccess(session);
+		if (session.isV2()) throw new ConflictException("V2_ALERT_DISABLED", "v2 알림은 비활성 상태입니다.");
 		Notification alert = lockAlert(sessionId, alertId);
 		if (alert.getShownAt() != null) {
 			if (!alert.getShownAt().equals(shownAt)) {
@@ -76,6 +83,8 @@ public class AlertDisplayService {
 		requireMillis(request.selectedAt(), "selectedAt");
 		requireMillis(request.shownAt(), "shownAt");
 		WorkSession session = workSessionRepository.findForUpdateBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
+		v2Gate.checkAccess(session);
+		if (session.isV2()) throw new ConflictException("V2_ALERT_DISABLED", "v2 알림은 비활성 상태입니다.");
 		Notification alert = lockAlert(sessionId, alertId);
 		if (alert.getShownAt() != null && request.shownAt() != null && !alert.getShownAt().equals(request.shownAt())) {
 			throw shownAtConflict();

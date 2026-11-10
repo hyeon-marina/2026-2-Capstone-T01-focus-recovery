@@ -82,6 +82,7 @@ public class AlertService {
 	@Transactional(propagation = Propagation.MANDATORY)
 	public AiDecision decideAiCandidate(UUID sessionId, UUID analysisId) {
 		WorkSession session = workSessionRepository.findForShareBySessionId(sessionId).orElse(null);
+		if (session != null && session.isV2()) return AiDecision.skipped("V2_ALERT_DISABLED");
 		AnalysisResult analysis = analysisResultRepository.findForUpdateByAnalysisId(analysisId).orElse(null);
 		// windowIndex는 세션마다 따로 매겨지므로 번호 비교로는 소속을 알 수 없다. 분석 → 구간 → 세션 연결을
 		// windowIndex 비교·기존 후보 재사용보다 먼저 확인하며, 불일치는 조건 미충족이 아니라 데이터 정합성 오류다
@@ -146,6 +147,7 @@ public class AlertService {
 	public FixedIntervalResult requestFixedInterval(UUID sessionId) {
 		WorkSession session = workSessionRepository.findForUpdateBySessionId(sessionId)
 			.orElseThrow(SessionNotFoundException::new);
+		if (session.isV2()) throw new ConflictException("V2_ALERT_DISABLED", "v2 알림은 비활성 상태입니다.");
 		if (properties.mode() != AlertType.FIXED_INTERVAL) {
 			throw new ConflictException("FIXED_INTERVAL_DISABLED", "고정 주기 알림이 활성화되어 있지 않습니다.");
 		}
@@ -184,6 +186,7 @@ public class AlertService {
 	// 분석 상태 조회용(읽기 전용, 후보를 만들지 않음): ACTIVE 세션에서 현재 활성화된 방식의 미표시 후보만 반환한다.
 	// AI 후보는 실제 최신 구간의 COMPLETED·DRIFT 분석에 연결되고 현재 표시 이력·최소 간격 조건도 통과한 것만 반환한다
 	public AlertResponse currentCandidate(WorkSession session) {
+		if (session.isV2()) return null;
 		if (session.getStatus() != WorkSessionStatus.ACTIVE) {
 			return null;
 		}

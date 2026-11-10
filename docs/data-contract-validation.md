@@ -1,5 +1,11 @@
 # 데이터 수집·분석 계약 검증 — Issue #83
 
+## #85 Backend 실제 구현·검증
+
+공식 main `4a71171`에서 Backend 저장 기반과 V11을 구현했다. 수정 전 기존 Gradle362건, 구현 후 기존362+신규74=436건이 H2/격리 MySQL 8.4를 포함해 실패0·skip0으로 통과했다. 추가 DB PK/FK/UNIQUE 검사 후 V2MigrationTest도 H2/MySQL에서 통과했다. [#85 상세 보고](be-v2-storage-foundation-validation.md)에 명령, 재시작·롤백·동시성 검증 및 미구현/미검증 한계를 구분한다.
+
+아래 #83/#81의 제품 코드/DB 미실행 설명은 과거 작업 기록으로 보존한다. #85의 제품 검증과 정적 reference validator를 서로의 실행 근거로 대체하지 않는다. P1~P6 PROPOSED/P2·P6 BLOCKED, 기본 비활성·합성 테스트 전용·공개 회수 API/실삭제/PURGED 미구현은 유지한다.
+
 ## #83 기준과 실제 실행
 
 2026-11-10 KST, 공식 main `a1a5d9701d45e0f7ce07b14ead27d67a53eec08c` 기준, 브랜치 `docs/83/v2-contract-approval`. 시작 detached HEAD `6e15dd3fa1789e96c42bc4f33250c4221d6d2616`, tracked 수정·미추적 파일 0. Git/Issue/PR·승인 근거 조사는 [승인 요청 대장](v2-contract-approval.md#1-기준과-승인-근거-조사)을 따른다. P1~P6 승인 0건, PROPOSED 유지. P2 조기 전송·P6 동의/보존/기관 확인의 BLOCKED 유지.

@@ -1,6 +1,12 @@
 # v2 계약 패키지 — 2.0-proposed.2
 
-**PROPOSED / 미구현 / 운영 활성화 승인 아님.** 정책별 근거·대안·담당은 [결정안](../../v2-contract-decisions.md), 현행 API·호환성은 [공통 계약](../../data-analysis-contract.md) 참조. `.invalid` Schema ID는 식별자이며 다운로드 주소가 아니다. 네트워크 없는 local `$ref`만 사용한다.
+**PROPOSED / Backend 저장 기반만 합성 테스트 구현 / 운영 활성화 승인 아님.** 정책별 근거·대안·담당은 [결정안](../../v2-contract-decisions.md), 현행 API·호환성은 [공통 계약](../../data-analysis-contract.md) 참조. `.invalid` Schema ID는 식별자이며 다운로드 주소가 아니다. 네트워크 없는 local `$ref`만 사용한다.
+
+## #85 제품 저장 경계와 계약 패키지의 구분
+
+V11·세션 버전·방문 watermark·compose job/Receipt·분석 Outbox·상태 이력·내부 개인정보 격리 저장 경계를 구현했다. [검증 보고](../../be-v2-storage-foundation-validation.md)에 실제 Java/H2/MySQL 테스트를 별도로 기록한다. `validate.py`는 계속 문서 reference 검증이며 DB/제품 테스트를 대체하지 않는다. Schema/Fixture의 정책 기대값은 변경하지 않았다.
+
+v2는 기본 비활성, 정확히 test 프로필+명시 flag에서만 허용한다. 아래 endpoint 표 중 AI API·상태 조회 projection·진단·개인정보 공개 API는 구현/공개되지 않았다. v2 legacy 분석 조회·알림도 거절한다. 내부 결과 DTO는 합성 결과 저장용이며 실제 AI HTTP 변환은 후속이다. 외부 회수·실제 삭제·PURGED 집계와 운영 활성화는 계속 차단된다. 기존 v1 API는 유지한다.
 
 ## 실행과 자산
 

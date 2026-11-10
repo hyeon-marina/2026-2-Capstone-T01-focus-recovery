@@ -74,7 +74,7 @@ public class AnalysisExecutor {
 	public void run(UUID analysisId) {
 		try {
 			Claim claim = transactionTemplate.execute(status -> analysisResultRepository.findForUpdateByAnalysisId(analysisId)
-				.filter(analysis -> analysis.getProcessingStatus() == AnalysisStatus.PENDING)
+				.filter(analysis -> analysis.getApiContractVersion() == 1 && analysis.getProcessingStatus() == AnalysisStatus.PENDING)
 				.map(analysis -> {
 					analysis.start(now());
 					UUID sessionId = analysisWindowRepository.findById(analysis.getWindowId()).orElseThrow().getSessionId();
@@ -133,7 +133,7 @@ public class AnalysisExecutor {
 	private void failPending(UUID analysisId, String errorCode) {
 		try {
 			newTransactionTemplate.executeWithoutResult(status -> analysisResultRepository.findForUpdateByAnalysisId(analysisId)
-				.filter(analysis -> analysis.getProcessingStatus() == AnalysisStatus.PENDING)
+				.filter(analysis -> analysis.getApiContractVersion() == 1 && analysis.getProcessingStatus() == AnalysisStatus.PENDING)
 				.ifPresent(analysis -> analysis.finish(AiAnalysisOutcome.failed(errorCode), now())));
 		} catch (RuntimeException e) {
 			log.error("분석 실패 기록 실패 analysisId={} errorCode={}", analysisId, errorCode, e);

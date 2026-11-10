@@ -12,6 +12,10 @@ import com.focusrecovery.domain.alert.repository.NotificationRepository;
 import com.focusrecovery.domain.session.entity.WorkSession;
 import com.focusrecovery.domain.session.exception.SessionNotFoundException;
 import com.focusrecovery.domain.session.repository.WorkSessionRepository;
+import com.focusrecovery.global.config.V2StorageGate;
+import com.focusrecovery.global.exception.ConflictException;
+
+
 
 // 알림·사용자 선택 이력 조회(읽기 전용). 현재 후보 여부·알림 모드·표시 가능 조건과 무관하게 세션의 모든 알림을 반환하며,
 // AI 호출·후보 생성·shownAt 기록·복구 처리를 하지 않는다.
@@ -23,14 +27,18 @@ public class AlertHistoryService {
 
 	private final WorkSessionRepository workSessionRepository;
 	private final NotificationRepository notificationRepository;
+	private final V2StorageGate v2Gate;
 
-	public AlertHistoryService(WorkSessionRepository workSessionRepository, NotificationRepository notificationRepository) {
+	public AlertHistoryService(WorkSessionRepository workSessionRepository, NotificationRepository notificationRepository, V2StorageGate v2Gate) {
+		this.v2Gate = v2Gate;
 		this.workSessionRepository = workSessionRepository;
 		this.notificationRepository = notificationRepository;
 	}
 
 	public AlertHistoryPageResponse history(UUID sessionId, int page, int size) {
 		WorkSession session = workSessionRepository.findById(sessionId).orElseThrow(SessionNotFoundException::new);
+		v2Gate.checkAccess(session);
+		if (session.isV2()) throw new ConflictException("V2_ALERT_DISABLED", "v2 알림은 비활성 상태입니다.");
 		return AlertHistoryPageResponse.from(notificationRepository.findHistoryBySessionId(sessionId, PageRequest.of(page, size))
 			.map(row -> AlertHistoryItem.of(row, session.getGoalText())));
 	}

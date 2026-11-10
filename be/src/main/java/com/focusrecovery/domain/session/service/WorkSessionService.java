@@ -18,16 +18,21 @@ import com.focusrecovery.domain.session.exception.IdempotencyKeyMismatchExceptio
 import com.focusrecovery.domain.session.exception.SessionNotFoundException;
 import com.focusrecovery.domain.session.repository.WorkSessionRepository;
 import com.focusrecovery.domain.visit.service.PageVisitService;
+import com.focusrecovery.global.config.V2StorageGate;
+
+
 
 @Service
 public class WorkSessionService {
 
 	private final WorkSessionRepository workSessionRepository;
+	private final V2StorageGate v2Gate;
 	private final PageVisitService pageVisitService;
 	private final AnalysisRequestService analysisRequestService;
 
 	public WorkSessionService(WorkSessionRepository workSessionRepository, PageVisitService pageVisitService,
-		AnalysisRequestService analysisRequestService) {
+		AnalysisRequestService analysisRequestService, V2StorageGate v2Gate) {
+		this.v2Gate = v2Gate;
 		this.workSessionRepository = workSessionRepository;
 		this.pageVisitService = pageVisitService;
 		this.analysisRequestService = analysisRequestService;
@@ -35,28 +40,34 @@ public class WorkSessionService {
 
 	// 트랜잭션을 걸지 않는다: 동시 요청으로 유니크 제약이 위반되면 저장 트랜잭션이 끝난 뒤 다시 조회해야 한다
 	public WorkSessionResponse create(String goalText, String idempotencyKey) {
-		String strippedGoal = goalText.strip();
-		if (idempotencyKey == null) {
-			return WorkSessionResponse.from(workSessionRepository.save(WorkSession.start(strippedGoal, null)));
-		}
-		return workSessionRepository.findByIdempotencyKey(idempotencyKey)
-			.map(existing -> replay(existing, strippedGoal))
-			.orElseGet(() -> {
-				try {
-					return WorkSessionResponse.from(
-						workSessionRepository.saveAndFlush(WorkSession.start(strippedGoal, idempotencyKey)));
-				} catch (DataIntegrityViolationException e) {
-					// 같은 키의 동시 요청이 먼저 저장된 경우: 그 세션을 반환한다
-					WorkSession existing = workSessionRepository.findByIdempotencyKey(idempotencyKey).orElseThrow(() -> e);
-					return replay(existing, strippedGoal);
-				}
-			});
+		return create(goalText, idempotencyKey, null);
 	}
 
-	private WorkSessionResponse replay(WorkSession existing, String goalText) {
-		if (!existing.getGoalText().equals(goalText)) {
+	public WorkSessionResponse create(String goalText, String idempotencyKey, String requestedVersion) {
+		String version = v2Gate.version(requestedVersion);
+		String strippedGoal = goalText.strip();
+		// 키의 버전 충돌은 기능 비활성화 상태에서도 기존 충돌로 보고한다.
+		if (idempotencyKey != null) {
+			var existing = workSessionRepository.findByIdempotencyKey(idempotencyKey);
+			if (existing.isPresent()) return replay(existing.get(), strippedGoal, version);
+		}
+		if ("2.0".equals(version)) v2Gate.requireEnabled();
+		if (idempotencyKey == null) {
+			return WorkSessionResponse.from(workSessionRepository.save(WorkSession.start(strippedGoal, null, version)));
+		}
+		try {
+			return WorkSessionResponse.from(workSessionRepository.saveAndFlush(WorkSession.start(strippedGoal, idempotencyKey, version)));
+		} catch (DataIntegrityViolationException e) {
+			WorkSession existing = workSessionRepository.findByIdempotencyKey(idempotencyKey).orElseThrow(() -> e);
+			return replay(existing, strippedGoal, version);
+		}
+	}
+
+	private WorkSessionResponse replay(WorkSession existing, String goalText, String version) {
+		if (!existing.getGoalText().equals(goalText) || !existing.getCollectionSpecVersion().equals(version)) {
 			throw new IdempotencyKeyMismatchException();
 		}
+		v2Gate.checkAccess(existing);
 		return WorkSessionResponse.from(existing);
 	}
 
@@ -66,6 +77,7 @@ public class WorkSessionService {
 	public WorkSessionResponse end(UUID sessionId, List<EndWorkSessionRequest.FinalBehavior> finalBehaviors) {
 		WorkSession session = workSessionRepository.findForUpdateBySessionId(sessionId)
 			.orElseThrow(SessionNotFoundException::new);
+		v2Gate.checkAccess(session);
 		if (session.getStatus() == WorkSessionStatus.ENDED) {
 			return WorkSessionResponse.from(session);
 		}
@@ -75,14 +87,14 @@ public class WorkSessionService {
 		}
 		session.end(now);
 		// 세션 종료로 모든 방문의 행동 정보가 확정되므로 아직 분석을 요청하지 않은 구간을 요청한다(수집 명세 8항)
-		analysisRequestService.requestAllWindows(sessionId, now);
+		if (!session.isV2()) analysisRequestService.requestAllWindows(sessionId, now);
 		return WorkSessionResponse.from(session);
 	}
 
 	@Transactional(readOnly = true)
 	public WorkSessionResponse get(UUID sessionId) {
 		return workSessionRepository.findById(sessionId)
-			.map(WorkSessionResponse::from)
+			.map(session -> { v2Gate.checkAccess(session); return WorkSessionResponse.from(session); })
 			.orElseThrow(SessionNotFoundException::new);
 	}
 }

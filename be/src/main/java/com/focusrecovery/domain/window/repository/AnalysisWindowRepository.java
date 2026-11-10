@@ -11,6 +11,12 @@ import com.focusrecovery.domain.window.entity.AnalysisWindow;
 
 public interface AnalysisWindowRepository extends JpaRepository<AnalysisWindow, UUID> {
 
+	@org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+	Optional<AnalysisWindow> findForUpdateByWindowId(UUID windowId);
+	List<AnalysisWindow> findBySessionIdOrderByWindowIndex(UUID sessionId);
+	@Query("select w from AnalysisWindow w join w.visits v where w.sessionId = :sessionId and v.visitId = :visitId order by w.windowIndex")
+	List<AnalysisWindow> findContainingVisit(UUID sessionId, UUID visitId);
+
 	Optional<AnalysisWindow> findFirstBySessionIdOrderByWindowIndexDesc(UUID sessionId);
 
 	@Query("""
