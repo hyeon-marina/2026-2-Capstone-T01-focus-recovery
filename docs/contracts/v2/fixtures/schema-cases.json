@@ -1,0 +1,1913 @@
+{
+  "status": "PROPOSED",
+  "cases": [
+    {
+      "name": "visit",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "patch",
+      "contract": "BehaviorPatch",
+      "input": {
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "analysis-request",
+      "contract": "AnalysisRequest",
+      "input": {
+        "apiContractVersion": 2,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "windowIndex": 1,
+        "goalText": "공개 문서 비교하기",
+        "visits": [
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 2,
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "sequence": 2,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 3,
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "sequence": 3,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          }
+        ],
+        "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "analysis-response",
+      "contract": "AnalysisResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e",
+        "pageResults": [
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "label": "DIRECT",
+            "semanticRelevance": 0.5,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          },
+          {
+            "position": 2,
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "label": "DIRECT",
+            "semanticRelevance": 0.5,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          },
+          {
+            "position": 3,
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "label": "UNRELATED",
+            "semanticRelevance": 0.5,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          }
+        ],
+        "modelVersions": {
+          "embedding": "synthetic-v1",
+          "context": "synthetic-v1",
+          "prompt": "synthetic-v1",
+          "labelGuide": "proposed-v1"
+        },
+        "analyzedAt": "2026-11-10T00:00:00.000Z"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "window-state",
+      "contract": "WindowState",
+      "input": {
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "stateVersion": 1,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "ruleVersion": "suffix3-v2-proposed.1",
+        "judgedAt": "2026-11-10T00:00:00.000Z",
+        "finalState": "NORMAL",
+        "behaviorSnapshot": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ],
+        "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "status",
+      "contract": "StatusResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "sessionStatus": "ACTIVE",
+        "currentDecision": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "stateVersion": 1,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "decisionStatus": "COMPLETED",
+          "finalState": "NORMAL",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "errorCode": null
+        },
+        "lastSuccessfulState": null,
+        "alert": null
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "diagnostic",
+      "contract": "CollectionFailure",
+      "input": {
+        "failureId": "00000000-0000-4000-8000-000000000095",
+        "candidateId": "00000000-0000-4000-8000-000000000001",
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "status": "EXTRACTION_FAILED",
+        "observedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "reasonCode": "CONTENT_UNAVAILABLE"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "error",
+      "contract": "FailureResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "code": "AI_ANALYSIS_FAILED",
+        "message": "분석을 완료하지 못했습니다.",
+        "fieldErrors": []
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "retraction",
+      "contract": "PrivacyRetraction",
+      "input": {
+        "retractionId": "00000000-0000-4000-8000-000000000096",
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "observedAt": "2026-11-10T00:00:00.000Z",
+        "reasonCode": "SENSITIVE_CONTENT"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "manifest",
+      "contract": "Manifest",
+      "input": {
+        "datasetVersion": "synthetic-2.0-proposed.1",
+        "collectionSpecVersion": "2.0",
+        "apiContractVersion": 2,
+        "ruleVersion": "suffix3-v2-proposed.1",
+        "labelGuideVersion": "synthetic-v1",
+        "exportedAt": "2026-11-10T00:00:00.000Z",
+        "sourceCommit": "6e15dd3fa1789e96c42bc4f33250c4221d6d2616",
+        "referencePolicy": "FIRST_SUCCESSFUL_STATE",
+        "splitByGoal": {
+          "train": [
+            "G01",
+            "G02",
+            "G03",
+            "G04",
+            "G05",
+            "G06",
+            "G07",
+            "G08",
+            "G09",
+            "G10",
+            "G11",
+            "G12"
+          ],
+          "validation": [
+            "G13",
+            "G14",
+            "G15",
+            "G16"
+          ],
+          "test": [
+            "G17",
+            "G18",
+            "G19",
+            "G20"
+          ]
+        },
+        "files": [
+          {
+            "path": "visits.jsonl",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "rowCount": 0
+          }
+        ],
+        "counts": {
+          "scriptedSessions": 0,
+          "naturalSessions": 0,
+          "validVisits": 0,
+          "windows": 0,
+          "labeledWindows": 0
+        },
+        "exclusions": {
+          "extractionFailed": 0,
+          "invalidated": 0,
+          "unjudgeable": 0,
+          "unlabeled": 0,
+          "delayedReference": 0
+        },
+        "consentPolicyVersion": "SYNTHETIC-NO-CONSENT-CLAIM",
+        "deletionRevision": 0
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "post-ack",
+      "contract": "PageVisitAck",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "updatedAt": null
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "patch-ack",
+      "contract": "BehaviorAck",
+      "input": {
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "updatedAt": "2026-11-10T00:00:00.000Z",
+        "applied": false
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "state-page",
+      "contract": "StatePageResponse",
+      "input": {
+        "items": [
+          {
+            "windowId": "00000000-0000-4000-8000-000000000094",
+            "stateVersion": 1,
+            "analysisId": "00000000-0000-4000-8000-000000000093",
+            "ruleVersion": "suffix3-v2-proposed.1",
+            "judgedAt": "2026-11-10T00:00:00.000Z",
+            "finalState": "NORMAL",
+            "behaviorSnapshot": [
+              {
+                "visitId": "00000000-0000-4000-8000-000000000001",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000002",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000003",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              }
+            ],
+            "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "page": 0,
+        "size": 20,
+        "totalElements": 1,
+        "totalPages": 1
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "retraction-ack",
+      "contract": "RetractionAck",
+      "input": {
+        "retractionId": "00000000-0000-4000-8000-000000000096",
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "status": "QUARANTINED",
+        "invalidatedWindowIds": [
+          "00000000-0000-4000-8000-000000000094"
+        ]
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "post-duration-4999",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 4999,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "minimum"
+      }
+    },
+    {
+      "name": "post-duration-5000",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "patch-duration-299999",
+      "contract": "BehaviorPatch",
+      "input": {
+        "activeDurationMs": 299999,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "patch-duration-300000",
+      "contract": "BehaviorPatch",
+      "input": {
+        "activeDurationMs": 300000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "uuid-invalid",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "bad",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "format"
+      }
+    },
+    {
+      "name": "uuid-wrong-version",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-1000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "pattern"
+      }
+    },
+    {
+      "name": "time-offset",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T09:00:00.000+09:00",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "pattern"
+      }
+    },
+    {
+      "name": "time-nonexistent",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-02-30T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "format"
+      }
+    },
+    {
+      "name": "time-no-millis",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "pattern"
+      }
+    },
+    {
+      "name": "duration-negative",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": -1,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "minimum"
+      }
+    },
+    {
+      "name": "duration-over-safe",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 9007199254740992,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "maximum"
+      }
+    },
+    {
+      "name": "duration-fraction",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000.5,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "type"
+      }
+    },
+    {
+      "name": "duration-bool",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": true,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "type"
+      }
+    },
+    {
+      "name": "sequence-zero",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 0,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "minimum"
+      }
+    },
+    {
+      "name": "sequence-over-int",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 2147483648,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "maximum"
+      }
+    },
+    {
+      "name": "sequence-string",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": "1",
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "type"
+      }
+    },
+    {
+      "name": "content-null",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": null,
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "type"
+      }
+    },
+    {
+      "name": "title-null",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": null,
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "type"
+      }
+    },
+    {
+      "name": "extra-field",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS",
+        "rawQuery": "secret-not-real"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "additionalProperties"
+      }
+    },
+    {
+      "name": "url-query",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs?id=1",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "pattern"
+      }
+    },
+    {
+      "name": "url-userinfo",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://u@example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "pattern"
+      }
+    },
+    {
+      "name": "missing-visitId",
+      "contract": "PageVisitPost",
+      "input": {
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "required"
+      }
+    },
+    {
+      "name": "missing-title",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "required"
+      }
+    },
+    {
+      "name": "missing-content",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "required"
+      }
+    },
+    {
+      "name": "missing-searchQuery",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "required"
+      }
+    },
+    {
+      "name": "missing-isSearchResultPage",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "required"
+      }
+    },
+    {
+      "name": "missing-behaviorVersion",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "required"
+      }
+    },
+    {
+      "name": "missing-extractionStatus",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "required"
+      }
+    },
+    {
+      "name": "unicode-5000",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "unicode-5001",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "maxLength"
+      }
+    },
+    {
+      "name": "search-success",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "검색 결과 1건",
+        "searchQuery": "공개 문서",
+        "isSearchResultPage": true,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "search-null",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": true,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "type"
+      }
+    },
+    {
+      "name": "ordinary-query",
+      "contract": "PageVisitPost",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": "공개 문서",
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "type"
+      }
+    },
+    {
+      "name": "diagnostic-spelling",
+      "contract": "CollectionFailure",
+      "input": {
+        "failureId": "00000000-0000-4000-8000-000000000095",
+        "candidateId": "00000000-0000-4000-8000-000000000001",
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "status": "EXTRACTON_FAILED",
+        "observedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "reasonCode": "CONTENT_UNAVAILABLE"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "const"
+      }
+    },
+    {
+      "name": "diagnostic-no-raw",
+      "contract": "CollectionFailure",
+      "input": {
+        "failureId": "00000000-0000-4000-8000-000000000095",
+        "candidateId": "00000000-0000-4000-8000-000000000001",
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "status": "EXTRACTION_FAILED",
+        "observedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "reasonCode": "CONTENT_UNAVAILABLE",
+        "content": "synthetic"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "additionalProperties"
+      }
+    },
+    {
+      "name": "error-unknown",
+      "contract": "FailureResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "code": "EXTRACTON_FAILED",
+        "message": "분석을 완료하지 못했습니다.",
+        "fieldErrors": []
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "enum"
+      }
+    },
+    {
+      "name": "model-cosine-low",
+      "contract": "AnalysisResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e",
+        "pageResults": [
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "label": "DIRECT",
+            "semanticRelevance": -1,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          },
+          {
+            "position": 2,
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "label": "DIRECT",
+            "semanticRelevance": 0.5,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          },
+          {
+            "position": 3,
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "label": "UNRELATED",
+            "semanticRelevance": 0.5,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          }
+        ],
+        "modelVersions": {
+          "embedding": "synthetic-v1",
+          "context": "synthetic-v1",
+          "prompt": "synthetic-v1",
+          "labelGuide": "proposed-v1"
+        },
+        "analyzedAt": "2026-11-10T00:00:00.000Z"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "model-cosine-high",
+      "contract": "AnalysisResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e",
+        "pageResults": [
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "label": "DIRECT",
+            "semanticRelevance": 1.01,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          },
+          {
+            "position": 2,
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "label": "DIRECT",
+            "semanticRelevance": 0.5,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          },
+          {
+            "position": 3,
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "label": "UNRELATED",
+            "semanticRelevance": 0.5,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          }
+        ],
+        "modelVersions": {
+          "embedding": "synthetic-v1",
+          "context": "synthetic-v1",
+          "prompt": "synthetic-v1",
+          "labelGuide": "proposed-v1"
+        },
+        "analyzedAt": "2026-11-10T00:00:00.000Z"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "maximum"
+      }
+    },
+    {
+      "name": "response-no-state",
+      "contract": "AnalysisResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e",
+        "pageResults": [
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "label": "DIRECT",
+            "semanticRelevance": 0.5,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          },
+          {
+            "position": 2,
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "label": "DIRECT",
+            "semanticRelevance": 0.5,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          },
+          {
+            "position": 3,
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "label": "UNRELATED",
+            "semanticRelevance": 0.5,
+            "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+          }
+        ],
+        "modelVersions": {
+          "embedding": "synthetic-v1",
+          "context": "synthetic-v1",
+          "prompt": "synthetic-v1",
+          "labelGuide": "proposed-v1"
+        },
+        "analyzedAt": "2026-11-10T00:00:00.000Z",
+        "finalState": "NORMAL"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "additionalProperties"
+      }
+    },
+    {
+      "name": "analysis-version",
+      "contract": "AnalysisRequest",
+      "input": {
+        "apiContractVersion": 1,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "windowIndex": 1,
+        "goalText": "공개 문서 비교하기",
+        "visits": [
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 2,
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "sequence": 2,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 3,
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "sequence": 3,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          }
+        ],
+        "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "const"
+      }
+    },
+    {
+      "name": "analysis-two",
+      "contract": "AnalysisRequest",
+      "input": {
+        "apiContractVersion": 2,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "windowIndex": 1,
+        "goalText": "공개 문서 비교하기",
+        "visits": [
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 2,
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "sequence": 2,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          }
+        ],
+        "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "minItems"
+      }
+    },
+    {
+      "name": "compose-1",
+      "contract": "CompositionRequest",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "visits": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1
+          }
+        ],
+        "inputFingerprint": "d7d222102dcac13420f511e420528e9e5c6381efdee8de997c91185c89e56b2d"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "composed-1",
+      "contract": "CompositionResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "inputFingerprint": "d7d222102dcac13420f511e420528e9e5c6381efdee8de997c91185c89e56b2d",
+        "composedThroughSequence": 1,
+        "windows": []
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "compose-2",
+      "contract": "CompositionRequest",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "visits": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "sequence": 2
+          }
+        ],
+        "inputFingerprint": "5a0c755544528e4142d704891a1c743b23feb25fb16ed707dde4efaceefa2ce7"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "composed-2",
+      "contract": "CompositionResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "inputFingerprint": "5a0c755544528e4142d704891a1c743b23feb25fb16ed707dde4efaceefa2ce7",
+        "composedThroughSequence": 2,
+        "windows": []
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "compose-3",
+      "contract": "CompositionRequest",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "visits": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "sequence": 2
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "sequence": 3
+          }
+        ],
+        "inputFingerprint": "43b02c1d3e28b198599aeb8a46791cf0058970a555f82b881cb724d3016b1828"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "composed-3",
+      "contract": "CompositionResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "inputFingerprint": "43b02c1d3e28b198599aeb8a46791cf0058970a555f82b881cb724d3016b1828",
+        "composedThroughSequence": 3,
+        "windows": [
+          {
+            "visitIds": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000002",
+              "00000000-0000-4000-8000-000000000003"
+            ],
+            "endVisitId": "00000000-0000-4000-8000-000000000003"
+          }
+        ]
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "compose-4",
+      "contract": "CompositionRequest",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "visits": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "sequence": 2
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "sequence": 3
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000004",
+            "sequence": 4
+          }
+        ],
+        "inputFingerprint": "58ae35302290dfb8eae3313959f166ee9aa559488c5f9d4b86806dd11a14c427"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "composed-4",
+      "contract": "CompositionResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "inputFingerprint": "58ae35302290dfb8eae3313959f166ee9aa559488c5f9d4b86806dd11a14c427",
+        "composedThroughSequence": 4,
+        "windows": [
+          {
+            "visitIds": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000002",
+              "00000000-0000-4000-8000-000000000003"
+            ],
+            "endVisitId": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "visitIds": [
+              "00000000-0000-4000-8000-000000000002",
+              "00000000-0000-4000-8000-000000000003",
+              "00000000-0000-4000-8000-000000000004"
+            ],
+            "endVisitId": "00000000-0000-4000-8000-000000000004"
+          }
+        ]
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "compose-5",
+      "contract": "CompositionRequest",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "visits": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "sequence": 2
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "sequence": 3
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000004",
+            "sequence": 4
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000005",
+            "sequence": 5
+          }
+        ],
+        "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "composed-5",
+      "contract": "CompositionResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff",
+        "composedThroughSequence": 5,
+        "windows": [
+          {
+            "visitIds": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000002",
+              "00000000-0000-4000-8000-000000000003"
+            ],
+            "endVisitId": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "visitIds": [
+              "00000000-0000-4000-8000-000000000002",
+              "00000000-0000-4000-8000-000000000003",
+              "00000000-0000-4000-8000-000000000004"
+            ],
+            "endVisitId": "00000000-0000-4000-8000-000000000004"
+          },
+          {
+            "visitIds": [
+              "00000000-0000-4000-8000-000000000003",
+              "00000000-0000-4000-8000-000000000004",
+              "00000000-0000-4000-8000-000000000005"
+            ],
+            "endVisitId": "00000000-0000-4000-8000-000000000005"
+          }
+        ]
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "compose-empty",
+      "contract": "CompositionRequest",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "visits": [],
+        "inputFingerprint": "d7d222102dcac13420f511e420528e9e5c6381efdee8de997c91185c89e56b2d"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "minItems"
+      }
+    },
+    {
+      "name": "compose-negative-cursor",
+      "contract": "CompositionRequest",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": -1,
+        "visits": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1
+          }
+        ],
+        "inputFingerprint": "d7d222102dcac13420f511e420528e9e5c6381efdee8de997c91185c89e56b2d"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "minimum"
+      }
+    },
+    {
+      "name": "composition-short-window",
+      "contract": "ComposedWindow",
+      "input": {
+        "visitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "endVisitId": "00000000-0000-4000-8000-000000000002"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "minItems"
+      }
+    },
+    {
+      "name": "state-version-zero",
+      "contract": "WindowState",
+      "input": {
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "stateVersion": 0,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "ruleVersion": "suffix3-v2-proposed.1",
+        "judgedAt": "2026-11-10T00:00:00.000Z",
+        "finalState": "NORMAL",
+        "behaviorSnapshot": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ],
+        "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "minimum"
+      }
+    },
+    {
+      "name": "status-pending",
+      "contract": "StatusResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "sessionStatus": "ACTIVE",
+        "currentDecision": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "stateVersion": null,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "decisionStatus": "PENDING",
+          "finalState": null,
+          "judgedAt": null,
+          "errorCode": null
+        },
+        "lastSuccessfulState": null,
+        "alert": null
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "status-failed",
+      "contract": "StatusResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "sessionStatus": "ACTIVE",
+        "currentDecision": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "stateVersion": null,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "decisionStatus": "FAILED",
+          "finalState": null,
+          "judgedAt": null,
+          "errorCode": "AI_ANALYSIS_FAILED"
+        },
+        "lastSuccessfulState": null,
+        "alert": null
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "status-failure-normal",
+      "contract": "StatusResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "sessionStatus": "ACTIVE",
+        "currentDecision": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "stateVersion": 1,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "decisionStatus": "FAILED",
+          "finalState": "NORMAL",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "errorCode": "AI_ANALYSIS_FAILED"
+        },
+        "lastSuccessfulState": null,
+        "alert": null
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "anyOf"
+      }
+    },
+    {
+      "name": "status-ended-alert",
+      "contract": "StatusResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "sessionStatus": "ENDED",
+        "currentDecision": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "stateVersion": 1,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "decisionStatus": "COMPLETED",
+          "finalState": "NORMAL",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "errorCode": null
+        },
+        "lastSuccessfulState": null,
+        "alert": {
+          "alertId": "00000000-0000-4000-8000-000000000097",
+          "alertType": "AI",
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 1,
+          "createdAt": "2026-11-10T00:00:00.000Z",
+          "shownAt": null
+        }
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "type"
+      }
+    },
+    {
+      "name": "state-page-size",
+      "contract": "StatePageResponse",
+      "input": {
+        "items": [],
+        "page": 0,
+        "size": 101,
+        "totalElements": 0,
+        "totalPages": 0
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "maximum"
+      }
+    }
+  ]
+}

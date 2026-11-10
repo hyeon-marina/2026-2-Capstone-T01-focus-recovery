@@ -1,0 +1,3136 @@
+{
+  "status": "PROPOSED",
+  "scenarios": [
+    {
+      "name": "revisit-3999",
+      "kind": "revisit",
+      "input": {
+        "elapsedMs": 3999,
+        "sameTab": true,
+        "sameTarget": true,
+        "sameEpoch": true
+      },
+      "expected": "REUSE"
+    },
+    {
+      "name": "revisit-4000",
+      "kind": "revisit",
+      "input": {
+        "elapsedMs": 4000,
+        "sameTab": true,
+        "sameTarget": true,
+        "sameEpoch": true
+      },
+      "expected": "NEW"
+    },
+    {
+      "name": "different-tab",
+      "kind": "revisit",
+      "input": {
+        "elapsedMs": 3000,
+        "sameTab": false,
+        "sameTarget": true,
+        "sameEpoch": true
+      },
+      "expected": "NEW"
+    },
+    {
+      "name": "same-normalized-different-content",
+      "kind": "revisit",
+      "input": {
+        "elapsedMs": 3000,
+        "sameTab": true,
+        "sameTarget": false,
+        "sameEpoch": true
+      },
+      "expected": "NEW"
+    },
+    {
+      "name": "worker-restart",
+      "kind": "revisit",
+      "input": {
+        "elapsedMs": 3000,
+        "sameTab": true,
+        "sameTarget": true,
+        "sameEpoch": false
+      },
+      "expected": "RECOVERY"
+    },
+    {
+      "name": "clock-negative",
+      "kind": "revisit",
+      "input": {
+        "elapsedMs": -1,
+        "sameTab": true,
+        "sameTarget": true,
+        "sameEpoch": true
+      },
+      "expected": "RECOVERY"
+    },
+    {
+      "name": "five-minute-before",
+      "kind": "patch",
+      "input": {
+        "old": {
+          "activeDurationMs": 299998,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1
+        },
+        "request": {
+          "activeDurationMs": 299999,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 2
+        }
+      },
+      "expected": {
+        "applied": true,
+        "crossed": false
+      }
+    },
+    {
+      "name": "five-minute-at",
+      "kind": "patch",
+      "input": {
+        "old": {
+          "activeDurationMs": 299999,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1
+        },
+        "request": {
+          "activeDurationMs": 300000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 2
+        }
+      },
+      "expected": {
+        "applied": true,
+        "crossed": true
+      }
+    },
+    {
+      "name": "late-threshold",
+      "kind": "patch",
+      "input": {
+        "old": {
+          "activeDurationMs": 5000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1
+        },
+        "request": {
+          "activeDurationMs": 301234,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 2
+        }
+      },
+      "expected": {
+        "applied": true,
+        "crossed": true
+      }
+    },
+    {
+      "name": "ack-lost-replay",
+      "kind": "patch",
+      "input": {
+        "old": {
+          "activeDurationMs": 300000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 2
+        },
+        "request": {
+          "activeDurationMs": 300000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 2
+        }
+      },
+      "expected": {
+        "applied": false,
+        "crossed": false
+      }
+    },
+    {
+      "name": "stale-behavior",
+      "kind": "patch",
+      "input": {
+        "old": {
+          "activeDurationMs": 300000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 3
+        },
+        "request": {
+          "activeDurationMs": 299999,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 2
+        }
+      },
+      "expected": {
+        "applied": false,
+        "crossed": false
+      }
+    },
+    {
+      "name": "same-version-different",
+      "kind": "patch",
+      "input": {
+        "old": {
+          "activeDurationMs": 5000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1
+        },
+        "request": {
+          "activeDurationMs": 6000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1
+        }
+      },
+      "expected": {
+        "error": "BEHAVIOR_VERSION_CONFLICT"
+      }
+    },
+    {
+      "name": "counter-decrease",
+      "kind": "patch",
+      "input": {
+        "old": {
+          "activeDurationMs": 5000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1
+        },
+        "request": {
+          "activeDurationMs": 4999,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 2
+        }
+      },
+      "expected": {
+        "error": "BEHAVIOR_COUNTER_DECREASED"
+      }
+    },
+    {
+      "name": "higher-version-same-values",
+      "kind": "patch",
+      "input": {
+        "old": {
+          "activeDurationMs": 5000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1
+        },
+        "request": {
+          "activeDurationMs": 5000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 2
+        }
+      },
+      "expected": {
+        "applied": true,
+        "crossed": false
+      }
+    },
+    {
+      "name": "windows-1",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            }
+          ],
+          "inputFingerprint": "d7d222102dcac13420f511e420528e9e5c6381efdee8de997c91185c89e56b2d"
+        },
+        "persistedPrefix": [
+          1
+        ],
+        "previousTail": []
+      },
+      "expected": {
+        "through": 1,
+        "windows": []
+      }
+    },
+    {
+      "name": "windows-2",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            }
+          ],
+          "inputFingerprint": "5a0c755544528e4142d704891a1c743b23feb25fb16ed707dde4efaceefa2ce7"
+        },
+        "persistedPrefix": [
+          1,
+          2
+        ],
+        "previousTail": []
+      },
+      "expected": {
+        "through": 2,
+        "windows": []
+      }
+    },
+    {
+      "name": "windows-3",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            }
+          ],
+          "inputFingerprint": "43b02c1d3e28b198599aeb8a46791cf0058970a555f82b881cb724d3016b1828"
+        },
+        "persistedPrefix": [
+          1,
+          2,
+          3
+        ],
+        "previousTail": []
+      },
+      "expected": {
+        "through": 3,
+        "windows": [
+          [
+            1,
+            2,
+            3
+          ]
+        ]
+      }
+    },
+    {
+      "name": "windows-4",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            }
+          ],
+          "inputFingerprint": "58ae35302290dfb8eae3313959f166ee9aa559488c5f9d4b86806dd11a14c427"
+        },
+        "persistedPrefix": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "previousTail": []
+      },
+      "expected": {
+        "through": 4,
+        "windows": [
+          [
+            1,
+            2,
+            3
+          ],
+          [
+            2,
+            3,
+            4
+          ]
+        ]
+      }
+    },
+    {
+      "name": "windows-5",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000005",
+              "sequence": 5
+            }
+          ],
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff"
+        },
+        "persistedPrefix": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "previousTail": []
+      },
+      "expected": {
+        "through": 5,
+        "windows": [
+          [
+            1,
+            2,
+            3
+          ],
+          [
+            2,
+            3,
+            4
+          ],
+          [
+            3,
+            4,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "name": "sequence-number-gap",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000006",
+              "sequence": 6
+            }
+          ],
+          "inputFingerprint": "08f6686d676f266e5facb04572c1262b8ab58eb4f0b56e4f3f365297ff2f304b"
+        },
+        "persistedPrefix": [
+          1,
+          3,
+          4,
+          6
+        ],
+        "previousTail": []
+      },
+      "expected": {
+        "through": 6,
+        "windows": [
+          [
+            1,
+            3,
+            4
+          ],
+          [
+            3,
+            4,
+            6
+          ]
+        ]
+      }
+    },
+    {
+      "name": "tail-after-two",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 2,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            }
+          ],
+          "inputFingerprint": "2b0b399bc079f2a1ddad7eee3f466793aa348d3b7c634da1adee5a5593bc6784"
+        },
+        "persistedPrefix": [
+          1,
+          2,
+          3
+        ],
+        "previousTail": [
+          1,
+          2
+        ]
+      },
+      "expected": {
+        "through": 3,
+        "windows": [
+          [
+            1,
+            2,
+            3
+          ]
+        ]
+      }
+    },
+    {
+      "name": "batch-next",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 6,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000006",
+              "sequence": 6
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000009",
+              "sequence": 9
+            }
+          ],
+          "inputFingerprint": "83f182c5e71e54b27abcd0174e96a13ddf53fca6a3cce6f294cc8a2a710c8d7c"
+        },
+        "persistedPrefix": [
+          4,
+          6,
+          9
+        ],
+        "previousTail": [
+          4,
+          6
+        ]
+      },
+      "expected": {
+        "through": 9,
+        "windows": [
+          [
+            4,
+            6,
+            9
+          ]
+        ]
+      }
+    },
+    {
+      "name": "reverse-input",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            }
+          ],
+          "inputFingerprint": "5b695c7d0f1af888396b50726731d649f5afbb00ac3d56f32499a6a69f888003"
+        },
+        "persistedPrefix": [
+          1,
+          2,
+          3
+        ],
+        "previousTail": []
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "duplicate-input",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            }
+          ],
+          "inputFingerprint": "d6c2f64aab0458c47d39a47292d1ca4b9b798d76646479a025e4ab40e90f85a9"
+        },
+        "persistedPrefix": [
+          1,
+          3
+        ],
+        "previousTail": []
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "no-new-input",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 2,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            }
+          ],
+          "inputFingerprint": "8feae45fb99b0e52532c4219882c617fd32d43c03bc768a616786d7987790c2f"
+        },
+        "persistedPrefix": [
+          1,
+          2
+        ],
+        "previousTail": [
+          1,
+          2
+        ]
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "omitted-visit",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            }
+          ],
+          "inputFingerprint": "812208b20c2c4b5ce189de647770e1b39131f82c07f5de8a09f32d240751d7e6"
+        },
+        "persistedPrefix": [
+          1,
+          3,
+          4
+        ],
+        "previousTail": []
+      },
+      "expected": {
+        "error": "COMPOSE_INPUT_MISMATCH"
+      }
+    },
+    {
+      "name": "missing-tail",
+      "kind": "compose",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 2,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            }
+          ],
+          "inputFingerprint": "3b92d1c878e602df45b6791949084d59fdd07db8498e5b51b2128a5de07a93ae"
+        },
+        "persistedPrefix": [
+          1,
+          2,
+          3
+        ],
+        "previousTail": [
+          1,
+          2
+        ]
+      },
+      "expected": {
+        "error": "COMPOSE_INPUT_MISMATCH"
+      }
+    },
+    {
+      "name": "post-replay",
+      "kind": "replay",
+      "input": {
+        "type": "post",
+        "original": {
+          "visitId": "00000000-0000-4000-8000-000000000001",
+          "sequence": 1,
+          "browserTabKey": "00000000-0000-4000-8000-000000000090",
+          "normalizedUrl": "https://example.org/docs",
+          "domain": "example.org",
+          "title": "합성 공개 문서",
+          "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+          "searchQuery": null,
+          "isSearchResultPage": false,
+          "visitedAt": "2026-11-10T00:00:00.000Z",
+          "activeDurationMs": 5000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1,
+          "extractionStatus": "SUCCESS"
+        },
+        "request": {
+          "visitId": "00000000-0000-4000-8000-000000000001",
+          "sequence": 1,
+          "browserTabKey": "00000000-0000-4000-8000-000000000090",
+          "normalizedUrl": "https://example.org/docs",
+          "domain": "example.org",
+          "title": "합성 공개 문서",
+          "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+          "searchQuery": null,
+          "isSearchResultPage": false,
+          "visitedAt": "2026-11-10T00:00:00.000Z",
+          "activeDurationMs": 5000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1,
+          "extractionStatus": "SUCCESS"
+        }
+      },
+      "expected": "REPLAY"
+    },
+    {
+      "name": "post-id-conflict",
+      "kind": "replay",
+      "input": {
+        "type": "post",
+        "original": {
+          "visitId": "00000000-0000-4000-8000-000000000001",
+          "sequence": 1,
+          "browserTabKey": "00000000-0000-4000-8000-000000000090",
+          "normalizedUrl": "https://example.org/docs",
+          "domain": "example.org",
+          "title": "합성 공개 문서",
+          "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+          "searchQuery": null,
+          "isSearchResultPage": false,
+          "visitedAt": "2026-11-10T00:00:00.000Z",
+          "activeDurationMs": 5000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1,
+          "extractionStatus": "SUCCESS"
+        },
+        "request": {
+          "visitId": "00000000-0000-4000-8000-000000000001",
+          "sequence": 1,
+          "browserTabKey": "00000000-0000-4000-8000-000000000090",
+          "normalizedUrl": "https://example.org/docs",
+          "domain": "example.org",
+          "title": "다른 합성 제목",
+          "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+          "searchQuery": null,
+          "isSearchResultPage": false,
+          "visitedAt": "2026-11-10T00:00:00.000Z",
+          "activeDurationMs": 5000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1,
+          "extractionStatus": "SUCCESS"
+        }
+      },
+      "expected": {
+        "error": "VISIT_ID_CONFLICT"
+      }
+    },
+    {
+      "name": "composition-replay",
+      "kind": "replay",
+      "input": {
+        "type": "composition",
+        "original": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            }
+          ],
+          "inputFingerprint": "43b02c1d3e28b198599aeb8a46791cf0058970a555f82b881cb724d3016b1828"
+        },
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            }
+          ],
+          "inputFingerprint": "43b02c1d3e28b198599aeb8a46791cf0058970a555f82b881cb724d3016b1828"
+        }
+      },
+      "expected": "REPLAY"
+    },
+    {
+      "name": "composition-id-conflict",
+      "kind": "replay",
+      "input": {
+        "type": "composition",
+        "original": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            }
+          ],
+          "inputFingerprint": "43b02c1d3e28b198599aeb8a46791cf0058970a555f82b881cb724d3016b1828"
+        },
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            }
+          ],
+          "inputFingerprint": "35907b0c200cc7f7129f2628f1db72dd4f1b67603b6af628d26cb786add4caaa"
+        }
+      },
+      "expected": {
+        "error": "COMPOSE_ID_CONFLICT"
+      }
+    },
+    {
+      "name": "analysis-replay",
+      "kind": "replay",
+      "input": {
+        "type": "analysis",
+        "original": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "goalText": "공개 문서 비교하기",
+          "visits": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            }
+          ],
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+        },
+        "request": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "goalText": "공개 문서 비교하기",
+          "visits": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            }
+          ],
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+        }
+      },
+      "expected": "REPLAY"
+    },
+    {
+      "name": "analysis-id-conflict",
+      "kind": "replay",
+      "input": {
+        "type": "analysis",
+        "original": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "goalText": "공개 문서 비교하기",
+          "visits": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            }
+          ],
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+        },
+        "request": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "goalText": "다른 합성 목표입니다",
+          "visits": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            }
+          ],
+          "inputFingerprint": "98b99630b0b9164fb2fac5d956d8877e3d483e9f10da511fdd234b6c30b2949b"
+        }
+      },
+      "expected": {
+        "error": "ANALYSIS_ID_CONFLICT"
+      }
+    },
+    {
+      "name": "post-replay-new-behavior",
+      "kind": "replay",
+      "input": {
+        "type": "post",
+        "original": {
+          "visitId": "00000000-0000-4000-8000-000000000001",
+          "sequence": 1,
+          "browserTabKey": "00000000-0000-4000-8000-000000000090",
+          "normalizedUrl": "https://example.org/docs",
+          "domain": "example.org",
+          "title": "합성 공개 문서",
+          "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+          "searchQuery": null,
+          "isSearchResultPage": false,
+          "visitedAt": "2026-11-10T00:00:00.000Z",
+          "activeDurationMs": 5000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 1,
+          "extractionStatus": "SUCCESS"
+        },
+        "request": {
+          "visitId": "00000000-0000-4000-8000-000000000001",
+          "sequence": 1,
+          "browserTabKey": "00000000-0000-4000-8000-000000000090",
+          "normalizedUrl": "https://example.org/docs",
+          "domain": "example.org",
+          "title": "합성 공개 문서",
+          "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+          "searchQuery": null,
+          "isSearchResultPage": false,
+          "visitedAt": "2026-11-10T00:00:00.000Z",
+          "activeDurationMs": 300000,
+          "tabSwitchCount": 0,
+          "behaviorVersion": 2,
+          "extractionStatus": "SUCCESS"
+        }
+      },
+      "expected": "REPLAY"
+    },
+    {
+      "name": "new-monotonic",
+      "kind": "ingest",
+      "input": {
+        "sequence": 6,
+        "lastAcceptedSequence": 4
+      },
+      "expected": "ACCEPT"
+    },
+    {
+      "name": "gap-monotonic",
+      "kind": "ingest",
+      "input": {
+        "sequence": 9,
+        "lastAcceptedSequence": 4
+      },
+      "expected": "ACCEPT"
+    },
+    {
+      "name": "late-new-sequence",
+      "kind": "ingest",
+      "input": {
+        "sequence": 3,
+        "lastAcceptedSequence": 4
+      },
+      "expected": {
+        "error": "VISIT_SEQUENCE_OUT_OF_ORDER"
+      }
+    },
+    {
+      "name": "analysis-response-match",
+      "kind": "analysis-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "goalText": "공개 문서 비교하기",
+          "visits": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            }
+          ],
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e",
+          "pageResults": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "label": "UNRELATED",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            }
+          ],
+          "modelVersions": {
+            "embedding": "synthetic-v1",
+            "context": "synthetic-v1",
+            "prompt": "synthetic-v1",
+            "labelGuide": "proposed-v1"
+          },
+          "analyzedAt": "2026-11-10T00:00:00.000Z"
+        }
+      },
+      "expected": "ACCEPT"
+    },
+    {
+      "name": "analysis-wrong-window",
+      "kind": "analysis-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "goalText": "공개 문서 비교하기",
+          "visits": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            }
+          ],
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000099",
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e",
+          "pageResults": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "label": "UNRELATED",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            }
+          ],
+          "modelVersions": {
+            "embedding": "synthetic-v1",
+            "context": "synthetic-v1",
+            "prompt": "synthetic-v1",
+            "labelGuide": "proposed-v1"
+          },
+          "analyzedAt": "2026-11-10T00:00:00.000Z"
+        }
+      },
+      "expected": {
+        "error": "AI_INVALID_RESPONSE"
+      }
+    },
+    {
+      "name": "analysis-wrong-hash",
+      "kind": "analysis-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "goalText": "공개 문서 비교하기",
+          "visits": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            }
+          ],
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "inputFingerprint": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "pageResults": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "label": "UNRELATED",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            }
+          ],
+          "modelVersions": {
+            "embedding": "synthetic-v1",
+            "context": "synthetic-v1",
+            "prompt": "synthetic-v1",
+            "labelGuide": "proposed-v1"
+          },
+          "analyzedAt": "2026-11-10T00:00:00.000Z"
+        }
+      },
+      "expected": {
+        "error": "AI_INVALID_RESPONSE"
+      }
+    },
+    {
+      "name": "analysis-positions-duplicate",
+      "kind": "analysis-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "goalText": "공개 문서 비교하기",
+          "visits": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            }
+          ],
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e",
+          "pageResults": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            }
+          ],
+          "modelVersions": {
+            "embedding": "synthetic-v1",
+            "context": "synthetic-v1",
+            "prompt": "synthetic-v1",
+            "labelGuide": "proposed-v1"
+          },
+          "analyzedAt": "2026-11-10T00:00:00.000Z"
+        }
+      },
+      "expected": {
+        "error": "AI_INVALID_RESPONSE"
+      }
+    },
+    {
+      "name": "analysis-visits-reversed",
+      "kind": "analysis-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "goalText": "공개 문서 비교하기",
+          "visits": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            }
+          ],
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e",
+          "pageResults": [
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "label": "UNRELATED",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            }
+          ],
+          "modelVersions": {
+            "embedding": "synthetic-v1",
+            "context": "synthetic-v1",
+            "prompt": "synthetic-v1",
+            "labelGuide": "proposed-v1"
+          },
+          "analyzedAt": "2026-11-10T00:00:00.000Z"
+        }
+      },
+      "expected": {
+        "error": "AI_INVALID_RESPONSE"
+      }
+    },
+    {
+      "name": "latest-related",
+      "kind": "rule",
+      "input": {
+        "labels": [
+          "UNRELATED",
+          "UNRELATED",
+          "DIRECT"
+        ],
+        "durations": [
+          300000,
+          300000,
+          300000
+        ]
+      },
+      "expected": "NORMAL"
+    },
+    {
+      "name": "latest-detour",
+      "kind": "rule",
+      "input": {
+        "labels": [
+          "UNRELATED",
+          "UNRELATED",
+          "JUSTIFIED_DETOUR"
+        ],
+        "durations": [
+          300000,
+          300000,
+          300000
+        ]
+      },
+      "expected": "NORMAL"
+    },
+    {
+      "name": "unrelated-two-short",
+      "kind": "rule",
+      "input": {
+        "labels": [
+          "DIRECT",
+          "UNRELATED",
+          "UNRELATED"
+        ],
+        "durations": [
+          5000,
+          299999,
+          299999
+        ]
+      },
+      "expected": "TRANSITION"
+    },
+    {
+      "name": "unrelated-two-long",
+      "kind": "rule",
+      "input": {
+        "labels": [
+          "DIRECT",
+          "UNRELATED",
+          "UNRELATED"
+        ],
+        "durations": [
+          5000,
+          300000,
+          5000
+        ]
+      },
+      "expected": "DRIFT"
+    },
+    {
+      "name": "unrelated-three",
+      "kind": "rule",
+      "input": {
+        "labels": [
+          "UNRELATED",
+          "UNRELATED",
+          "UNRELATED"
+        ],
+        "durations": [
+          5000,
+          5000,
+          5000
+        ]
+      },
+      "expected": "DRIFT"
+    },
+    {
+      "name": "one-long",
+      "kind": "rule",
+      "input": {
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "durations": [
+          5000,
+          5000,
+          300000
+        ]
+      },
+      "expected": "DRIFT"
+    },
+    {
+      "name": "same-window-state-change",
+      "kind": "flow",
+      "input": {
+        "windows": [
+          {
+            "index": 1,
+            "labels": [
+              "DIRECT",
+              "DIRECT",
+              "UNRELATED"
+            ],
+            "behavior": {
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          }
+        ],
+        "events": [
+          {
+            "kind": "result",
+            "index": 1
+          },
+          {
+            "kind": "behavior",
+            "index": 1,
+            "request": {
+              "activeDurationMs": 300000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 2
+            }
+          },
+          {
+            "kind": "behavior",
+            "index": 1,
+            "request": {
+              "activeDurationMs": 300000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 2
+            }
+          },
+          {
+            "kind": "behavior",
+            "index": 1,
+            "request": {
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "currentIndex": 1,
+        "currentState": "DRIFT",
+        "versions": {
+          "1": [
+            "NORMAL",
+            "DRIFT"
+          ]
+        },
+        "alertEligible": true
+      }
+    },
+    {
+      "name": "responses-reversed",
+      "kind": "flow",
+      "input": {
+        "windows": [
+          {
+            "index": 1,
+            "labels": [
+              "DIRECT",
+              "DIRECT",
+              "UNRELATED"
+            ],
+            "behavior": {
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          },
+          {
+            "index": 2,
+            "labels": [
+              "DIRECT",
+              "DIRECT",
+              "DIRECT"
+            ],
+            "behavior": {
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          }
+        ],
+        "events": [
+          {
+            "kind": "result",
+            "index": 2
+          },
+          {
+            "kind": "result",
+            "index": 1
+          }
+        ]
+      },
+      "expected": {
+        "currentIndex": 2,
+        "currentState": "NORMAL",
+        "versions": {
+          "1": [
+            "NORMAL"
+          ],
+          "2": [
+            "NORMAL"
+          ]
+        },
+        "alertEligible": false
+      }
+    },
+    {
+      "name": "older-drift-not-current",
+      "kind": "flow",
+      "input": {
+        "windows": [
+          {
+            "index": 1,
+            "labels": [
+              "UNRELATED",
+              "UNRELATED",
+              "UNRELATED"
+            ],
+            "behavior": {
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          },
+          {
+            "index": 2,
+            "labels": [
+              "DIRECT",
+              "DIRECT",
+              "UNRELATED"
+            ],
+            "behavior": {
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          }
+        ],
+        "events": [
+          {
+            "kind": "result",
+            "index": 1
+          }
+        ]
+      },
+      "expected": {
+        "currentIndex": 2,
+        "currentState": null,
+        "versions": {
+          "1": [
+            "DRIFT"
+          ],
+          "2": []
+        },
+        "alertEligible": false
+      }
+    },
+    {
+      "name": "analysis-failure",
+      "kind": "flow",
+      "input": {
+        "windows": [
+          {
+            "index": 1,
+            "labels": [
+              "DIRECT",
+              "DIRECT",
+              "UNRELATED"
+            ],
+            "behavior": {
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          }
+        ],
+        "events": [
+          {
+            "kind": "fail",
+            "index": 1
+          },
+          {
+            "kind": "result",
+            "index": 1
+          }
+        ]
+      },
+      "expected": {
+        "currentIndex": 1,
+        "currentState": null,
+        "versions": {
+          "1": []
+        },
+        "alertEligible": false
+      }
+    },
+    {
+      "name": "ended-late-result",
+      "kind": "flow",
+      "input": {
+        "windows": [
+          {
+            "index": 1,
+            "labels": [
+              "UNRELATED",
+              "UNRELATED",
+              "UNRELATED"
+            ],
+            "behavior": {
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          }
+        ],
+        "events": [
+          {
+            "kind": "end"
+          },
+          {
+            "kind": "result",
+            "index": 1
+          }
+        ]
+      },
+      "expected": {
+        "currentIndex": 1,
+        "currentState": "DRIFT",
+        "versions": {
+          "1": [
+            "DRIFT"
+          ]
+        },
+        "alertEligible": false
+      }
+    },
+    {
+      "name": "retraction-late-result",
+      "kind": "flow",
+      "input": {
+        "windows": [
+          {
+            "index": 1,
+            "labels": [
+              "UNRELATED",
+              "UNRELATED",
+              "UNRELATED"
+            ],
+            "behavior": {
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          }
+        ],
+        "events": [
+          {
+            "kind": "retract",
+            "index": 1
+          },
+          {
+            "kind": "result",
+            "index": 1
+          }
+        ]
+      },
+      "expected": {
+        "currentIndex": 1,
+        "currentState": null,
+        "versions": {
+          "1": []
+        },
+        "alertEligible": false
+      }
+    },
+    {
+      "name": "manifest-disjoint",
+      "kind": "manifest",
+      "input": {
+        "datasetVersion": "synthetic-2.0-proposed.1",
+        "collectionSpecVersion": "2.0",
+        "apiContractVersion": 2,
+        "ruleVersion": "suffix3-v2-proposed.1",
+        "labelGuideVersion": "synthetic-v1",
+        "exportedAt": "2026-11-10T00:00:00.000Z",
+        "sourceCommit": "6e15dd3fa1789e96c42bc4f33250c4221d6d2616",
+        "referencePolicy": "FIRST_SUCCESSFUL_STATE",
+        "splitByGoal": {
+          "train": [
+            "G01",
+            "G02",
+            "G03",
+            "G04",
+            "G05",
+            "G06",
+            "G07",
+            "G08",
+            "G09",
+            "G10",
+            "G11",
+            "G12"
+          ],
+          "validation": [
+            "G13",
+            "G14",
+            "G15",
+            "G16"
+          ],
+          "test": [
+            "G17",
+            "G18",
+            "G19",
+            "G20"
+          ]
+        },
+        "files": [
+          {
+            "path": "visits.jsonl",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "rowCount": 0
+          }
+        ],
+        "counts": {
+          "scriptedSessions": 0,
+          "naturalSessions": 0,
+          "validVisits": 0,
+          "windows": 0,
+          "labeledWindows": 0
+        },
+        "exclusions": {
+          "extractionFailed": 0,
+          "invalidated": 0,
+          "unjudgeable": 0,
+          "unlabeled": 0,
+          "delayedReference": 0
+        },
+        "consentPolicyVersion": "SYNTHETIC-NO-CONSENT-CLAIM",
+        "deletionRevision": 0
+      },
+      "expected": "ACCEPT"
+    },
+    {
+      "name": "manifest-goal-leak",
+      "kind": "manifest",
+      "input": {
+        "datasetVersion": "synthetic-2.0-proposed.1",
+        "collectionSpecVersion": "2.0",
+        "apiContractVersion": 2,
+        "ruleVersion": "suffix3-v2-proposed.1",
+        "labelGuideVersion": "synthetic-v1",
+        "exportedAt": "2026-11-10T00:00:00.000Z",
+        "sourceCommit": "6e15dd3fa1789e96c42bc4f33250c4221d6d2616",
+        "referencePolicy": "FIRST_SUCCESSFUL_STATE",
+        "splitByGoal": {
+          "train": [
+            "G01",
+            "G02",
+            "G03",
+            "G04",
+            "G05",
+            "G06",
+            "G07",
+            "G08",
+            "G09",
+            "G10",
+            "G11",
+            "G12"
+          ],
+          "validation": [
+            "G13",
+            "G14",
+            "G15",
+            "G16"
+          ],
+          "test": [
+            "G01",
+            "G18",
+            "G19",
+            "G20"
+          ]
+        },
+        "files": [
+          {
+            "path": "visits.jsonl",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "rowCount": 0
+          }
+        ],
+        "counts": {
+          "scriptedSessions": 0,
+          "naturalSessions": 0,
+          "validVisits": 0,
+          "windows": 0,
+          "labeledWindows": 0
+        },
+        "exclusions": {
+          "extractionFailed": 0,
+          "invalidated": 0,
+          "unjudgeable": 0,
+          "unlabeled": 0,
+          "delayedReference": 0
+        },
+        "consentPolicyVersion": "SYNTHETIC-NO-CONSENT-CLAIM",
+        "deletionRevision": 0
+      },
+      "expected": {
+        "error": "SPLIT_OVERLAP"
+      }
+    },
+    {
+      "name": "composition-response-match",
+      "kind": "compose-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000005",
+              "sequence": 5
+            }
+          ],
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff",
+          "composedThroughSequence": 5,
+          "windows": [
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000003"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000004"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004",
+                "00000000-0000-4000-8000-000000000005"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000005"
+            }
+          ]
+        }
+      },
+      "expected": "ACCEPT"
+    },
+    {
+      "name": "composition-response-omit-window",
+      "kind": "compose-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000005",
+              "sequence": 5
+            }
+          ],
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff",
+          "composedThroughSequence": 5,
+          "windows": [
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000003"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000004"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "AI_INVALID_RESPONSE"
+      }
+    },
+    {
+      "name": "composition-response-duplicate-window",
+      "kind": "compose-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000005",
+              "sequence": 5
+            }
+          ],
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff",
+          "composedThroughSequence": 5,
+          "windows": [
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000003"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000003"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004",
+                "00000000-0000-4000-8000-000000000005"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000005"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "AI_INVALID_RESPONSE"
+      }
+    },
+    {
+      "name": "composition-response-wrong-end",
+      "kind": "compose-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000005",
+              "sequence": 5
+            }
+          ],
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff",
+          "composedThroughSequence": 5,
+          "windows": [
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000001"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000004"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004",
+                "00000000-0000-4000-8000-000000000005"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000005"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "AI_INVALID_RESPONSE"
+      }
+    },
+    {
+      "name": "composition-response-wrong-cursor",
+      "kind": "compose-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000005",
+              "sequence": 5
+            }
+          ],
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff",
+          "composedThroughSequence": 4,
+          "windows": [
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000003"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000004"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004",
+                "00000000-0000-4000-8000-000000000005"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000005"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "AI_INVALID_RESPONSE"
+      }
+    },
+    {
+      "name": "composition-response-wrong-after",
+      "kind": "compose-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000005",
+              "sequence": 5
+            }
+          ],
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 1,
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff",
+          "composedThroughSequence": 5,
+          "windows": [
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000003"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000004"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004",
+                "00000000-0000-4000-8000-000000000005"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000005"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "AI_INVALID_RESPONSE"
+      }
+    },
+    {
+      "name": "composition-response-wrong-hash",
+      "kind": "compose-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000005",
+              "sequence": 5
+            }
+          ],
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "inputFingerprint": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "composedThroughSequence": 5,
+          "windows": [
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000003"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000004"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004",
+                "00000000-0000-4000-8000-000000000005"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000005"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "AI_INVALID_RESPONSE"
+      }
+    },
+    {
+      "name": "post-relations-ok",
+      "kind": "visit-relations",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": "ACCEPT"
+    },
+    {
+      "name": "post-domain-mismatch",
+      "kind": "visit-relations",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "other.example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "post-host-case",
+      "kind": "visit-relations",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://EXAMPLE.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "post-default-port",
+      "kind": "visit-relations",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org:443/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "post-blank-content",
+      "kind": "visit-relations",
+      "input": {
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "browserTabKey": "00000000-0000-4000-8000-000000000090",
+        "normalizedUrl": "https://example.org/docs",
+        "domain": "example.org",
+        "title": "합성 공개 문서",
+        "content": "                                                  ",
+        "searchQuery": null,
+        "isSearchResultPage": false,
+        "visitedAt": "2026-11-10T00:00:00.000Z",
+        "activeDurationMs": 5000,
+        "tabSwitchCount": 0,
+        "behaviorVersion": 1,
+        "extractionStatus": "SUCCESS"
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "analysis-input-valid",
+      "kind": "analysis-input",
+      "input": {
+        "apiContractVersion": 2,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "windowIndex": 1,
+        "goalText": "공개 문서 비교하기",
+        "visits": [
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 2,
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "sequence": 2,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 3,
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "sequence": 3,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          }
+        ],
+        "inputFingerprint": "89569761f83b4fb05459df8463e5a94dbef41ad507252220d469c351d05d893e"
+      },
+      "expected": "ACCEPT"
+    },
+    {
+      "name": "analysis-input-duplicate-positions",
+      "kind": "analysis-input",
+      "input": {
+        "apiContractVersion": 2,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "windowIndex": 1,
+        "goalText": "공개 문서 비교하기",
+        "visits": [
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "sequence": 2,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 3,
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "sequence": 3,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          }
+        ],
+        "inputFingerprint": "ea192e5cd3c311786858429e66e63c8fe9f50d7ffabb1c4ef0d3d9468ab88a01"
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "analysis-input-reversed-sequence",
+      "kind": "analysis-input",
+      "input": {
+        "apiContractVersion": 2,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "windowIndex": 1,
+        "goalText": "공개 문서 비교하기",
+        "visits": [
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 3,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 2,
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "sequence": 2,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 3,
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "sequence": 3,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          }
+        ],
+        "inputFingerprint": "b41d80162f37d0c16e45989619124c0472843970f9f21bc23d9ab3106715e705"
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "analysis-input-duplicate-visits",
+      "kind": "analysis-input",
+      "input": {
+        "apiContractVersion": 2,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "windowIndex": 1,
+        "goalText": "공개 문서 비교하기",
+        "visits": [
+          {
+            "position": 1,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 1,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 2,
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "sequence": 2,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          },
+          {
+            "position": 3,
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "sequence": 3,
+            "title": "합성 공개 문서",
+            "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+            "searchQuery": null,
+            "isSearchResultPage": false,
+            "visitedAt": "2026-11-10T00:00:00.000Z"
+          }
+        ],
+        "inputFingerprint": "87e60134c68c2ba040a44e8e7986759d600dac3d743b17411d003ad5889d193a"
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "alert-first-drift",
+      "kind": "alert-policy",
+      "input": {
+        "status": "COMPLETED",
+        "state": "DRIFT",
+        "sessionActive": true,
+        "isLatest": true,
+        "sameVersion": true,
+        "hasShown": false,
+        "recoveredLaterWindow": false,
+        "sameWindowRecovery": false,
+        "recoveryStatus": "COMPLETED",
+        "elapsedMs": 60000,
+        "configuredMinIntervalMs": 60000
+      },
+      "expected": true
+    },
+    {
+      "name": "alert-pending",
+      "kind": "alert-policy",
+      "input": {
+        "status": "PENDING",
+        "state": "DRIFT",
+        "sessionActive": true,
+        "isLatest": true,
+        "sameVersion": true,
+        "hasShown": false,
+        "recoveredLaterWindow": false,
+        "sameWindowRecovery": false,
+        "recoveryStatus": "COMPLETED",
+        "elapsedMs": 60000,
+        "configuredMinIntervalMs": 60000
+      },
+      "expected": false
+    },
+    {
+      "name": "alert-ended",
+      "kind": "alert-policy",
+      "input": {
+        "status": "COMPLETED",
+        "state": "DRIFT",
+        "sessionActive": false,
+        "isLatest": true,
+        "sameVersion": true,
+        "hasShown": false,
+        "recoveredLaterWindow": false,
+        "sameWindowRecovery": false,
+        "recoveryStatus": "COMPLETED",
+        "elapsedMs": 60000,
+        "configuredMinIntervalMs": 60000
+      },
+      "expected": false
+    },
+    {
+      "name": "alert-old-window",
+      "kind": "alert-policy",
+      "input": {
+        "status": "COMPLETED",
+        "state": "DRIFT",
+        "sessionActive": true,
+        "isLatest": false,
+        "sameVersion": true,
+        "hasShown": false,
+        "recoveredLaterWindow": false,
+        "sameWindowRecovery": false,
+        "recoveryStatus": "COMPLETED",
+        "elapsedMs": 60000,
+        "configuredMinIntervalMs": 60000
+      },
+      "expected": false
+    },
+    {
+      "name": "alert-old-version",
+      "kind": "alert-policy",
+      "input": {
+        "status": "COMPLETED",
+        "state": "DRIFT",
+        "sessionActive": true,
+        "isLatest": true,
+        "sameVersion": false,
+        "hasShown": false,
+        "recoveredLaterWindow": false,
+        "sameWindowRecovery": false,
+        "recoveryStatus": "COMPLETED",
+        "elapsedMs": 60000,
+        "configuredMinIntervalMs": 60000
+      },
+      "expected": false
+    },
+    {
+      "name": "alert-drift-repeat",
+      "kind": "alert-policy",
+      "input": {
+        "status": "COMPLETED",
+        "state": "DRIFT",
+        "sessionActive": true,
+        "isLatest": true,
+        "sameVersion": true,
+        "hasShown": true,
+        "recoveredLaterWindow": false,
+        "sameWindowRecovery": false,
+        "recoveryStatus": "COMPLETED",
+        "elapsedMs": 60000,
+        "configuredMinIntervalMs": 60000
+      },
+      "expected": false
+    },
+    {
+      "name": "alert-same-window-recovery",
+      "kind": "alert-policy",
+      "input": {
+        "status": "COMPLETED",
+        "state": "DRIFT",
+        "sessionActive": true,
+        "isLatest": true,
+        "sameVersion": true,
+        "hasShown": true,
+        "recoveredLaterWindow": false,
+        "sameWindowRecovery": true,
+        "recoveryStatus": "COMPLETED",
+        "elapsedMs": 60000,
+        "configuredMinIntervalMs": 60000
+      },
+      "expected": false
+    },
+    {
+      "name": "alert-later-recovery-too-soon",
+      "kind": "alert-policy",
+      "input": {
+        "status": "COMPLETED",
+        "state": "DRIFT",
+        "sessionActive": true,
+        "isLatest": true,
+        "sameVersion": true,
+        "hasShown": true,
+        "recoveredLaterWindow": true,
+        "sameWindowRecovery": false,
+        "recoveryStatus": "COMPLETED",
+        "elapsedMs": 59999,
+        "configuredMinIntervalMs": 60000
+      },
+      "expected": false
+    },
+    {
+      "name": "alert-later-recovery-at-min",
+      "kind": "alert-policy",
+      "input": {
+        "status": "COMPLETED",
+        "state": "DRIFT",
+        "sessionActive": true,
+        "isLatest": true,
+        "sameVersion": true,
+        "hasShown": true,
+        "recoveredLaterWindow": true,
+        "sameWindowRecovery": false,
+        "recoveryStatus": "COMPLETED",
+        "elapsedMs": 60000,
+        "configuredMinIntervalMs": 60000
+      },
+      "expected": true
+    },
+    {
+      "name": "alert-failed-not-recovery",
+      "kind": "alert-policy",
+      "input": {
+        "status": "COMPLETED",
+        "state": "DRIFT",
+        "sessionActive": true,
+        "isLatest": true,
+        "sameVersion": true,
+        "hasShown": true,
+        "recoveredLaterWindow": false,
+        "sameWindowRecovery": false,
+        "recoveryStatus": "FAILED",
+        "elapsedMs": 60000,
+        "configuredMinIntervalMs": 60000
+      },
+      "expected": false
+    }
+  ]
+}

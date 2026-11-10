@@ -1,6 +1,6 @@
 # BE 기능명세서
 
-> Issue #79 목표 계약이다. 공식 main `d0d40f8`에는 세션·방문·Window·AI 비동기 분석·알림·조회가 이미 구현되어 있다. 제품 구현을 완료했다는 문서가 아니다. 확정 정책은 [수집 규격](data-collection-spec.md), v2 API/DB 및 승인 필요한 P1~P6는 [공통 계약](data-analysis-contract.md)을 따른다.
+> Issue #79 목표 계약이다. 공식 main `6e15dd3`에는 세션·방문·Window·AI 비동기 분석·알림·조회가 이미 구현되어 있다. 제품 구현을 완료했다는 문서가 아니다. 확정 정책은 [수집 규격](data-collection-spec.md), v2 API/DB 및 승인 필요한 P1~P6는 [공통 계약](data-analysis-contract.md)을 따른다.
 
 ## 1. 문서 개요
 
@@ -442,3 +442,13 @@ sequence 공백을 허용하고 오름차순의 인접한 유효 방문3개를 �
 | BE-009.md | 4.9 탐색 구간 구성 |
 
 시스템 구성의 배경은 첨부된 `project-plan.md`를 참고한 것이다. 기능 요구사항의 통합 기준은 BE-001~009이며 원본에 없는 구현 정책은 8장의 확정 필요 항목으로 구분한 것이다.
+
+### #81 BE 구현 계약 보충 — PROPOSED
+
+[결정안 P2/P4/P5](v2-contract-decisions.md#6-p4--ai-구성과-be-저장)에 따라 수신 lastAcceptedSequence와 구성 composedThroughSequence를 분리한다. 권장안은 첫 Window 이전부터 신규 sequence의 단조 증가를 요구하고 숫자 공백을 허용하며, 같은 원본 replay를 먼저 처리하는 방식이다.
+
+AI 구성 요청은 본문 없이 ID/sequence의 직전 최대 두 방문과 신규 prefix를 보낸다. 1~2개 입력에서도 커서를 전진시킨다. 별도 compose job에는 session FK만 두고, 트랜잭션 밖에서 HTTP를 호출한 뒤 세션 잠금/CAS로 Window·분석 PENDING·outbox·커서를 원자 저장한다. V4 Window FK 확보 전에는 분석행을 저장할 수 없다. 구성 실패 시 커서는 불변이며 기존 10초 대기 제거는 후속 구현이다.
+
+행동 변경은 해당 방문을 포함하는 기존 Window 최대 세 개를 dirty로 만들고, 고정 AI 결과로 재판단한다. 실제 판단 입력 변경마다 stateVersion을 추가한다. 같은 Window의 DRIFT 버전 증가만으로 반복 표시하지 않고, 기존의 뒤 Window 복귀 조건과 shownAt 최소 간격을 유지하도록 권고한다. 실제 표시의 늦은 기록은 새로운 후보 허가와 구분한다. V6 UNIQUE(analysis_id)와 V7 PK(analysis_id)는 상태별 후보와 충돌하므로 신규 키/FK 이관이 필요하다.
+
+[Schema](contracts/v2/README.md)의 필수·null·오류·조회 projection을 FE·AI와 공통 사용한다. 현재 Window가 pending/failed/invalidated 또는 dirty이면 finalState=null이고 과거 성공은 참고 필드다. 회수는 ENDED에서도 소유권 검증 후 가능하도록 제안하지만 현재 인증 체계와 FK로는 단순 DELETE가 불가능하다. tombstone·파생 무효화·원문 회수 작업이 선결이다. 기존 V1~V10·운영 DB·제품 코드 변경은 없다. BE·AI·FE·개인정보 담당 승인 후 신규 migration과 호환 검증을 수행한다.

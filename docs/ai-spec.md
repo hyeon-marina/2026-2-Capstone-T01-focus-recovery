@@ -2,7 +2,7 @@
 
 ## 1. 범위·변경 이유
 
-Issue #79 이후의 목표 명세다. 기준 공식 main `d0d40f8`에는 AI-001/002/003, FastAPI 연동, 학습 분류기 로드, Context 구성·캐시가 이미 존재한다. 이번 작업은 문서만이며 모델 학습·API 구현을 수행하지 않는다. 확정 정책은 [수집 규격](data-collection-spec.md), 추가 설계 P1~P6와 wire/DB는 [공통 계약](data-analysis-contract.md)을 따른다.
+Issue #79 이후의 목표 명세다. 기준 공식 main `6e15dd3`에는 AI-001/002/003, FastAPI 연동, 학습 분류기 로드, Context 구성·캐시가 이미 존재한다. 이번 작업은 문서만이며 모델 학습·API 구현을 수행하지 않는다. 확정 정책은 [수집 규격](data-collection-spec.md), 추가 설계 P1~P6와 wire/DB는 [공통 계약](data-analysis-contract.md)을 따른다.
 
 | 기능 ID | 변경 후 책임 | 기존 요구사항의 처리 |
 | --- | --- | --- |
@@ -122,3 +122,11 @@ Train12/Validation4/Test4 **목표 단위** 분리를 먼저 고정한다. 동�
 AI-001/002/003 ID와 모델 비교·특징/확률·검증/실패 요구는 위에서 유지/역할 변경/legacy 범위를 명시했다. 원본 개별 명세는 현재 저장소에 없으며 통합 문서의 기능 정의를 기준으로 삼았다. project-plan/README의5개 최종 분류와의 차이는 공통 계약 §10에 기록한다.
 
 P2 순서 의미, P4 두 단계 구성 API, P5 suffix/버전 판단, P6 라벨 스냅샷·관리 정책을 승인해야 한다. 모델/프롬프트·페이지 라벨 품질·Context 유지 여부·성능 예산은 실제 Validation/파일럿으로 결정한다. 추측한 모델 성능·학습 완료·3개 계약 구현 완료를 보고하지 않는다.
+
+### #81 AI 구현 계약 보충 — PROPOSED
+
+[결정안 P4](v2-contract-decisions.md#6-p4--ai-구성과-be-저장)의 권장 A는 모델이 필요 없는 구성 API → BE 식별·저장 → 기존 analysis API v2다. 구성 입력은 visitId/sequence만이며, afterSequence 이하 직전 최대 두 방문과 신규 prefix로 AI가 인접 세 방문을 stride 1로 구성한다. 1~2개는 windows=[]이지만 커서는 전진한다. 숫자 공백은 허용하고 저장 방문 누락·역순·중복은 허용하지 않는다. 기존 pipeline.iter_windows는 5개 오프라인 도구이며 현재 구성 endpoint가 있다는 뜻이 아니다.
+
+CompositionRequest/Response, AnalysisRequest/Response, FailureResponse는 [Schema](contracts/v2/README.md)를 따른다. apiContractVersion=2, 요청 fingerprint echo, position 1~3과 visitId 일대일 검증, finite cosine [-1,1], 페이지 label·근거·모델 네 종류 버전이 필수다. 행동값·사람 정답·참여자 메타는 입력하지 않는다. 최종 상태는 BE가 판단하며 v1 분류기·확률 API는 제거하지 않는다. 현행 searchQuery는 DTO에서 모델로 전달되지 않으므로 검색 문맥 확장은 후속 구현이다.
+
+메모리 registry와 embedding LRU는 재시작·eviction으로 영속 멱등을 보장하지 않으며 BE job·UNIQUE가 기준이다. 기존 Context 중간 enum을 새 페이지 label로 치환하지 않는다. 추론 실패는 일반 메시지로 반환하고 현재 exception str·traceback의 원문 노출 가능성을 후속 수정한다. 회수는 캐시·입출력 snapshot·학습 Context 캐시·Export·모델 artifact 영향까지 처리한다. 방문별 캐시 역색인이 없으면 관련 캐시 전체 폐기 등 검증 가능한 절차가 필요하다. AI·BE·데이터 승인 전 운영 확정 계약이 아니다.

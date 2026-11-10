@@ -2,9 +2,9 @@
 
 ## 1. 적용 범위와 결정 상태
 
-[Issue #79](https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/issues/79)의 중간 발표 이후 정책이다. 분석 기준 코드는 공식 main `d0d40f892a8ed54253a12884fb6f64a149272f27`이다. **문서 변경으로 제품 동작이나 DB가 변경되지는 않는다.**
+[Issue #79](https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/issues/79)의 중간 발표 이후 정책이다. 분석 기준 코드는 공식 main `6e15dd3fa1789e96c42bc4f33250c4221d6d2616`이다. **문서 변경으로 제품 동작이나 DB가 변경되지는 않는다.**
 
-- **확정:** Issue와 작업 요청에 명시된 정책 및 기존 전송·개인정보 보호 계약.
+- **상위 정책 APPROVED:** #79/#80에서 수용한 5초·4초·5분·size3/stride1·역할·수집 목표 및 기존 전송·보호 계약. #81 기재만으로 신규 세부 정책이 승인되지는 않는다.
 - **제안 P1~P6:** 구현에 필요한 추가 설계다. 합의 완료를 뜻하지 않는다. [공통 연동 계약](data-analysis-contract.md)에 대안·근거·확정 담당자를 기록한다. 승인 전 제안마다 다른 방식을 구현하지 않는다.
 - 우선순위: #79 확정 정책 → 승인된 공통 계약 → 기능명세. README·project-plan·과거 검증 보고서의 5페이지/확률 분류는 변경 전 기준이다. 과거 PASS는 새 정책의 검증 결과가 아니다.
 
@@ -137,3 +137,11 @@ AI는 페이지별 DIRECT / JUSTIFIED_DETOUR / UNRELATED를 예측한다. BE는 
 UTF-8 JSONL, UTC 밀리초, 정수 ms를 사용한다. sessions, visits, windows, window_states, ai_predictions, human_labels, collection_failures와 manifest의 키·필드·생성 주체·저장 위치는 [공통 계약](data-analysis-contract.md)에 정의한다. 참여자 ID·goalId·시나리오·수집 메타데이터는 관리 영역이며 모델 입력에서 제외한다. AI는 목표 **문자열**과 제한된 페이지·검색 맥락을 사용한다.
 
 collectionSpecVersion, apiContractVersion, ruleVersion, datasetVersion, labelGuideVersion, modelVersions를 분리한다. 구버전 방문·5개 Window·확률 결과는 보존하고 v2와 분리한다. Flyway는 후속 Issue에서 새 버전만 추가하며 V1~V10을 수정·실행하지 않는다. API/DB 변경 전후·미확정·검증·후속 순서는 공통 계약을 따른다.
+
+## 11. #81 검토 보충 — PROPOSED
+
+[v2 결정안](v2-contract-decisions.md)에 P1~P6 선택지·영향·승인 영역을 기록했다. 각 세부 결정은 PROPOSED이며 보존기간·동의 절차와 회수 없는 조기 배포는 BLOCKED 선결이다. 실제 API 필드·필수·null·오류는 [공통 Schema와 Fixture](contracts/v2/README.md) 기준이며 제품 코드는 기존 1초·5개·10초 동작이다.
+
+정적 Window 라벨은 최초 성공 stateVersion의 실제 snapshot을 referenceStateVersion으로 고정하도록 권고한다. Page 정답은 해당 시점까지의 문맥, Window 정답은 세 페이지와 행동 snapshot, state 정답은 각 실제 버전을 기준으로 세 명이 독립 평가한다. AI·BE 예측, 사람 투표, 합의는 별도 자료다. UNJUDGEABLE을 포함한 네 범주 κ와 세 명 모두 판단 가능한 세 범주 κ·표본수를 함께 보고하며 분모 0은 undefined다. 목표 12/4/4 split은 자연 세션과 모든 겹치는 Window·버전까지 같은 목표에 유지한다.
+
+전송 후 민감정보 발견은 수집 제외만으로 끝나지 않는다. visit-retractions를 통한 서버 tombstone·원문 격리, 포함 Window·결과·알림 무효화, snapshot·캐시·Export·백업·학습 artifact 영향 회수, 늦은 응답 재저장 차단을 제안한다. V3~V9 FK 때문에 현재 단일 DELETE는 불가능하다. 삭제 검증·소유권·학교 규정·동의·보존 절차 승인 전 실데이터 본수집·공유를 시작하지 않는다. 특정 기간을 임의로 확정하지 않는다.
