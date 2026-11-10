@@ -59,3 +59,12 @@ AI는 최근 5개의 유효 Page Visit을 기준으로 탐색 상태를 분석�
 | `docs/fe-spec.md` | Frontend 기능명세서 |
 | [기존 문서 권한 적용 검증](docs/active-page-permission-fix-validation.md) | Issue #67 수정 및 실제 Chrome·BE·DB 검증 결과 |
 | [권한 미허용 안내 검증](docs/permission-denial-feedback-fix-validation.md) | Issue #74 수정 및 Popup 재진입·네이티브 취소·재허용 검증 |
+
+## v2 수집 환경 준비 (#97)
+
+실제 사용자 수집은 **BLOCKED**입니다. 설치 가능한 참여 준비/합성 파일럿 패키지와 등록·Credential·20목표/160배정·진행률 도구를 제공합니다. 실제 목표 원문·운영 서버·동의/기관/보존·전체 회수·실제 모델 검증이 필요합니다.
+
+- [참여자 안내서](docs/data-collection/participant-guide.md)
+- [관리자 실행·장애 대응](docs/data-collection/operator-guide.md)
+- [승인 Readiness](docs/data-collection/readiness-checklist.md)
+- [실행·검증 보고](docs/data-collection/environment-validation.md)

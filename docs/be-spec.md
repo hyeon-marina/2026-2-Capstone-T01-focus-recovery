@@ -1,5 +1,10 @@
 # BE 기능명세서
 
+## #97 수집 환경 준비 — 실제 수집 BLOCKED
+
+현재 수집 계획은 개발팀원 **3명, 목표20개, 계획160세션(A54/B53/C53)**이다. 아래 이전 작업의10명 기준은 당시 기록이다. 목표 원문은 미확정이며 DRAFT20슬롯을 유지한다. 참여 준비/합성 pilot 빌드, 역할 기반 등록·발급, 배정·진행률·품질 도구는 [환경 검증 보고](data-collection/environment-validation.md)와 [수집 관리 API](contracts/collection-operations-api.md)를 따른다. 기존 수집/분석 Wire·행동 규칙·P1~P6 PROPOSED/P2·P6 BLOCKED는 유지한다. 일반 사이트 수집·운영 배포·실모델/기관·보존·전체 삭제 완료를 선언하지 않는다.
+
+
 ## #95 인증·동의·소유권 통합 — 운영 BLOCKED
 
 불투명 Credential 해시 검증·만료/폐기·HTTPS, 모든 제품 API 인증, DB 세션 소유권, 정책/동의 이력, 참여자 전체 철회와 #93 연계를 구현했다. V14는 additive이고 기존 세션은 NULL 소유자로 보존한다. 수집·Claim·Commit·조회·알림에 서버 동의를 적용한다.

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { CollectionAccess, WithdrawalReceipt } from './access';
 import './access.css';
 type Result = { access?: CollectionAccess; error?: string; withdrawal?: WithdrawalReceipt };
-export function AuthConsentPanel({ command, onAccess }: {
+export function AuthConsentPanel({ command, onAccess, context = 'synthetic' }: {
+  context?: 'synthetic' | 'participant';
   command: (action: string, body?: Record<string, unknown>) => Promise<Result>;
   onAccess: (access?: CollectionAccess) => void;
 }) {
@@ -34,12 +35,12 @@ export function AuthConsentPanel({ command, onAccess }: {
   const policy = access?.policy;
   const synthetic = policy?.status === 'SYNTHETIC';
   return <section className="access-panel" aria-labelledby="access-title">
-    <p className="access-label">SYNTHETIC TEST ONLY · 운영 수집 차단</p>
+    <p className="access-label">{context === 'synthetic' ? 'SYNTHETIC TEST ONLY · 운영 수집 차단' : 'PARTICIPANT PREPARATION · 운영 수집 차단'}</p>
     <h2 id="access-title">인증과 수집 동의</h2>
-    <p>합성 카탈로그 검증 화면입니다. 실제 참여자 동의서나 개인정보 처리방침이 아닙니다.</p>
-    <p role="status">{access ? `인증됨 · ${access.withdrawn ? '동의 철회됨' : access.consentValid ? '서버 동의 유효' : '동의 필요'}` : '인증 필요 · 테스트에서 발급한 자격정보로 확인하세요.'}</p>
+    <p>{context === 'synthetic' ? '합성 카탈로그 검증 화면입니다. 실제 참여자 동의서나 개인정보 처리방침이 아닙니다.' : '등록 담당자가 발급한 자격정보로 내 배정을 확인합니다. 실제 수집 동의와 운영 활성화는 아직 차단됩니다.'}</p>
+    <p role="status">{access ? `인증됨 · ${access.withdrawn ? '동의 철회됨' : access.consentValid ? '서버 동의 유효' : '동의 필요'}` : context === 'synthetic' ? '인증 필요 · 테스트에서 발급한 자격정보로 확인하세요.' : '인증 필요 · 등록 담당자에게 본인 자격정보를 받으세요.'}</p>
     <form onSubmit={e => { e.preventDefault(); void run('login', { token }); }}>
-      <label>합성 테스트 자격정보<input type="password" value={token} autoComplete="off" spellCheck={false} onChange={e => setToken(e.target.value)} /></label>
+      <label>{context === 'synthetic' ? '합성 테스트 자격정보' : '발급 자격정보'}<input type="password" value={token} autoComplete="off" spellCheck={false} onChange={e => setToken(e.target.value)} /></label>
       <button disabled={busy || token.length < 43}>인증 / 계정 전환</button>
     </form>
     <div className="access-actions"><button disabled={busy} onClick={() => void run('access')}>서버 상태 재확인</button>

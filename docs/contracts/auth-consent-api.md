@@ -1,5 +1,10 @@
 # 인증·동의 API — Issue #95
 
+## #97 추가 경계
+
+서버의 인증 검증·동의/철회 DTO는 그대로다. 별도의 [수집 관리 API](collection-operations-api.md)가 기본 비활성 관리 설정 + DB 역할 + 현재 인증을 모두 확인하여 신뢰된 등록·Credential 발급/폐기·배정·진행률을 제공한다. 역할은 non-web bootstrap으로만 최초 생성하고 기본 관리자/Token은 없다. 아래 “운영 issuer 미구현”은 #95 당시 상태이며 실제 등록 주체·위임·기관/동의/보존 및 운영 활성화는 여전히 BLOCKED다.
+
+
 기존 `v2/v2.schema.json`의 수집·분석 Wire와 별도인 인증/동의 DTO 계약이다. P1~P6 PROPOSED, P2/P6 BLOCKED는 바뀌지 않는다. 운영 등록·토큰 발급 API와 승인 정책 Seed는 제공하지 않는다.
 
 ## 인증과 접근

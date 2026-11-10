@@ -33,3 +33,10 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// Test-only, loopback MySQL pilot. Never included in bootJar or production startup.
+tasks.register('runCollectionPilot', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.focusrecovery.domain.collection.CollectionPilotServer'
+}

@@ -25,7 +25,7 @@ export interface V2Transport {
   post: typeof savePageVisit; patch: typeof updateVisitBehavior;
   end: typeof endSession; query: typeof getSession;
 }
-// No production entry point imports this module. Synthetic entry supplies a loopback-only transport.
+// Browser entries enforce eligibility: closed synthetic catalog or locked participant preparation.
 export class V2Runtime {
   private access?: CollectionAccess;
   private verifiedIdentity?: { participantId: string; expiresAt: string; credentialEpoch: number };

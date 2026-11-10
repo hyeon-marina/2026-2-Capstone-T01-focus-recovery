@@ -142,6 +142,32 @@ abstract class V2IntegrationContract {
 		assertThat(AI.analysisCalls.get()).isEqualTo(calls); assertThat(windows()).hasSize(3);
 		assertThat(all).allSatisfy(w -> assertThat(latest(w).getId().stateVersion()).isEqualTo(3));
 	}
+    @Test void endedSessionDrainsTenAcceptedVisitsIntoEightWindowsWithoutNewAlerts() {
+        for(int i=1;i<=10;i++)append(i);
+        sessions.end(session,List.of());
+        composeNow();assertThat(windows()).hasSize(8);
+        windows().forEach(this::analyzeNow);
+        assertThat(snapshotStatus().currentDecision().decisionStatus()).isEqualTo("COMPLETED");
+        assertThat(snapshotStatus().alert()).isNull();
+        assertThat(windows()).allSatisfy(w->assertThat(analysis(w).getProcessingStatus()).isEqualTo(AnalysisStatus.COMPLETED));
+        code(()->append(11),"SESSION_ENDED");
+    }
+    @Test void endingDuringCompositionHttpDoesNotDiscardAlreadyAcceptedPrefix() {
+        append(1);append(2);append(3);
+        AI.handler=(path,body)->{sessions.end(session,List.of());return AI.normal(path,body);};
+        composeNow();assertThat(windows()).hasSize(1);
+        AI.reset();analyzeNow(windows().getFirst());
+        assertThat(snapshotStatus().currentDecision().decisionStatus()).isEqualTo("COMPLETED");
+        assertThat(snapshotStatus().alert()).isNull();
+    }
+    @Test void endingDuringAnalysisHttpPersistsResultButNeverCreatesAlert() {
+        var w=oneWindow();
+        AI.handler=(path,body)->{sessions.end(session,List.of());return AI.normal(path,body);};
+        analyzeNow(w);
+        assertThat(analysis(w).getProcessingStatus()).isEqualTo(AnalysisStatus.COMPLETED);
+        assertThat(snapshotStatus().currentDecision().decisionStatus()).isEqualTo("COMPLETED");
+        assertThat(snapshotStatus().alert()).isNull();
+    }
 	@Test void finalBehaviorsAreAtomicAndRejudgeAfterSessionEndWithoutAlert() {
 		var w = oneWindow(); analyzeNow(w);
 		var finalValue = new com.focusrecovery.domain.session.dto.EndWorkSessionRequest.FinalBehavior(w.getEndVisitId().toString(), 300000L, 0, 2L);

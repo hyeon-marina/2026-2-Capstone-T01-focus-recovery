@@ -1,0 +1,24 @@
+# docker compose -p focus97-synthetic -f docker-compose.yml -f compose.collection.yml ... up mysql
+# A new project supplies isolated volumes. Do not attach any existing project/production volume.
+# Full-service preparation remains fail-closed; host-run pilot handles loopback authentication.
+services:
+  mysql:
+    environment:
+      MYSQL_DATABASE: focus97_synthetic
+    ports: !override
+      - '127.0.0.1:${COLLECTION_MYSQL_PORT:-3397}:3306'
+  be:
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/focus97_synthetic?serverTimezone=UTC
+      FOCUS_RECOVERY_V2_STORAGE_ENABLED: 'false'
+      FOCUS_RECOVERY_V2_DISPATCH_ENABLED: 'false'
+      FOCUS_RECOVERY_COLLECTION_ADMINISTRATION_ENABLED: 'false'
+    ports: !override
+      - '127.0.0.1:${COLLECTION_BE_PORT:-8097}:8080'
+  ai:
+    environment:
+      AI_V2_ENABLED: '0'
+      HF_HUB_OFFLINE: '1'
+      TRANSFORMERS_OFFLINE: '1'
+    ports: !override
+      - '127.0.0.1:${COLLECTION_AI_PORT:-8897}:8000'
