@@ -1,4 +1,6 @@
-# Issue #81 — v2 정책 결정안과 구현 검토
+# Issue #81 / #83 — v2 정책 결정안과 구현 검토
+
+> #83 재검토: 공식 main `a1a5d9701d45e0f7ce07b14ead27d67a53eec08c`. [승인 요청·추가 충돌 검토](v2-contract-approval.md)가 최신 승인 대장이다. P1~P6 승인 근거 없음, 모두 PROPOSED이며 P2/P6 선결은 BLOCKED다. 아래 #81 당시 Git/Issue 상태는 과거 기록이다.
 
 ## 1. 상태와 검토 기준
 
@@ -12,11 +14,11 @@
 
 | 상태 | 뜻 | 필요한 근거 |
 | --- | --- | --- |
-| APPROVED | 이미 수용된 상위 정책 또는 담당자들이 명시 승인한 세부 결정 | Issue/PR/회의 결정 링크, 승인자·날짜·대상 버전 |
+| APPROVED | 승인 주체·일시·근거 URL과 대상 버전이 확인된 결정 | Issue/PR/회의 결정 링크, 승인자·날짜·대상 버전 |
 | PROPOSED | 이번에 비교·권고한 구현 계약 | 승인 근거 없음, 구현/배포 전 담당 영역 검토 |
 | BLOCKED | 필수 외부 근거나 기술 선결이 없어 활성화 불가 | 해결 조건과 담당자. 단순 미승인을 승인으로 바꾸지 않음 |
 
-#79/#80에서 수용된 **상위 요구**(5초, 4초 경계, 최초 5분 갱신, size3/stride1, AI 구성/BE 식별·최종 판단, 여섯 상태 조건, 데이터 수집 목표)는 APPROVED 기준으로 유지한다. **이 사실은 세부 P1~P6 승인 근거가 아니다.** 보존기간·동의/기관 절차는 P6의 BLOCKED 하위 항목이다. 승인 후 아래 각 결정에 실제 링크를 추가하고, Schema 버전·Fixture 기대값을 함께 검토한다.
+#79/#80 및 사용자 지시의 **설계 요구**(5초, 4초 경계, 최초 5분 갱신, size3/stride1, AI 구성/BE 식별·최종 판단, 여섯 상태 조건, 데이터 수집 목표)는 유지한다. 별도 승인 주체·일시·근거가 없어 이를 APPROVED로 표시하지 않는다. 보존기간·동의/기관 절차는 P6의 BLOCKED 하위 항목이다. 승인 후 아래 각 결정에 실제 링크를 추가하고, Schema 버전·Fixture 기대값을 함께 검토한다.
 
 ## 2. 코드의 현재 동작과 회귀 위험
 
@@ -101,7 +103,7 @@
 
 B의 구체 계약: 후보 시작만으로 번호를 소비하지 않는다. 측정>=5000 **그리고** 추출 성공·보호 조건 충족 시 직렬 전이에서 번호1부터 증가. 동일 시각은 이벤트 처리순, 네트워크 도착순 아님. 게시 후 같은 방문 재개는 번호 불변, 새로운 콘텐츠는 새 방문. 이미 번호를 발급한 자료의 제외/철회·권한 재개가 만든 공백은 재사용하지 않는다. 5초 이전 콘텐츠 실패는 sequence 없는 진단이다. 5초에 추출이 끝나지 않았으면 `eligibleMeasuredAt`과 실제 commit 시점은 다르며 전송을 보류한다. 추출 성공이5000ms에서 더 늦어도 과거에 전송한 것으로 기록하지 않는다.
 
-BE v2 신규 방문 저장은 세션 쓰기잠금 안에서 `sequence > lastAcceptedSequence`를 요구한다(공백 허용). 동일 visit 원본 replay를 먼저 처리하고, 기존 번호 다른 ID 충돌을 다음으로 처리한다. 첫 Window 이전에도 역순 신규 삽입은 거절한다. 현행은 첫 Window 전 역순 허용하므로 **동작 변경**이다. FE는 ACK 영속 후 다음 POST라 정상 큐는 이 조건을 만족한다. AI `afterSequence`와 별개인 수신 watermark가 구성 요청 중 늦은 삽입을 막는다. 여러 독립 FE writer가 같은 세션을 쓰는 것은 지원하지 않으며 다른 장치에 임의 재번호하지 않는다.
+BE v2 신규 방문 저장은 세션 쓰기잠금 안에서 `sequence > lastAcceptedSequence`를 요구한다(공백 허용). 개인정보 tombstone/격리를 먼저 검사하고, 비철회 동일 visit 원본 replay, 기존 번호 다른 ID 충돌 순으로 처리한다. 첫 Window 이전에도 역순 신규 삽입은 거절한다. 현행은 첫 Window 전 역순 허용하므로 **동작 변경**이다. FE는 ACK 영속 후 다음 POST라 정상 큐는 이 조건을 만족한다. AI `afterSequence`와 별개인 수신 watermark가 구성 요청 중 늦은 삽입을 막는다. 여러 독립 FE writer가 같은 세션을 쓰는 것은 지원하지 않으며 다른 장치에 임의 재번호하지 않는다.
 
 ### 4.1 전송 후 민감 판정: 이미 보낸 자료의 처리
 
@@ -114,15 +116,15 @@ BE v2 신규 방문 저장은 세션 쓰기잠금 안에서 `sequence > lastAcce
 
 제안 `POST /api/sessions/{sessionId}/visit-retractions` ([PrivacyRetraction](contracts/v2/README.md)). 기존 POST/PATCH와 별도이며 ENDED에서도 본인 세션 회수는 허용한다. 인증/소유권 체계가 현행에 충분하지 않으므로 서비스 인증·참여자 연결·관리자 접근·동의 철회 절차 승인 전 외부 노출 금지. 임의 UUID만으로 다른 참여자 데이터 삭제 권한을 주지 않는다.
 
-1. FE는 민감 관측 직후 수집/캐시/해당 전송 중지, 원문을 복제하지 않는 retractionId·visitId·reason·observedAt을 영속화. ACK 유실 POST도 이미 저장됐을 수 있으므로 회수 대상이다. ACTIVE 권한 철회의 기존 로컬 원문 삭제와 병행하여 **식별자만 있는 회수 작업**은 별도 보존한다. END_PENDING의 데이터 원본을 임의 삭제하지 않고 회수/종료 충돌을 UI에 드러낸다.
-2. BE는 세션→방문/Window 순 잠금으로 tombstone을 먼저 기록한다. 미존재 visitId 회수도 tombstone(향후 같은 ID POST 차단), 동일 retractionId payload 재전송은200, 다르면409 RETRACTION_ID_CONFLICT. 최초 격리202/QUARANTINED, 삭제 완료200/PURGED. 발급 번호/수신·구성 high watermark는 되감지 않는다.
+1. FE는 민감 관측 직후 수집/캐시/해당 전송 중지, 원문을 복제하지 않는 retractionId·visitId·reason·observedAt을 영속화. ACK 유실 POST도 이미 저장됐을 수 있으므로 회수 대상이다. ACTIVE 권한 철회의 기존 로컬 원문 삭제와 병행하여 **식별자만 있는 회수 작업**은 별도 보존한다. END_PENDING의 일반 전송 drain을 중단하고 회수/종료 충돌을 UI에 드러낸다. 개인정보 예외 경로에서 원문을 안전 삭제·최소 영수증으로 대체해야 하며, 해당 경로 구현 전 민감 원문 자동 재전송 금지다.
+2. BE는 세션→방문/Window 순 잠금으로 tombstone을 먼저 기록한다. 미존재 visitId 회수도 tombstone(향후 같은 ID POST 차단), 동일 retractionId payload 재전송은200, 다르면409 RETRACTION_ID_CONFLICT. 최초 격리202/QUARANTINED, 삭제 완료200/PURGED. 발급 번호/수신·구성 high watermark는 되감지 않는다. tombstone은 기존 POST replay보다 먼저 검사해 PRIVACY_RETRACTED409로 차단한다. replay200은 현재 QUARANTINED/PURGED 상태이지 삭제 완료의 동의어가 아니다.
 3. 해당 방문과 포함 Window/analysis/state/candidate를 INVALIDATED, 조회 finalState=null/errorCode=PRIVACY_RETRACTED·알림 차단. 진행중 구성 응답은 입력 revision/CAS 및 tombstone 재확인하여 폐기; 진행중 분석은 소유권·유효성 검증 후 민감 결과를 저장하지 않는다. 이후 새 Window가 철회 방문을 포함해도 구성 거절/격리한다.
 4. 원문(title/content/query/URL) 및 모든 복제(input_snapshot/feature/context/rationale/response snapshot/학습 캐시/로컬 IDB·메모리·임베딩/Context 캐시/오류 로그)를 회수 작업으로 삭제한다. 캐시 방문 역색인이 없으면 관련 프로세스 캐시 전체 무효화/재시작 등 증명 가능한 삭제가 필요. SHA256 키만 지우고 값은 남기지 않는다. v1 추론 예외에 원문이 섞였는지도 점검한다.
 5. FK 때문에 기존 테이블에서 단일 DELETE 불가. 후속 migration에서 payload 분리/nullable 전환 또는 자식 task→response/notification→state/analysis→window_visit/window→visit 순 종속 삭제와 최소 tombstone 설계를 검토한다. 원문 없는 식별·무효화·삭제상태 감사만 제한 보존; append-only 상태 이력도 개인정보 삭제 예외가 우선한다.
 6. 삭제 후 남은 방문을 이어 붙여 과거 Window를 자동 재생성하지 않는다. 세션 분석을 격리하고 새 세션/명시적 재구성은 별도 승인. 일반 EXTRACTION_FAILED 제외와 민감 회수의 연속성 영향은 다르다. 운영 과거 알림을 취소한 사실로 실제 shown/선택을 지어내지 않으며 연결된 로그도 삭제 범위 검토.
 7. 모든 배포 Export manifest 버전을 철회/비공개, 다운로드 수신자 회수·로컬 사본 삭제 확인. 차기 datasetVersion은 제거/제외 원인·수량만 기록. 학습에 사용됐다면 학습을 중지하고 artifact 배포 차단, 영향 데이터 없이 재학습/기존 artifact 폐기 여부를 담당자 승인. 이미 학습된 영향을 단순 row 삭제로 제거했다고 주장하지 않는다. 백업은 재복원 시 tombstone 재적용 및 승인된 폐기 절차 필요.
 
-보존기간/백업 만료/삭제 완료 SLA는 임의 숫자를 정하지 않는다. 삭제 실패는 QUARANTINED를 유지하고 정상 분석/배포를 재개하지 않는다. 진단/공개 Fixture에는 합성 데이터만 사용한다.
+보존기간/백업 만료/삭제 완료 SLA는 임의 숫자를 정하지 않는다. 삭제 실패는 QUARANTINED를 유지하고 정상 분석/배포를 재개하지 않는다. PURGED는 원본·파생·Export 사본·백업·모델 영향까지 승인된 삭제/폐기·대체 증거를 모두 확인한 집계 상태다. 미확인 외부 사본/모델 영향이 남으면 PURGED 금지. 상세 단계별 차단·END 예외·세션 격리는 [#83 회수 검토](v2-contract-approval.md#5-p2-개인정보-회수의-단계별-차단)를 따른다. 진단/공개 Fixture에는 합성 데이터만 사용한다.
 
 ## 5. P3 — 활성 체류 갱신과 장기 저장
 
@@ -172,16 +174,16 @@ BE v2 신규 방문 저장은 세션 쓰기잠금 안에서 `sequence > lastAcce
 
 - `composeRequestId`: BE UUID v4, 영속 job의 동일 요청 키. inputFingerprint는 fingerprint 필드만 제외한 요청 canonical JSON의 SHA256. afterSequence는 **마지막으로 구성에 반영 완료한 유효 방문 sequence**(최초0)이지 마지막 Window 끝/개수가 아니다.
 - BE는 커서 이하 마지막 최대2개 유효 방문(context)과 커서 이후 신규 prefix를 sequence 오름차순으로 전달. 요청1~256개(문맥2+신규최대254, 최초 요청은 최대256)는 **제안 wire batch 상한**이며 수집 총량 제한이 아니다. 초과 backlog는 다음 배치로 진행한다. 256 선택은 BE·AI 자원 검토 승인 대상, 필요시 Schema와 함께 변경.
-- 커서>0이면 저장한 최근 최대2개 tail과 정확히 일치해야 하며 AI는 요청 밖 누락을 알 수 없으므로 BE가 검증한다. cursor0이면 문맥 없음. 신규 최소1개 필수; 신규 없는 호출은 INVALID_REQUEST422. 숫자 공백1,3,4는 허용, 저장된 방문 자체를 누락한1,4는 허용하지 않음. 세션 revision+동결 입력 ID 목록으로 누락/철회를 검증한다.
+- 커서>0이면 저장한 최근 최대2개 tail과 정확히 일치해야 하며 AI는 요청 밖 누락을 알 수 없으므로 BE가 검증한다. cursor0이면 문맥 없음. 신규 최소1개 필수; 신규 없는 호출은 INVALID_REQUEST422. 숫자 공백1,3,4는 허용, 저장된 방문 자체를 누락한1,4는 허용하지 않음. 동결 prefix ID 목록과 privacy/멤버 유효성 revision으로 누락/철회를 검증한다. 신규 append·행동 PATCH는 이 revision을 바꾸지 않는다.
 - AI는 전달받은 ordered list의 인접3개를 stride1로 구성하고 끝 sequence>afterSequence인 것만 반환. Window에는 visitIds[3]/endVisitId, windowId/index는 없음. 1~2개 입력이면 windows=[], cursor는 마지막 입력번호로 전진(예:0→2), 다음 요청 tail2+신규3에서 W1 생성.
 - `composedThroughSequence`는 요청의 마지막 **신규** sequence, 단순 after+건수 아님. 1,3,4,6이면 [1,3,4]/[3,4,6], cursor6. 부분 성공 응답 허용 안 함: 전부 검증·저장하거나 rollback·커서 유지. 실패한 window를 건너뛰고 커서를 전진시키지 않는다.
 - AI는 모델 없이 순수 구성 가능하도록 권장. 메모리 registry 없어도 재시작 뒤 같은 요청으로 같은 멤버 계산 가능. ID 재사용 conflict의 영속 진실은 BE job이다. AI에는 best-effort registry, 영속 보장이라고 주장하지 않음. 구성 준비상태는 분석 모델 로드와 분리; 구성서비스 자체 불가503, 분석 모델 불가503은 별개.
 
 ### 6.2 트랜잭션·재시도·ID
 
-1. 방문 저장 tx에서 lastAcceptedSequence 갱신+구성 필요 outbox marker commit. 세션당 한 구성 job을 활성화한다. tx에서 after·tail·신규 prefix·상한·revision을 읽어 ID/hash/input_snapshot 저장한 뒤 잠금을 해제한다.
+1. 방문 저장 tx에서 lastAcceptedSequence 갱신+구성 필요 outbox marker commit. 세션당 한 구성 job을 활성화한다. tx에서 after·tail·신규 prefix·상한·privacy/멤버 유효성 revision을 읽어 ID/hash/input_snapshot 저장한 뒤 잠금을 해제한다.
 2. job PENDING/RUNNING claim 후 **DB transaction 밖** AI HTTP. timeout/AI_NOT_READY/COMPOSE_IN_PROGRESS/5xx는 동결 ID/body로 재시도, 409 ID_CONFLICT·422는 재시도하지 않고 진단. 재시도 횟수/lease/timeout은 성능 측정 승인 전 설정필수(BLOCKED 배포조건), 무한 hot loop 금지. 현재 BE AnalysisRecovery가 이를 자동 수행한다고 가정하지 않음.
-3. 응답의 IDs/hash/after/through, 같은 세션 visit 소속·유효/비철회, 중복/순서·정확히3개·stride1·누락 없는 전체구성을 검증. 잘못된 순서/멤버/누락은 AI_INVALID_RESPONSE, job 실패·cursor 그대로. AI 입력 역순/중복은422 INVALID_REQUEST. 커서/멤버 revision이 바뀌면 COMPOSE_CURSOR_CONFLICT/COMPOSE_INPUT_MISMATCH로 해당 응답 폐기 후 새 job snapshot.
+3. 응답의 IDs/hash/after/through, 같은 세션 visit 소속·유효/비철회, 중복/순서·정확히3개·stride1·누락 없는 전체구성을 검증. 잘못된 순서/멤버/누락은 AI_INVALID_RESPONSE, job 실패·cursor 그대로. AI 입력 역순/중복은422 INVALID_REQUEST. 커서/멤버 유효성 revision이 바뀌면 COMPOSE_CURSOR_CONFLICT/COMPOSE_INPUT_MISMATCH로 해당 응답 폐기 후 새 job snapshot.
 4. 짧은 세션 쓰기잠금 tx에서 stored cursor==after CAS, V3 UNIQUE를 확인, end 오름차순 windowId v4·windowIndex1부터 발급. replay면 기존 ID/index 재사용. V3 FK에 원천 방문이 이미 존재해야 함. Window·window_visit·analysis_result PENDING/input snapshot·분석 outbox·cursor/tail·compose 완료를 **같은 tx** commit. rollback이면 어느 것도 적용하지 않음.
 5. 네트워크 응답 유실/BE 저장 직후 재시작은 job receipt/UNIQUE로 같은 Window·분석 반환. 새로운 방문이 HTTP 중 저장돼도 수신 watermark는 앞서고 compose cursor는 고정 prefix까지만 전진, 다음 job이 처리. 종료 후에도 종료 전 저장된 backlog만 구성/분석 가능, 알림 금지.
 6. 기존 `/api/ai/analyses`의 apiContractVersion=2 경로는 세 방문·ID/index·goalText·fingerprint·title/content/searchQuery/검색여부/visitedAt 입력. v2에는 행동·참여자/시나리오/정답 없음. pageResults는 순서1~3/visitId 정확한 1:1, DIRECT/JUSTIFIED_DETOUR/UNRELATED, finite cosine[-1,1], 원문 복제 없는 rationale, modelVersions·analyzedAt. 최종 state/확률은 v2 응답에 없음. 기존 v1은 기존대로 유지하고 없는 버전은v1, 지원하지 않는 버전은422.
@@ -213,9 +215,9 @@ BE v2 신규 방문 저장은 세션 쓰기잠금 안에서 `sequence > lastAcce
 | 상태 전환만 저장 | 저장량 작음 | 같은 상태에서 어떤 행동입력을 읽었는지 재현 안 됨. 별도 행동 event log 필요 |
 | **판단 입력 변경마다 저장** | 같은 Window의 판단 시점·규칙/행동 차이 재현, 중복 구분 | 3개 snapshot×버전 누적; 값 변동마다 무조건 실시간 HTTP/판단을 요구하는 것은 아님 |
 
-`WindowState` 필수: windowId, stateVersion(1부터 safe int), analysisId, ruleVersion, judgedAt(실제 BE 판단 UTC), finalState, ordered behaviorSnapshot 3개(visitId,duration,switch,version), inputFingerprint. fingerprint는 고정 analysisId+ruleVersion+ordered 행동 snapshot의 canonical SHA256. 분석 row는 immutable 성공 결과를 가리키므로 analysisId가 의미결과를 고정한다. 동일 fingerprint는 기존 버전 반환; 높은 버전 같은 누적값도 behaviorVersion이 달라지면 새 입력이다. 같은 버전 다른 값은 PATCH에서 먼저 거절.
+`WindowState` 필수: windowId, stateVersion(1부터 safe int), analysisId, ruleVersion, judgedAt(실제 BE 판단 UTC), finalState, ordered behaviorSnapshot 3개(visitId,duration>=5000,switch,version), inputFingerprint. fingerprint는 고정 analysisId+ruleVersion+ordered 행동 snapshot의 canonical SHA256. 분석 row는 immutable 성공 결과를 가리키므로 analysisId가 의미결과를 고정한다. 동일 fingerprint는 기존 버전 반환; 높은 버전 같은 누적값도 behaviorVersion이 달라지면 새 입력이다. 같은 버전 다른 값은 PATCH에서 먼저 거절.
 
-BE는 세션→Window(index순) 잠금에서 최신 행동을 일관되게 읽고 새 버전을 발급, UNIQUE(window,inputFingerprint)로 병렬 중복 방지. 행동 update tx에서 포함 Window의 dirty/outbox를 원자 기록한다. 처리 지연 중 변경을 최신값으로 합칠 수 있지만 **판단이 실제 실행되지 않은 중간 버전은 만들지 않는다.** AI 미완료면 대기 후 그 시점 최신값으로 첫 판단. 기존 Window 멤버·AI 예측은 재구성/재호출하지 않는다. size3/stride1에서 방문 하나는 최대3개 기존 Window에 속하므로 재판단 범위는 전 세션이 아니다.
+BE는 세션→Window(index순) 잠금에서 최신 행동을 일관되게 읽고 새 버전을 발급(낙관 처리 시 commit 직전 행동 버전 벡터 CAS 실패는 폐기), UNIQUE(window,inputFingerprint)로 병렬 중복 방지. 행동 update tx에서 포함 Window의 dirty/outbox를 원자 기록한다. 처리 지연 중 변경을 최신값으로 합칠 수 있지만 **판단이 실제 실행되지 않은 중간 버전은 만들지 않는다.** AI 미완료면 대기 후 그 시점 최신값으로 첫 판단. 기존 Window 멤버·AI 예측은 재구성/재호출하지 않는다. size3/stride1에서 방문 하나는 최대3개 기존 Window에 속하므로 재판단 범위는 전 세션이 아니다.
 
 조회는 최신 **구성된** windowIndex 기준. 최신 Window pending/failed면 현재 state=null/status 유지하고 과거 성공은 lastSuccessfulState로만 참고 반환. 행동 dirty가 있어도 currentDecision=PENDING/finalState=null, 이전 성공은 참고로 제공하여 stale DRIFT 알림을 차단한다. 이전 Window의 늦은 완료/재판단은 그 이력만 추가하고 현재 포인터/알림을 되돌리지 않는다. 종료 후 원래 claim이 살아 있는 분석은 결과/평가 이력 저장 가능, FAILED 확정 뒤 응답은 폐기.
 
@@ -259,7 +261,7 @@ BE는 세션→Window(index순) 잠금에서 최신 행동을 일관되게 읽�
 
 ## 9. API·DB 변경 영향과 호환
 
-Schema는 [v2.schema.json](contracts/v2/v2.schema.json)의 명명된 `$defs`로 검증한다. `2.0-proposed.1` 문서 패키지 버전이며 wire collectionSpecVersion=`2.0`/apiContractVersion=2는 **승인 후 신규 세션에만 활성화할 후보값**이다. 미승인 규칙 ID는 suffix3-v2-proposed.1. 버전 선택은 session metadata로 고정하고 Page POST마다 body version을 중복 추가하지 않는다. 새 세션의 version negotiation 구현 전 기존 session API가 이를 지원한다고 가정하지 않는다.
+Schema는 [v2.schema.json](contracts/v2/v2.schema.json)의 명명된 `$defs`로 검증한다. `2.0-proposed.2` 문서 패키지 버전이며 wire collectionSpecVersion=`2.0`/apiContractVersion=2는 **승인 후 신규 세션에만 활성화할 후보값**이다. 미승인 규칙 ID는 suffix3-v2-proposed.1. 버전 선택은 session metadata로 고정하고 Page POST마다 body version을 중복 추가하지 않는다. 새 세션의 version negotiation 구현 전 기존 session API가 이를 지원한다고 가정하지 않는다.
 
 | 기존 DB 근거 | 필요한 후속 변경(미적용) |
 | --- | --- |
@@ -275,6 +277,8 @@ Schema는 [v2.schema.json](contracts/v2/v2.schema.json)의 명명된 `$defs`로 
 신규 migration은 구현 시 최신 main 다음 번호 선택. **V1~V10 수정·신규migration 적용 없음.** expand→구행 legacy 명시→v1 회귀→v2 신규세션 feature gate→관측 순. IDB format도 별도 확장; 진행 중 v1 POST1000ms/Window5/input_snapshot은 v2로 변환하지 않는다. rollback은 신규 v2 시작 중지·기존 v2 pending 보존/운영 복구이며 데이터 drop이나 v1로 재해석이 아니다. session end/기존 조회·알림 경로 제거 없음.
 
 ## 10. 후속 구현 작업 제안 (Issue 자동 생성 안 함)
+
+#83의 독립 작업 범위·선행·운영 gate는 [승인 요청 §8](v2-contract-approval.md#8-후속-구현-issue-초안과-의존성)에 구체화했다. 아래는 #81의 요약이며 개인정보 구현 완료와 합성 도구 구현 착수의 gate를 구분한다.
 
 | 제안 작업 | 범위·완료 증거 | 선행 |
 | --- | --- | --- |

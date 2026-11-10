@@ -1,4 +1,4 @@
-# v2 계약 패키지 — 2.0-proposed.1
+# v2 계약 패키지 — 2.0-proposed.2
 
 **PROPOSED / 미구현 / 운영 활성화 승인 아님.** 정책별 근거·대안·담당은 [결정안](../../v2-contract-decisions.md), 현행 API·호환성은 [공통 계약](../../data-analysis-contract.md) 참조. `.invalid` Schema ID는 식별자이며 다운로드 주소가 아니다. 네트워크 없는 local `$ref`만 사용한다.
 
@@ -15,9 +15,13 @@ python3 -m venv /tmp/focus81-validator
 - [v2.schema.json](v2.schema.json): 30개 `$defs`, 아래 entry point별 검증. 루트 oneOf는 wire 본문 종류 분류용이다. 특정 API 검증은 해당 `$defs`를 선택한다.
 - [schema-cases.json](fixtures/schema-cases.json): 각 `contract`, **실행 입력 input**, **예상 expected.valid/keyword**를 분리. invalid 사례는 실패가 기대 결과이며 정상 데이터로 보내지 않는다. Schema 통과는 관계·상태 통과와 다르다.
 - [scenarios.json](fixtures/scenarios.json): kind별 합성 **input**과 **expected**. validate.py의 executable reference model로 sequence/replay/patch/compose/AI pairing/state flow/split을 실제 비교한다.
-- [validate.py](validate.py): Schema meta-validation·format·경계값, 관계/상태 reference model, 216개 규칙 조합·κ 산술 검사. 제품 소스나 기존 테스트를 import/변경하지 않는 문서용 검증 도구다.
+- [validate.py](validate.py): Schema meta-validation·format·경계값, 관계/상태 reference model, 216개 규칙 조합·κ 산술 검사, 관련10문서 상대 링크/anchor·code fence 검사. 제품 소스나 기존 테스트를 import/변경하지 않는 문서용 검증 도구다.
 
 Fixture는 실제 사용자 데이터·진짜 모델 결과·동의 승인을 포함하지 않는다. 합성 manifest의 `SYNTHETIC-NO-CONSENT-CLAIM`은 운영 정책 버전이 아니다. schema-cases의 fingerprint 임의값은 **모양 검사만** 하는 예시이며 hash 관계가 필요한 시나리오는 실제 계산값을 사용한다.
+
+#83 재검토·승인 상태는 [승인 요청 대장](../../v2-contract-approval.md)을 따른다. .2는 문서용 제안 패키지 수정이며 승인/운영 wire 버전 승격이 아니다. 기존 endpoint/body를 유지하고 ComposedWindow.visitIds와 RetractionAck.invalidatedWindowIds의 중복 금지, 성공 BehaviorSnapshot.duration>=5000을 Schema에 반영했다. 기존 정상 Fixture·제품 테스트 기대값은 보존한다.
+
+추가 reference 시나리오는 유효화 commit 순서/abort, 구성 중 append와 privacy revision·cursor 경합, 전체 행동 snapshot의 stateVersion/fingerprint, POST 유실·회수 전후 늦은 POST/AI·Export/학습/백업 미회수, blind 데이터의 예측 누출을 다룬다. 실제 저장소 삭제·DB 경합·학습 영향 제거를 수행하는 도구가 아니다.
 
 ## Endpoint와 entry point
 
@@ -69,7 +73,7 @@ sessionId/visitId/windowId path도 Uuid로 검증한다. Session 생성/종료·
 | CompositionResponse | AI apiContractVersion/composeRequestId/sessionId/afterSequence/inputFingerprint/composedThroughSequence/windows. window는 visitIds[3]/endVisitId, **BE windowId/index 없음** | 없음, windows=[] 허용 |
 | AnalysisRequest | BE apiContractVersion/analysisId/sessionId/windowId/windowIndex/goalText/inputFingerprint/visits[3]. 각 position/visitId/sequence/title/content/searchQuery/isSearchResultPage/visitedAt | 일반 searchQuery만null. behavior/사람라벨/참여자 입력 금지 |
 | AnalysisResponse | AI apiContractVersion/analysisId/sessionId/windowId/inputFingerprint/pageResults[3]/modelVersions/analyzedAt. page position/visitId/label/semanticRelevance/rationale | 없음. label DIRECT/JUSTIFIED_DETOUR/UNRELATED, cosine finite[-1,1]. state/확률 없음 |
-| WindowState | BE windowId/stateVersion/analysisId/ruleVersion/judgedAt/finalState/behaviorSnapshot[3]/inputFingerprint. snapshot은 visitId+3행동값. 성공 이력만 저장 | 없음. finalState NORMAL/TRANSITION/DRIFT |
+| WindowState | BE windowId/stateVersion/analysisId/ruleVersion/judgedAt/finalState/behaviorSnapshot[3]/inputFingerprint. snapshot은 visitId+3행동값, duration>=5000. 성공 이력만 저장 | 없음. finalState NORMAL/TRANSITION/DRIFT |
 | CurrentDecision | windowId/windowIndex/stateVersion/analysisId/decisionStatus/finalState/judgedAt/errorCode. COMPLETED는 모든 근거 non-null/errorCode=null | PENDING/FAILED/INVALIDATED는 stateVersion/finalState/judgedAt=null. 분석 ID 미발급이면null, PENDING errorCode=null, 실패/무효화 code필수 |
 | StatusResponse | BE apiContractVersion/sessionId/sessionStatus/currentDecision/lastSuccessfulState/alert. 최신 **구성 Window** 기준, lastSuccessfulState는 참고 | Window없으면currentDecision=null, 과거성공없으면lastSuccessfulState=null, 허용후보없으면alert=null. ENDED는alert=null |
 | AlertCandidate | alertId/alertType/analysisId/windowId/stateVersion/createdAt/shownAt. 기존 DTO 식별 projection | AI는 세참조 non-null, FIXED_INTERVAL은 모두null. 미표시 후보 shownAt 항상null |
@@ -77,7 +81,7 @@ sessionId/visitId/windowId path도 Uuid로 검증한다. Session 생성/종료·
 | FailureResponse | apiContractVersion/code/message/fieldErrors[{field,message}]. 원문 없는 일반 메시지; fieldErrors=[] 허용 | 없음 |
 | CollectionFailure | failureId/candidateId/browserTabKey/status/observedAt/activeDurationMs/reasonCode. visit FK없음, sequence 없음. status 정확히 EXTRACTION_FAILED | 없음. URL/query/title/content/exception dump 금지 |
 | PrivacyRetraction | retractionId/visitId/observedAt/reasonCode(SENSITIVE_CONTENT/CONSENT_WITHDRAWN). reason 원문 없음 | 없음 |
-| RetractionAck | retractionId/visitId/status(QUARANTINED/PURGED)/invalidatedWindowIds | 없음. 처리중을완료로 표시 금지 |
+| RetractionAck | retractionId/visitId/status(QUARANTINED/PURGED)/중복 없는 invalidatedWindowIds | 없음. PURGED는 Export/학습/백업 포함 승인된 전체 회수 증거 확인 후만. replay200의 QUARANTINED는 완료 아님 |
 | Manifest | datasetVersion/collectionSpecVersion/apiContractVersion/ruleVersion/labelGuideVersion/exportedAt/sourceCommit/referencePolicy/splitByGoal/files/counts/exclusions/consentPolicyVersion/deletionRevision | 없음. 정책 미승인으로 값이 없으면 실Export 차단 |
 
 검색 true는 정리된 검색어1~500 및 유기결과 최소1개를 전송 전 검사, 본문1~5000. 일반 false는 searchQuery=null·본문50~5000. title/content는 원문 보호 및 공백정리를 통과해야 한다. 검색/일반분기 길이는 Schema conditional로 검증하지만 실제 organicResultCount/민감DOM은 FE 로컬검사이며 wire에 추가하지 않는다.
@@ -94,6 +98,10 @@ JSON Schema는 동적 ID 일치/DB 소속·저장 이력을 읽을 수 없다. �
 6. manifest split disjoint·20고유목표, files path중복/실제checksum/rowCount/FK/동의·삭제revision·blind export 검증. Schema counts는0이상이며 수집 목표160/1200 달성은 별도 데이터 품질 검사(샘플0건을 목표달성으로 보지 않음).
 
 Canonical fingerprint: fingerprint 필드를 제외한 요청 객체, 또는 상태의 `{analysisId,ruleVersion,behaviorSnapshot}`를 key 사전순으로 재귀 정렬, 배열 순서 유지, Unicode 정규화 없음, UTF-8 JSON, 공백 없음, 문자열은 `ensure_ascii=false`/JSON 표준 이스케이프, 정수는10진수/불필요0·소수 없음. 이 입력에는 실수 필드를 넣지 않는다. 개행문자·제어문자는 JSON escape. 검증용 Python fingerprint 함수와 교차언어 golden case를 후속 FE/BE/AI 테스트에 재사용한다. 응답은 요청 fingerprint를 echo하며 임의 재계산한 새 해시로 바꾸지 않는다.
+
+회수 제어: tombstone/세션 격리는 POST의 기존 원본 replay보다 우선한다(PRIVACY_RETRACTED409). QUARANTINED 중 currentDecision은 가능한 경우 INVALIDATED, lastSuccessfulState/alert는 null. Window가 없어도 분석·Export 차단은 별도 서버 privacy gate로 적용한다. ACTIVE/ENDED는 생명주기이며 PURGED 의미가 아니다. END_PENDING 일반 drain 대신 개인정보 예외 경로가 필요하다. 회수 기능은 아직 구현되지 않았다.
+
+구성 제어: BE job의 immutable prefix·privacy/멤버 유효성 revision·cursor CAS가 기준이다. 새 방문 append/행동 PATCH는 기존 prefix를 무효화하지 않는다. 개인정보 철회/격리와 cursor 변경은 응답 폐기 사유다. AI는 ordered 방문 입력에서 멤버를 직접 구성하고 BE는 전체 결과 검증 후 원자 저장한다. revision은 BE 내부 메타이며 wire 필드를 추가하지 않는다. 상태 판단도 commit 직전 최신 행동 벡터를 확인한다.
 
 ## 실패 코드와 재시도
 
