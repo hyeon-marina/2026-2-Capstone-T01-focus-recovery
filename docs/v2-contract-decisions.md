@@ -1,5 +1,11 @@
 # Issue #81 / #83 — v2 정책 결정안과 구현 검토
 
+## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
+
+P2 회수의 합성 구현은 FE 영속 큐, 기본 거절 API, Tombstone/Revision, 대상별 Claim·Lease·Retry·증거, 합성 Payload 제거 및 AI 영속 격리 ACK까지 연결했다. 기관 승인·동의·보존·운영 인증·외부 사본 및 모델 영향 증거는 미충족이다. 기술 검증이 정책 승인이나 전체 개인정보 삭제 완료를 뜻하지 않는다.
+
+상세 구현·삭제/격리 Inventory·명령·실패/미검증 범위는 [개인정보 회수 검증 보고](v2-privacy-retraction-validation.md)를 따른다. 아래 과거 작업의 미구현 설명은 당시 기록이다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.**
+
 > #83 재검토: 공식 main `a1a5d9701d45e0f7ce07b14ead27d67a53eec08c`. [승인 요청·추가 충돌 검토](v2-contract-approval.md)가 최신 승인 대장이다. P1~P6 승인 근거 없음, 모두 PROPOSED이며 P2/P6 선결은 BLOCKED다. 아래 #81 당시 Git/Issue 상태는 과거 기록이다.
 
 ## 1. 상태와 검토 기준

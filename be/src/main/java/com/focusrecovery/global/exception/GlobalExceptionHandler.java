@@ -89,11 +89,11 @@ public class GlobalExceptionHandler {
 		return ErrorResponse.of("ANALYSIS_NOT_FOUND", e.getMessage());
 	}
 
-	// 저장 데이터 오류는 사용자 요청 오류가 아니므로 500으로 처리하고, 저장 원문·내부 예외 내용은 로그에만 남긴다
+	// 저장 오류의 원문/예외 traceback도 개인정보 사본이 될 수 있으므로 기록하지 않는다.
 	@ExceptionHandler(StoredDataException.class)
 	@ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
 	public ErrorResponse handleStoredData(StoredDataException e) {
-		log.error(e.getMessage(), e);
+		log.error("저장 데이터 처리 실패 type={}", e.getClass().getSimpleName());
 		return ErrorResponse.of("INTERNAL_ERROR", "서버 내부 오류가 발생했습니다.");
 	}
 

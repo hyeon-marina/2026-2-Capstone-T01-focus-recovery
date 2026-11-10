@@ -24,7 +24,7 @@ import com.focusrecovery.global.exception.ConflictException;
 import com.focusrecovery.global.exception.InvalidRequestException;
 import com.focusrecovery.global.util.CanonicalJson;
 
-// 외부 Controller 없음. 인증·소유권/END_PENDING/삭제 정책 승인 전 내부 합성 테스트만 허용한다.
+// 공개 경로의 인증은 기본 거절. 저장 경계는 합성 test Gate를 계속 요구한다.
 @Service
 public class PrivacyRetractionService {
 	private final WorkSessionRepository sessions;
@@ -48,13 +48,21 @@ public class PrivacyRetractionService {
 		this.outbox = outbox; this.compose = compose; this.retractions = retractions; this.tombstones = tombstones;
 		this.targets = targets; this.gate = gate; this.json = json; this.clock = clock;
 	}
+	public record Accepted(Retraction.Receipt receipt, boolean created) {}
+	@Transactional
+	public Accepted accept(UUID sessionId, Retraction.Request request) {
+		gate.requireEnabled();
+		sessions.findForUpdateBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
+		boolean created = !retractions.existsById(request.retractionId());
+		return new Accepted(quarantine(sessionId, request), created);
+	}
 	@Transactional
 	public Retraction.Receipt quarantine(UUID sessionId, Retraction.Request request) {
 		gate.requireEnabled();
 		var session = sessions.findForUpdateBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
 		gate.requireV2(session);
-		if (request == null || request.retractionId() == null || request.retractionId().version() != 4
-			|| request.visitId() == null || request.visitId().version() != 4 || request.observedAt() == null
+		if (request == null || request.retractionId() == null || (request.retractionId().version() != 4 || request.retractionId().variant() != 2)
+			|| request.visitId() == null || (request.visitId().version() != 4 || request.visitId().variant() != 2) || request.observedAt() == null
 			|| !request.observedAt().equals(request.observedAt().truncatedTo(ChronoUnit.MILLIS))
 			|| request.reasonCode() == null || !Set.of("SENSITIVE_CONTENT", "CONSENT_WITHDRAWN").contains(request.reasonCode()))
 			throw new InvalidRequestException("회수 작업 입력이 유효하지 않습니다.");
@@ -78,6 +86,7 @@ public class PrivacyRetractionService {
 			tombstones.saveAndFlush(new VisitTombstone(request.visitId(), sessionId, request.retractionId(), now));
 			session.quarantine();
 		}
+		target(job, "BE_PAYLOADS", sessionId.toString());
 		target(job, "PAGE_VISIT", request.visitId().toString());
 		// 전체 세션의 분석을 격리한다. 직접 영향 Window는 별도 대상 목록으로 식별한다.
 		for (var window : windows.findBySessionIdOrderByWindowIndex(sessionId)) {
@@ -115,7 +124,9 @@ public class PrivacyRetractionService {
 		targets.findById(id).orElseThrow().recordFailure(code); job.recordFailure(code);
 	}
 	private void target(PrivacyRetraction job, String type, String id) {
-		targets.save(new RetractionTarget(new RetractionTargetId(job.getRetractionId(), type, id)));
+		var target = new RetractionTarget(new RetractionTargetId(job.getRetractionId(), type, id));
+		if (Set.of("BE_PAYLOADS", "AI_CACHE_AND_MEMORY").contains(type)) target.queue();
+		targets.save(target);
 	}
 	private Retraction.Receipt receipt(PrivacyRetraction job) {
 		return new Retraction.Receipt(job.getRetractionId(), job.getVisitId(), job.getProcessingStatus(),

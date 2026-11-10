@@ -28,7 +28,7 @@ class V12MigrationTest {
 		List<String> tables = List.of("work_session", "page_visit", "analysis_window", "window_visit", "analysis_result", "notification", "alert_candidate_task", "notification_response", "window_state_history", "analysis_outbox", "compose_request");
 		Map<String, List<Map<String, Object>>> before = new LinkedHashMap<>();
 		for (String table : tables) before.put(table, new V2MigrationTest().normalize(jdbc.queryForList("select * from " + table)));
-		var flyway = Flyway.configure().dataSource(datasource).load(); assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+		var flyway = Flyway.configure().dataSource(datasource).target("12").load(); assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
 		before.forEach((table, rows) -> assertThat(new V2MigrationTest().normalize(jdbc.queryForList("select " + String.join(",", rows.getFirst().keySet()) + " from " + table))).containsExactlyInAnyOrderElementsOf(rows));
 		assertThat(flyway.migrate().migrationsExecuted).isZero(); flyway.validate();
 		String session = jdbc.queryForObject("select session_id from work_session", String.class);

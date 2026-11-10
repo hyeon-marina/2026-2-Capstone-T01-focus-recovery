@@ -1,5 +1,11 @@
 # 데이터 수집·분석 계약 검증 — Issue #83
 
+## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
+
+#93에서 FE/BE/AI 제품 회수·합성 DB 삭제·HTTP 전파·복구 테스트를 추가했다. reference validator 결과와 실제 제품 결과, Fake IDB/Chrome/H2/MySQL/Mock 모델을 별도로 기록한다. V1~V12 및 Schema/Fixture 원문은 보존한다. V12 이관 테스트는 대상 버전을12로 고정하여 과거 검증 범위를 유지한다.
+
+상세 구현·삭제/격리 Inventory·명령·실패/미검증 범위는 [개인정보 회수 검증 보고](v2-privacy-retraction-validation.md)를 따른다. 아래 과거 작업의 미구현 설명은 당시 기록이다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.**
+
 ## #91 FE 합성 전용 구현 — 승인 변경 없음
 
 FE Baseline787, 최종877개 테스트와 production/synthetic 빌드를 확인했다. 실제 Chrome151의 IndexedDB/재시작·Reload/SPA/전송 복구, 합성 Mock 알림 UI와 별도 실제 Spring/H2 HTTP를 구분해 검증했다. Schema·Fixture 기대값은 유지하며 운영 및 전체 삭제 완료를 주장하지 않는다.

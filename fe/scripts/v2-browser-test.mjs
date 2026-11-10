@@ -17,7 +17,8 @@ const fixture = createServer((req, res) => {
   if (!['a', 'b', 'c', 'd'].includes(id)) { res.writeHead(404); res.end(); return; }
   res.setHeader('Content-Type', 'text/html'); res.end(`<!doctype html><html data-focus-synthetic="catalog-v1"><title>Synthetic fixture ${id}</title><body><article>${body(id)}</article></body></html>`);
 });
-const records = new Map(), sessions = new Map();
+const records = new Map(), sessions = new Map(), retractions = new Map();
+let blockedRetractionId, allowRetractionAck = false;
 const alertId = randomUUID(), windowId = randomUUID(), analysisId = randomUUID(); let shownAt = null, allowAlert = false; let calls = 0, dropFirst = true;
 const mock = createServer(async (req, res) => {
   calls++;
@@ -40,6 +41,13 @@ const mock = createServer(async (req, res) => {
     send(201, sessions.get(key)); return;
   }
   const path = req.url.split('/'), session = [...sessions.values()].find(s => s.sessionId === path[3]); assert.ok(session);
+  if (path[4] === 'visit-retractions') {
+    const previous = retractions.get(request.retractionId);
+    if (previous) assert.deepEqual(request, previous); else retractions.set(request.retractionId, request);
+    blockedRetractionId ??= request.retractionId;
+    if (!allowRetractionAck && request.retractionId === blockedRetractionId) { send(202, {}); return; }
+    send(previous ? 200 : 202, { retractionId: request.retractionId, visitId: request.visitId, status: 'QUARANTINED', invalidatedWindowIds: [] }); return;
+  }
   if (path[4] === 'visits' && req.method === 'POST') {
     const previous = records.get(request.visitId), v = { ...request, sessionId: session.sessionId, updatedAt: null };
     await writeFile(join(evidence, 'post.json'), JSON.stringify(request));
@@ -95,7 +103,7 @@ try {
       await new Promise(r => setTimeout(r, 200));
     }
     const s = await read();
-    throw new Error(`${label}: ${JSON.stringify({ lifecycle: s.lifecycle, failed: s.storageFailed, candidates: s.candidates?.map(c => ({ duration: c.behavior.activeDurationMs, post: !!c.post, closed: c.closed })), phases: s.posts?.entries.map(e => e.phase), foreground: s.foreground })}`);
+    throw new Error(`${label}: ${JSON.stringify({ lifecycle: s.lifecycle, failed: s.storageFailed, candidates: s.candidates?.map(c => ({ duration: c.behavior.activeDurationMs, post: !!c.post, closed: c.closed })), phases: s.posts?.entries.map(e => e.phase), quarantine: s.quarantine, retractions: s.retractions, foreground: s.foreground })}`);
   }
   await command('start');
   const page = await context.newPage(); await page.goto('http://127.0.0.1:8911/__focus_synthetic__/a'); await page.bringToFront();
@@ -154,7 +162,22 @@ try {
     }
     await writeFile(join(evidence, 'local-ended.json'), JSON.stringify(raw));
   }
-  console.log(JSON.stringify({ result: 'PASS', mode: real ? 'actual-BE-HTTP' : 'mock-HTTP', sequence: ended.nextSequence - 1,
+  if (!real) {
+    await command('quarantine');
+    const held = await waitFor(s => s.retractions?.some(e => e.errorCode === 'DELIVERY_UNCONFIRMED'), 'durable retraction ACK loss');
+    const frozen = held.retractions.map(e => e.request);
+    const stop = await context.newCDPSession(harness); await stop.send('ServiceWorker.enable'); await stop.send('ServiceWorker.stopAllWorkers'); await stop.detach();
+    await waitFor(s => s.quarantine?.status === 'RETRACTION_REQUIRED' && s.retractions?.length === frozen.length, 'retraction Service Worker recovery');
+    await context.close(); context = await launch();
+    worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
+    harness = await context.newPage(); await harness.goto(`chrome-extension://${id}/synthetic/harness.html`);
+    assert.deepEqual((await read()).retractions.map(e => e.request), frozen);
+    allowRetractionAck = true; await command('retry');
+    const recovered = await waitFor(s => s.retractions.every(e => e.phase === 'acknowledged'), 'retraction browser recovery and same-ID replay');
+    assert.equal(recovered.quarantine.status, 'RETRACTION_REQUIRED'); assert.equal(recovered.alertsSuppressed, true);
+    await writeFile(join(evidence, 'retractions.json'), JSON.stringify({ frozen, entries: recovered.retractions, quarantine: recovered.quarantine }));
+  }
+  console.log(JSON.stringify({ retractionBrowserRecovery: !real, result: 'PASS', mode: real ? 'actual-BE-HTTP' : 'mock-HTTP', sequence: ended.nextSequence - 1,
     lifecycle: raw.lifecycle, restart: true, reload: true, spaDelayedContent: true, sameUrlContentChange: true, serviceWorkerRestart: true, realIndexedDB: true, httpCalls: calls, notificationUI: !real }));
 } finally {
   await context?.close(); await new Promise(r => fixture.close(r)); if (mock) await new Promise(r => mock.close(r)); await rm(root, { recursive: true, force: true });

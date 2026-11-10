@@ -1,3 +1,4 @@
+import { sendRetraction, validRetractionAck, type RetractionRequest } from './retractions';
 import { sendNotification, type NotificationReceipt } from './notifications';
 import type { V2Alert } from './status';
 import { API_BASE_URL, postJson } from '../api/client';
@@ -15,6 +16,7 @@ import { V2Repository, drained } from './repository';
 import { initialState, type V2State, type Stamp, type CompactReceipt } from './state';
 
 export interface V2Transport {
+  retract?: (sessionId: string, request: RetractionRequest) => Promise<unknown>;
   start: (goalText: string, key: string) => Promise<unknown>;
   post: typeof savePageVisit; patch: typeof updateVisitBehavior;
   end: typeof endSession; query: typeof getSession;
@@ -30,6 +32,8 @@ export class V2Runtime {
   private held = false;
   private starting = false;
   private notificationRunning = false;
+  private retractionRunning = false;
+  private compactedIds: string[] = [];
   private posts: VisitDelivery;
   private behaviors: BehaviorDelivery;
   private ending: SessionEndDelivery;
@@ -54,6 +58,7 @@ export class V2Runtime {
   async initialize() {
     try {
       const s = await this.repository.load();
+      this.compactedIds = s.session ? await this.repository.compactedVisitIds(s.session.sessionId) : [];
       this.committed = structuredClone(s); this.install(s);
       await this.mutate(() => {
         // Worker generation cannot establish a return interval, even for a surviving Chrome document.
@@ -61,6 +66,8 @@ export class V2Runtime {
         s.tabs = {}; s.foreground = null; s.lastTab = null; delete s.lastVisit;
         this.posts.restore(s.posts, s.session?.sessionId); this.behaviors.restore(s.behaviors, s.posts.entries);
         this.ending.restore(s.end);
+        for (const e of s.retractions ?? []) if (e.phase === 'sending') e.phase = 'pending';
+        if (s.quarantine) this.queueRetractions();
       });
       this.kick();
     } catch (error) { this.failed = true; throw error; }
@@ -89,7 +96,13 @@ export class V2Runtime {
     });
   }
   wake() { this.kick(); }
-  private kick() { if (this.canSend()) { this.posts.kick(); this.behaviors.kick(); this.ending.kick(); } }
+  private kick() {
+    if (this.committed.quarantine) {
+      // mutate already preserves the committed state and closes the storage gate on failure.
+      void this.flushRetractions().catch(() => {}); return;
+    }
+    if (this.canSend()) { this.posts.kick(); this.behaviors.kick(); this.ending.kick(); }
+  }
   async start(goalText: string) {
     if (this.starting) throw new Error('V2_START_IN_FLIGHT');
     this.starting = true;
@@ -105,7 +118,7 @@ export class V2Runtime {
     await this.mutate(() => {
       if (previousSessionId) {
         const revision = this.state.revision;
-        this.posts.clear(); this.behaviors.clear(); this.ending.clear();
+        this.posts.clear(); this.behaviors.clear(); this.ending.clear(); this.compactedIds = [];
         this.install({ ...initialState(API_BASE_URL), revision });
       }
       this.state.start ??= { goalText, idempotencyKey: crypto.randomUUID(), collectionSpecVersion: '2.0', apiBaseUrl: API_BASE_URL };
@@ -150,16 +163,53 @@ export class V2Runtime {
     this.kick();
   }
   private quarantineNow(reason: NonNullable<V2State['quarantine']>['reason'], wall: number) {
-    this.state.quarantine ??= { reason, observedAt: new Date(wall).toISOString(), visitIds: this.state.candidates.map(c => c.id), status: 'RETRACTION_REQUIRED' };
+    this.state.quarantine ??= { reason, observedAt: new Date(wall).toISOString(), visitIds: [...new Set([...this.state.candidates.map(c => c.id), ...this.compactedIds])], status: 'RETRACTION_REQUIRED' };
     for (const c of this.state.candidates) c.cursor = undefined;
     this.state.foreground = null;
+    this.queueRetractions();
+  }
+  private queueRetractions() {
+    const q = this.state.quarantine;
+    if (!q || !this.state.session) return;
+    this.state.retractions ??= [];
+    for (const visitId of new Set([...q.visitIds, ...this.compactedIds])) {
+      if (this.state.retractions.some(e => e.request.visitId === visitId)) continue;
+      this.state.retractions.push({ request: { retractionId: crypto.randomUUID(), visitId, observedAt: q.observedAt,
+        reasonCode: q.reason === 'CONSENT_WITHDRAWN' ? 'CONSENT_WITHDRAWN' : 'SENSITIVE_CONTENT' },
+        phase: 'pending', attempts: 0, nextAttemptAt: 0 });
+    }
+  }
+  async flushRetractions() {
+    if (this.retractionRunning || this.failed || !this.committed.quarantine || !this.committed.session || !this.transport.retract) return;
+    this.retractionRunning = true;
+    try {
+      for (const saved of this.committed.retractions ?? []) {
+        if (saved.phase === 'acknowledged' || saved.nextAttemptAt > Date.now()) continue;
+        const id = saved.request.retractionId;
+        await this.mutate(() => { const e = this.state.retractions!.find(e => e.request.retractionId === id)!; e.phase = 'sending'; e.attempts++; });
+        try {
+          const ack = await this.transport.retract(this.committed.session.sessionId, structuredClone(saved.request));
+          if (!validRetractionAck(ack, saved.request)) throw new Error('DELIVERY_UNCONFIRMED');
+          await this.mutate(() => { const e = this.state.retractions!.find(e => e.request.retractionId === id)!; e.ack = ack; e.phase = 'acknowledged'; delete e.errorCode; });
+        } catch {
+          if (this.failed) return;
+          await this.mutate(() => { const e = this.state.retractions!.find(e => e.request.retractionId === id)!;
+            e.phase = 'pending'; e.errorCode = 'DELIVERY_UNCONFIRMED'; e.nextAttemptAt = Date.now() + Math.min(60000, 1000 * 2 ** Math.min(e.attempts, 6)); });
+        }
+      }
+    } finally { this.retractionRunning = false; }
   }
   async quarantine(reason: NonNullable<V2State['quarantine']>['reason'], wall: number) {
     this.held = true; // Also blocks a late ACK from releasing the next request before commit.
     await this.mutate(() => this.quarantineNow(reason, wall));
+    this.kick();
   }
   async retry() {
-    if (this.committed.quarantine || this.failed) return;
+    if (this.failed) return;
+    if (this.committed.quarantine) {
+      await this.mutate(() => { for (const e of this.state.retractions ?? []) e.nextAttemptAt = 0; });
+      this.kick(); return;
+    }
     await this.mutate(() => { this.posts.retry(); this.behaviors.retry(); this.ending.retry(); });
     this.kick();
   }
@@ -195,6 +245,7 @@ export class V2Runtime {
       this.state.compactedThrough = receipts.at(-1)!.sequence; this.state.compactedCount += receipts.length;
       this.install(this.state);
     }, receipts);
+    this.compactedIds.push(...receipts.map(r => r.visitId));
   }
   async recordShown(alert: V2Alert, shownAt: string) {
     if (this.stopping || this.held || this.committed.lifecycle !== 'ACTIVE' || this.committed.quarantine
@@ -239,5 +290,6 @@ export class V2Runtime {
 }
 export const v2HttpTransport: V2Transport = {
   start: (goalText, key) => postJson('/api/sessions', { goalText, collectionSpecVersion: '2.0' }, key),
+  retract: sendRetraction,
   post: savePageVisit, patch: updateVisitBehavior, end: endSession, query: getSession,
 };

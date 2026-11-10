@@ -290,3 +290,72 @@ it('commits B before delayed inactive A, retaining A original identity after ret
   expect(a.visitId).toBe(firstId); expect(a.visitedAt).toBe(firstTime); expect(a.sequence).toBe(2);
   expect(a.activeDurationMs).toBe(5000); expect(r.snapshot().candidates.find(c => c.id === firstId)?.closed).toBe(true);
 });
+
+it.each(['before-post', 'post-in-flight', 'patch-pending', 'end-pending'] as const)('persists priority retraction during %s and replays the same request after lost ACK', async stage => {
+  const t = transport();
+  t.retract = vi.fn(async () => { throw new Error('lost response'); });
+  if (stage !== 'before-post') t.post = vi.fn(() => new Promise<never>(() => {}));
+  const { runtime: r, repo } = await setup(t);
+  await advance(r, 0, stage === 'before-post' ? 4000 : 5000);
+  if (stage === 'patch-pending') await r.foreground(2, time(5500), true);
+  if (stage === 'end-pending') await r.stop(time(5500));
+  const original = structuredClone(r.snapshot().candidates);
+  await r.quarantine('CONSENT_WITHDRAWN', time(6000).wall);
+  await waitFor(() => r.snapshot().retractions?.[0]?.errorCode === 'DELIVERY_UNCONFIRMED');
+  const frozen = r.snapshot().retractions![0].request;
+  expect(frozen.visitId).toBe(original[0].id);
+  expect(t.retract).toHaveBeenCalledWith(session.sessionId, frozen);
+  expect(t.patch).not.toHaveBeenCalled(); expect(t.end).not.toHaveBeenCalled();
+  const disk = await repo.load(); expect(disk.candidates.map(c => c.post)).toEqual(original.map(c => c.post));
+  repo.close();
+  const next = transport();
+  next.retract = vi.fn(async (_s, request) => ({ retractionId: request.retractionId, visitId: request.visitId, status: 'QUARANTINED', invalidatedWindowIds: [] }));
+  const restarted = new V2Runtime(new V2Repository(API_BASE_URL), next); await restarted.initialize(); await restarted.retry();
+  await waitFor(() => restarted.snapshot().retractions?.[0]?.phase === 'acknowledged');
+  expect(next.retract).toHaveBeenCalledWith(session.sessionId, frozen);
+  expect(next.post).not.toHaveBeenCalled(); expect(next.patch).not.toHaveBeenCalled(); expect(next.end).not.toHaveBeenCalled();
+  expect(restarted.collecting()).toBe(false); expect(restarted.snapshot().alertsSuppressed).toBe(true);
+  expect(restarted.snapshot().quarantine?.status).toBe('RETRACTION_REQUIRED');
+});
+it('retracts compacted visits using receipts without recreating their originals', async () => {
+  const { runtime: r, t } = await setup(); await advance(r); await waitFor(() => r.snapshot().posts.entries[0]?.phase === 'acked');
+  const id = r.snapshot().posts.entries[0].visitId;
+  await r.foreground(null, time(5000)); await waitFor(() => r.snapshot().behaviors.entries[0]?.phase === 'acked'); await r.compact(time(10000));
+  expect(r.snapshot().candidates).toHaveLength(0);
+  t.retract = vi.fn(async (_s, request) => ({ ...request, status: 'QUARANTINED', invalidatedWindowIds: [] }));
+  await r.quarantine('CONSENT_WITHDRAWN', time(11000).wall);
+  expect(r.snapshot().retractions!.map(e => e.request.visitId)).toEqual([id]);
+  await waitFor(() => r.snapshot().retractions?.[0]?.errorCode === 'DELIVERY_UNCONFIRMED'); // Extra wire fields are rejected.
+  expect(r.snapshot().candidates).toHaveLength(0);
+});
+it('rejects forged durable retraction identity and does not clear quarantine after a PURGED ACK', async () => {
+  const t = transport(); t.retract = vi.fn(async (_s, request) => ({ retractionId: request.retractionId, visitId: request.visitId, status: 'PURGED', invalidatedWindowIds: [] }));
+  const { runtime: r, repo } = await setup(t); await advance(r, 0, 4000); await r.quarantine('SENSITIVE_CONTENT', time(5000).wall);
+  await waitFor(() => r.snapshot().retractions?.[0]?.phase === 'acknowledged');
+  expect(r.collecting()).toBe(false);
+  const disk = await repo.load(); disk.retractions![0].request.observedAt = '2026-11-10T02:00:00.000Z';
+  await expect(repo.save(disk, disk.revision)).rejects.toThrow();
+});
+it('fails closed on the retraction sending commit abort before making HTTP', async () => {
+  const { runtime: r, t } = await setup(); await advance(r, 0, 4000);
+  t.retract = vi.fn(async () => ({}));
+  const put = IDBObjectStore.prototype.put;
+  const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
+    const request = put.call(this, value, key);
+    if (this.name === 'v2' && value.retractions?.[0]?.phase === 'sending') request.addEventListener('success', () => this.transaction.abort());
+    return request;
+  });
+  try {
+    await r.quarantine('SENSITIVE_CONTENT', time(5000).wall); await waitFor(() => r.snapshot().storageFailed);
+    expect(t.retract).not.toHaveBeenCalled(); expect(r.collecting()).toBe(false);
+  } finally { spy.mockRestore(); }
+});
+it('does not carry compacted visit IDs across a new session into its retraction queue', async () => {
+  const { runtime: r, repo, t } = await setup(); await advance(r); await waitFor(() => r.snapshot().posts.entries[0]?.phase === 'acked');
+  const old = r.snapshot().posts.entries[0].visitId;
+  await r.foreground(null, time(5000)); await waitFor(() => r.snapshot().behaviors.entries[0]?.phase === 'acked'); await r.compact(time(10000));
+  await r.stop(time(11000)); await waitFor(() => r.snapshot().lifecycle === 'ENDED');
+  vi.mocked(t.start).mockResolvedValueOnce({ ...session, sessionId: '60000000-0000-4000-8000-000000000001' });
+  await r.start(session.goalText); await r.quarantine('SENSITIVE_CONTENT', time(12000).wall);
+  expect(r.snapshot().retractions).toEqual([]); expect(r.snapshot().quarantine!.visitIds).not.toContain(old); repo.close();
+});

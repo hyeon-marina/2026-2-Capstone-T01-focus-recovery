@@ -21,6 +21,7 @@ export interface V2State {
   posts: VisitDelivery['checkpoint']; behaviors: BehaviorDelivery['checkpoint']; end?: SessionEndCheckpoint;
   notifications: import('./notifications').NotificationReceipt[];
   compactedThrough: number; compactedCount: number;
+  retractions?: import('./retractions').RetractionEntry[];
   quarantine?: { reason: 'SENSITIVE_CONTENT' | 'CONSENT_WITHDRAWN' | 'PRIVACY_RETRACTED'; observedAt: string; visitIds: string[]; status: 'RETRACTION_REQUIRED' };
 }
 export function initialState(apiBaseUrl: string): V2State {

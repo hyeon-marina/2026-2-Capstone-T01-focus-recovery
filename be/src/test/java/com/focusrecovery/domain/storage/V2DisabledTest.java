@@ -13,6 +13,12 @@ import org.springframework.test.web.servlet.MockMvc;
 @ActiveProfiles("test")
 class V2DisabledTest {
 	@Autowired MockMvc mvc;
+	@Test void retractionAuthenticationHasNoConfigurationBypass() throws Exception {
+        mvc.perform(post("/api/sessions/00000000-0000-4000-8000-000000000001/visit-retractions")
+            .header("Authorization", "Bearer arbitrary-token").contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.apiContractVersion").value(2))
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
 	@Test void rejectsV2ByDefaultAndPreservesV1() throws Exception {
 		mvc.perform(post("/api/sessions").contentType(MediaType.APPLICATION_JSON)
 			.content("{\"goalText\":\"합성 기존 목표입니다\",\"collectionSpecVersion\":\"2.0\"}"))

@@ -264,11 +264,11 @@ abstract class V2StorageContract {
 		assertThat(retractions.findById(request.retractionId()).orElseThrow().getProcessingStatus()).isEqualTo("QUARANTINED");
 		code(() -> privacy.quarantine(session,new Retraction.Request(request.retractionId(),visit,"CONSENT_WITHDRAWN",TIME)),"RETRACTION_ID_CONFLICT");
 	}
-	@Test void retractBeforePostAndNoPublicRetractionEndpoint() throws Exception {
+	@Test void retractBeforePostAndPublicRetractionFailsClosed() throws Exception {
 		UUID visit=UUID.randomUUID();privacy.quarantine(session,new Retraction.Request(UUID.randomUUID(),visit,"CONSENT_WITHDRAWN",TIME));
 		assertThat(tombstones.existsById(visit)).isTrue();code(() -> visits.save(session,request(visit,1,5000)),"PRIVACY_RETRACTED");
 		mvc.perform(post("/api/sessions/{id}/visit-retractions",session).contentType(MediaType.APPLICATION_JSON).content("{}"))
-			.andExpect(status().isNotFound());
+			.andExpect(status().isUnauthorized());
 	}
 	@ParameterizedTest @ValueSource(strings={"missing-extraction","failed-extraction","missing-query","string-sequence","extra-field","long-title","bad-timestamp"})
 	void strictV2Json(String mutation) throws Exception {

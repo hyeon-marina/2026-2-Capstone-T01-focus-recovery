@@ -1,5 +1,11 @@
 # 데이터 수집·분석 공통 연동 계약 — Issue #79 / #81 / #83
 
+## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
+
+기존 PrivacyRetraction/RetractionAck 필드·Enum·공통 Schema/Fixture는 그대로다. 회수 API는 최초202, 같은 원본 replay200, ID 상충409를 구현했다. 기본 인증 경계는401로 거절하며 생산용 소유권 모델은 미구현이다. test 소스의 인증·DB 소유권 매핑에서만 합성 HTTP를 검증한다. QUARANTINED와 PURGED를 구분하고 PURGED 집계는 항상 fail-closed다.
+
+상세 구현·삭제/격리 Inventory·명령·실패/미검증 범위는 [개인정보 회수 검증 보고](v2-privacy-retraction-validation.md)를 따른다. 아래 과거 작업의 미구현 설명은 당시 기록이다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.**
+
 ## #91 FE 합성 전용 구현 — 승인 변경 없음
 
 FE는 collectionSpecVersion=2.0의 세션과 extractionStatus=SUCCESS POST, 기존 세 필드 Behavior PATCH, ACK drain 후 END를 구현했다. currentDecision/windowId/stateVersion을 검증하며 FE에서 최종 판단/AI 요청을 만들지 않는다. Schema/Fixture와 BE/AI 제품은 변경하지 않았다.
