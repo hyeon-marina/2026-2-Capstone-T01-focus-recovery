@@ -1,9 +1,11 @@
-# 데이터 수집·분석 공통 연동 계약 — Issue #79
+# 데이터 수집·분석 공통 연동 계약 — Issue #79 / #81
+
+> #81 검토 기준: 공식 main `6e15dd3fa1789e96c42bc4f33250c4221d6d2616` (2026-11-10 KST). **P1~P6와 아래 v2 API는 PROPOSED**, 승인 근거 없음. 세부 결정·대안·현행 코드 대조는 [v2 결정안](v2-contract-decisions.md), 기계 검증 타입은 [계약 패키지](contracts/v2/README.md)가 이 문서의 초안 타입보다 우선한다. 제품 코드·DB 변경 없음.
 
 ## 1. 기준·근거·변경 상태
 
-- 분석 기준: 2026-11-10 KST, 공식 main `d0d40f892a8ed54253a12884fb6f64a149272f27`. 시작 worktree는 detached `5e49cb3`, 변경/미추적 파일 없음. origin=개인 Fork(hyeon-marina), upstream=공식 저장소. 같은 이름의 로컬/원격 브랜치 없음 확인 후 `docs/79/data-collection-analysis-contract` 생성.
-- Issue 실제 본문·댓글 0건 확인. 관련 open Issue는 #79만, open PR은 없음(확인 시점). 아래 PR은 main 병합 로그로 확인했다. 별도 AGENTS.md/CONTRIBUTING/Git 가이드는 발견되지 않았다. project-plan의 develop 통합 방침과 달리 이번 제출은 사용자의 명시적 공식 main 대상 PR 지시를 따른다. main 직접 commit/push/merge는 하지 않는다.
+- #79 당시 분석 이력(현재 작업 Git 상태와 구분): 2026-11-10 KST, 공식 main `d0d40f892a8ed54253a12884fb6f64a149272f27`. 시작 worktree는 detached `5e49cb3`, 변경/미추적 파일 없음. origin=개인 Fork(hyeon-marina), upstream=공식 저장소. 같은 이름의 로컬/원격 브랜치 없음 확인 후 `docs/79/data-collection-analysis-contract` 생성.
+- #79 당시 Issue 실제 본문·댓글 0건 확인. 당시 관련 open Issue는 #79만, open PR은 없음. #81 현재 상태·Git 준비는 [결정안 §1](v2-contract-decisions.md#1-상태와-검토-기준) 참조. 아래 PR은 main 병합 로그로 확인했다. 별도 AGENTS.md/CONTRIBUTING/Git 가이드는 발견되지 않았다. project-plan의 develop 통합 방침과 달리 이번 제출은 사용자의 명시적 공식 main 대상 PR 지시를 따른다. main 직접 commit/push/merge는 하지 않는다.
 - [수집 규격](data-collection-spec.md)은 확정 정책의 기준이다. 이 문서의 **P1~P6 및 v2 API/DB 명칭은 구현 검토 제안**이다. 문서 PR 승인과 별개로 후속 Issue에 선택 결과를 기록해야 한다. 구현 완료·팀 합의·실제 배포로 읽지 않는다.
 
 | 근거 | 현재 구현/검증 | #79 영향 |
@@ -86,7 +88,7 @@ sessionId는 방문 POST의 path에 있으며 body에 중복 필수가 아니다
 | stateVersion:int64, judgedAt:timestamp, ruleVersion:string | 판단 필수·BE | window_state_history; window별1부터, BE 판단 시각 |
 | behaviorSnapshot:{visitId,activeDurationMs,tabSwitchCount,behaviorVersion}[] | 판단 필수·BE | window_state_history JSON; 판단 당시 값, 순서대로3개 |
 | finalState:NORMAL/TRANSITION/DRIFT | 성공 판단 필수·BE | window_state_history. 실패/대기는 성공 이력 없이 조회에서 null |
-| decisionStatus:PENDING/COMPLETED/FAILED, errorCode:string/null | 조회 필수·BE | 분석/판단 작업 상태; NORMAL과 실패 분리 |
+| decisionStatus:PENDING/COMPLETED/FAILED/INVALIDATED, errorCode:string/null | 조회 필수·BE | 분석/판단 작업 상태; NORMAL과 실패 분리 |
 | inputFingerprint:string(SHA-256), analysisId:UUID | 필수·BE | 분석/판단 멱등. 이력의 fingerprint는 AI ID+ruleVersion+행동 스냅샷으로 계산 |
 | datasetVersion/labelGuideVersion:string | Export 필수·데이터 담당 | manifest·라벨; 운영 정책/모델 버전과 독립 |
 
@@ -100,11 +102,11 @@ sessionId는 방문 POST의 path에 있으며 body에 중복 필수가 아니다
 
 ### P2. 5초 전달과 sequence
 
-권장안: 활성 5초+콘텐츠 성공 순간 Background 직렬 트랜잭션에서 sequence를 부여하고 POST 원본을 영속 동결한다. sequence는 **유효성 확정 순서**, visitedAt은 시작 시각으로 분리한다. 같은 시각에는 직렬 처리 순서를 쓴다. 열린 탭 종료를 기다리지 않아 5초 전달이 가능하다. 이후 행동만 PATCH하며 재복귀해도 기존 번호를 바꾸지 않는다. 후보가 제외되면 번호를 소급 채우지 않는다. 권한 재개 시 기존 발급 상한을 보존하고 공백을 허용한다(PR #65).
+권장안: 활성 5초+콘텐츠 성공 순간 Background 직렬 트랜잭션에서 sequence를 부여하고 POST 원본을 영속 동결한다. sequence는 **유효성 확정 순서**, visitedAt은 시작 시각으로 분리한다. 같은 시각에는 직렬 처리 순서를 쓴다. 열린 탭 종료를 기다리지 않아 5초 전달이 가능하다. 이후 행동만 PATCH하며 재복귀해도 기존 번호를 바꾸지 않는다. 후보가 제외되면 번호를 소급 채우지 않는다. 권한 재개 시 기존 발급 상한을 보존하고 공백을 허용한다(PR #65). #81 권장안은 첫 Window 이전에도 BE 신규 sequence가 수신 high watermark보다 커야 한다. 현재 첫 Window 전 역순 허용과 다른 동작이며 신규 v2에만 적용한다.
 
 **변경 비용:** 기존 후보 시작 순서와 다르다. 예를 들어 A의 콘텐츠가 늦어 B가 먼저 유효해지면 B sequence1, A sequence2일 수 있다. 최근 탐색 흐름의 의미가 달라지므로 **FE·BE·AI·데이터 담당 승인 전 확정하지 않는다.** 대안은 후보 시작 순서 유지+앞 후보 결론까지 5초 전달 지연인데, Issue의 실시간 의도와 충돌한다. 다른 대안인 후보 순서와 분석 순서를 이원화하면 재정렬/Window 재구성 계약이 추가된다.
 
-5초 전송 후 DOM 정책 변경은 기존 finalized 전 제외와 달리 서버에 이미 본문이 있을 수 있다. 현재 API에는 정정/삭제 계약이 없다. **서버 정정·개인정보 처리 방식을 별도 합의하기 전 조기 POST를 배포하지 않는다.** 보호 검사를 제거하거나 기존 큐/영수증을 지워 해결하지 않는다. ACK 완료 자료 정리·짧은 복귀 캐시 수명·저장소 quota backpressure는 같은 후속 FE Issue에서 정한다.
+5초 전송 후 DOM 정책 변경은 기존 finalized 전 제외와 달리 서버에 이미 본문이 있을 수 있다. 현재 API에는 정정/삭제 계약이 없다. **서버 정정·개인정보 처리 방식을 별도 합의하기 전 조기 POST를 배포하지 않는다.** #81에서는 [P2 회수 계약](v2-contract-decisions.md#41-전송-후-민감-판정-이미-보낸-자료의-처리)에 격리→원문/AI snapshot/캐시/Export 회수·파생무효화·미존재ID tombstone·지연응답 차단까지 구체화했다. 이 회수 수단과 권한 체계가 배포 선결이다. 보호 검사를 제거하거나 기존 큐/영수증을 지워 해결하지 않는다. ACK 완료 자료 정리·짧은 복귀 캐시 수명·저장소 quota backpressure는 같은 후속 FE Issue에서 정한다.
 
 ### P3. 5분 통과
 
@@ -112,62 +114,22 @@ sessionId는 방문 POST의 path에 있으며 body에 중복 필수가 아니다
 
 ## 6. P4: AI 구성과 BE 식별·분석 흐름
 
-**권장안은 구성→저장→분석 두 단계다.** AI 구성 전에 BE가 3개 멤버를 결정해서 전달하는 방식은 책임 변경이 아니다. 반대로 windowId 없는 요청을 현재 analysis_result에 먼저 저장하면 NOT NULL FK와 충돌한다. 기존 영속 Window/분석 흐름을 유지하려고 구성 단계만 앞에 둔다.
+#81 권장안 A는 **AI 구성→BE Window 저장→기존 분석 API v2**다(PROPOSED). 단일 API는 요청시점 Window FK가 없는 별도 작업·응답매핑 구조가 필요하다. 기존 BE 구성을 유지하는 C는 최신 책임 정책과 충돌한다. 비용/FK/복구 비교는 [결정안 §6](v2-contract-decisions.md#6-p4--ai-구성과-be-저장) 참조.
 
-1. 방문 저장 트랜잭션에서 세션별 구성 작업/입력 스냅샷을 영속화한다. AI 네트워크 호출 중 DB 잠금을 잡지 않는다.
-2. BE는 직전 구성 커서 이전 마지막 **최대 2개 문맥 방문 + 커서 이후 모든 미처리 유효 방문**을 sequence 오름차순으로 AI에 전달한다. 이는 입력 문맥 조회이며 Window 멤버 생성은 아니다. 초기에는 1~2개도 전달 가능하다.
-3. AI가 길이3/stride1을 적용해 end.sequence > afterSequence인 Window를 구성한다. 부족하면 windows=[]를 반환한다. stateful AI 메모리만을 진실로 사용하지 않는다.
-4. BE는 응답의 요청 ID/세션/커서/방문 소속·순서·3개·중복·누락을 검증한다. 세션 잠금+커서 CAS로 한 번만 반영한다. windowId(UUID)와 windowIndex(1부터)를 발급하고 analysis_window/window_visit에 저장한다.
-5. 같은 트랜잭션에서 기존 AnalysisRequestService 방식의 analysisId/입력 스냅샷을 저장하고 commit 후 AnalysisExecutor가 분석한다. 10초 대기는 제거한다.
-6. AI가 각 Window의 페이지 관련성/우회 결과를 반환하면 BE가 검증 후 상태를 판단한다. 체류 갱신은 구성/AI 호출을 하지 않는다.
+| 계약 | 필수 정보·의미 | Schema entry point |
+| --- | --- | --- |
+| Window 구성 요청 | apiContractVersion=2, composeRequestId/sessionId UUID v4, afterSequence>=0, inputFingerprint SHA256, visits(visitId/sequence만) | CompositionRequest |
+| 구성 응답 | 같은ID/hash/after, composedThroughSequence=마지막 신규번호, windows(ordered visitIds[3],endVisitId). BE windowId/index 없음 | CompositionResponse |
+| 분석 요청 | apiContractVersion=2, analysisId/sessionId/windowId/windowIndex, goalText, inputFingerprint, visits 3개(position1~3/visitId/sequence/title/content/searchQuery/isSearchResultPage/visitedAt) | AnalysisRequest |
+| 분석 응답 | 같은ID/hash, pageResults 3개(position/visitId/label/semanticRelevance/rationale), modelVersions(embedding/context/prompt/labelGuide), analyzedAt | AnalysisResponse |
 
-제안 endpoint: `POST /api/ai/window-compositions`. 아래는 타입 스키마이며 `VisitV2`는 §3의 방문 필드 중 visitId/sequence/title/content/searchQuery/isSearchResultPage/visitedAt을 가진다. 메타데이터·행동값은 구성에 필요하지 않다.
+실제 필수·null·범위는 [v2.schema.json](contracts/v2/v2.schema.json)과 [필드 사전](contracts/v2/README.md)을 따른다. §3~4의 초안 필드 설명은 이 구체 Schema에 맞춰 읽는다. title/content/searchQuery는 분석에만 전달하고 구성은 ID/sequence만 전송한다. 일반 query=null, 검색query는non-null, 본문성공 필요. AI는 체류값을 받지 않으며5초 검증은 BE의 책임이다. label은 DIRECT/JUSTIFIED_DETOUR/UNRELATED, cosine finite[-1,1]이며 확률이 아니다. v2는 최종 result/확률을 반환하지 않고 BE가 판단한다.
 
-```typescript
-// 모든 필드는 필수. searchQuery만 null 허용. ID는 UUID 문자열.
-type VisitV2 = {
-  visitId: string; sequence: number; title: string; content: string;
-  searchQuery: string | null; isSearchResultPage: boolean; visitedAt: string;
-};
-type ComposeRequest = {
-  apiContractVersion: 2; composeRequestId: string; sessionId: string;
-  afterSequence: number; visits: VisitV2[];
-};
-type ComposeResponse = {
-  apiContractVersion: 2; composeRequestId: string; sessionId: string;
-  afterSequence: number; composedThroughSequence: number;
-  windows: { endVisitId: string; visitIds: [string, string, string] }[];
-};
-```
+구성 커서는 Window 끝번호가 아니라 처리완료 방문 high watermark다. 최초1~2개도 windows=[]/커서전진, 다음 요청에 직전 tail최대2+신규prefix를 포함한다. 입력1~256개는 제안 batch상한(수집총량 제한 아님), 숫자공백 허용·저장된 방문 누락 금지, 순서역전/중복422. AI는 인접3개/stride1 구성, BE는 전체 응답 검증·커서CAS 후 UUID/index 발급, Window/멤버/분석PENDING/outbox/커서/job완료를 원자 commit한다. 네트워크는 DB tx 밖이다. through는 마지막 신규sequence이며 부분성공·실패시전진 금지. 다른 원문으로 같은ID는409, 동결구성job은 bounded retry, commit후 재시작은 같은Window ID 재사용.
 
-응답 afterSequence는 요청과 같아야 한다. 커서는 입력 마지막 sequence로만 전진한다. 빈 요청은422이며 BE가 호출하지 않는다. 초기 입력 P1/P2면 구간0·커서2, 다음 요청은 문맥[P1,P2]+신규P3라 W1이 생긴다. 예컨대 1,3,4,6은 번호 공백을 허용하는 순서이므로 [1,3,4], [3,4,6]이다. 실패한 구성 요청은 커서를 전진시키지 않고 동결된 같은 composeRequestId로 재시도한다. 200 동일 결과, 409 COMPOSE_ID_CONFLICT(다른 payload)/COMPOSE_IN_PROGRESS, 422 INVALID_REQUEST, 503 AI_NOT_READY, 500 AI_COMPOSITION_FAILED를 제안한다. 입력이 고정된 순수 구성은 모델 로드 없이 처리할 수도 있으며 그 준비상태 의미를 후속 구현에서 확정한다.
+기존 analysis_result NOT NULL Window FK 때문에 Window 전 분석행 저장은 불가능하다. 별도 compose job에는 session FK만 두고 Window 저장 후 분석행을 만든다. 기존 UNIQUE(window_id)는 유지하고 체류변경은 분석 재요청 대신 P5 판단만 수행한다. AI 메모리 registry는 eviction/재시작으로 사라지므로 BE DB가 영속 멱등의 진실이다. 기존 BE 분석 자동재시도 없음/FAILED확정 뒤 지연응답 무시를 유지한다.
 
-분석 경로는 **기존 `POST /api/ai/analyses` 유지**, apiContractVersion으로 v1/v2를 구분한다.
-
-```typescript
-type AnalysisRequestV2 = {
-  apiContractVersion: 2; analysisId: string; sessionId: string;
-  windowId: string; windowIndex: number; goalText: string;
-  visits: (VisitV2 & { position: 1 | 2 | 3 })[]; // 정확히 3개
-};
-type AnalysisResponseV2 = {
-  apiContractVersion: 2; analysisId: string; sessionId: string; windowId: string;
-  pageResults: {
-    position: 1 | 2 | 3; visitId: string;
-    label: 'DIRECT' | 'JUSTIFIED_DETOUR' | 'UNRELATED';
-    semanticRelevance: number; rationale: string;
-  }[]; // 각 position/visitId가 요청과 1:1, finite cosine [-1,1]
-  modelVersions: Record<string, string>; analyzedAt: string;
-};
-```
-
-label은 수치 관련성 하나의 임의 임계값으로 확정하지 않는다. AI가 목표·해당 구간 맥락으로 판단하며 rationale은 그 근거다. 같은 방문도 Window 맥락에 따라 예측이 달라질 수 있으므로 **(analysisId, visitId)**로 보존한다. 전역 page_visit에 하나의 예측을 덮어쓰지 않는다. 체류 재판단 때는 그 Window의 AI 결과를 그대로 쓴다.
-
-BE가 원천 방문의5초·추출 성공을 검증한 뒤 의미 분석 입력을 만든다. v2 AI wire에 체류값이 없으므로 AI가 없는 시간을 추정하거나 검증했다고 보고하지 않는다. 현재 main은 searchQuery를 수신하지만 모델 PageVisit(title,content)에 넘기지 않는다. v2에서 검색어 맥락을 사용하려면 이 경로도 명시적으로 확장해야 한다.
-
-v2 응답에 최종 result/pNormal/pTransition/pDrift를 필수로 요구하지 않는다. 비교 실험 시 별도 legacyPrediction으로 보존할 수 있으나 BE 최종 판단 입력은 아니다. v1의 5개·확률 필수 검증과 조용히 혼합하지 않는다. 기존 오류 envelope `{code,message,fieldErrors}` 및 INVALID_REQUEST(422), ANALYSIS_ID_CONFLICT/ANALYSIS_IN_PROGRESS(409), AI_ANALYSIS_FAILED(500), AI_NOT_READY(503)를 유지한다. 실패는 정상 페이지 라벨을 반환하지 않는다. BE의 AI_TIMEOUT/AI_UNAVAILABLE/AI_INVALID_RESPONSE/ANALYSIS_QUEUE_FULL 등도 유지한다.
-
-**장단점/대안:** 두 단계는 기존 Window FK와 분석 ID/복구 흐름을 살리지만 HTTP 왕복·구성 작업 테이블이 추가된다. 대안인 단일 방문 스트림 API는 왕복이 적지만 Window 이전 분석 요청 저장을 위해 기존 FK·조회·알림을 더 크게 바꾼다. **BE·AI 담당이 P4 선택을 확정한 뒤 구현**한다. 1~2개 방문의 독립 페이지 분석은 이 권장안에서 대기하며 Window/최종 상태가 없다. 선행 페이지 분석이 필요하면 별도 endpoint/캐시 계약을 합의한다.
+모델 출력 실패를 NORMAL/UNRELATED로 채우지 않는다. 같은 방문도 Window 맥락별 예측은 (analysisId,visitId)에 보존한다. 현행 main의 searchQuery→모델 전달 누락·기존5개 학습분류기의 페이지라벨 비호환은 후속AI 구현사항이다. API 오류코드/nullable/조회 projection은 [계약 패키지](contracts/v2/README.md)에 통일했다.
 
 ## 7. P5: 상태 이력·동시성·알림
 
@@ -178,12 +140,12 @@ v2 응답에 최종 result/pNormal/pTransition/pDrift를 필수로 요구하지 
 - 입력마다 이력을 남기는 안은 재현성이 높지만 같은 상태의 저장량이 늘어난다. 대안은 상태 전환/5분 통과만 기록하고 행동 이벤트 로그를 따로 보존하는 방식이다. P5 승인에서 저장량과 재현 범위를 함께 선택한다.
 - BE 세션→Window 잠금 순서로 최신 행동값을 일관되게 읽고 max(stateVersion)+1을 같은 트랜잭션에서 발급한다. 네트워크 처리 중 잠금은 금지한다. 동일 입력 재시도는 기존 버전, 다른 입력은 상태가 같아도 새 버전이다.
 - 행동 갱신은 해당 visitId를 포함하는 모든 Window에 판단 작업을 만든다. AI 미완료면 대기하고, 완료 시 최신 행동 스냅샷으로 첫 판단한다. AI 입력 시점과 판단 시점은 다를 수 있으며 둘 다 저장한다. AI 완료 전 지나간 5분 경계를 사후 5초 판단으로 꾸미지 않는다.
-- 현재 상태는 세션의 **최신 구성 Window의 최신 stateVersion**이다. 최신 Window가 PENDING/FAILED이면 decisionStatus를 그대로 반환하고 이전 결과는 lastSuccessfulState로만 표시한다. 이전 결과를 현재 NORMAL로 복사하지 않는다.
+- 현재 상태는 세션의 **최신 구성 Window의 최신 stateVersion**이다. 최신 Window가 PENDING/FAILED/INVALIDATED이거나 행동 dirty 재판단 대기이면 decisionStatus를 그대로 반환하고 이전 결과는 lastSuccessfulState로만 표시한다. 이전 결과를 현재 NORMAL로 복사하지 않는다.
 - 지연·역순 AI 결과는 원래 analysisId/windowId에만 기록한다. 완료/실패 확정 작업을 늦은 응답으로 덮지 않는다. 중복 worker는 기존 PENDING/RUNNING 소유권 검증을 유지한다. 구성 watermark 이전의 신규 작은 sequence는 VISIT_SEQUENCE_OUT_OF_ORDER로 거절한다(이미 저장된 원본 재전송200은 유지).
 - AI 현재 registry는 재시작/eviction 후 기억을 잃는다. 영속 중복의 진실은 BE DB의 작업/Window UNIQUE다. BE 자동 분석 재시도는 현재 없으며 유지한다. 운영 재분석이 필요하면 새로운 analysis attempt 구조를 별도 설계하고 기존 결과를 덮지 않는다.
 - 종료 후 결과/이력은 평가용 저장 가능하나 알림 금지. 구성 backlog는 종료 전에 저장된 방문만으로 후처리 가능하며 새 관측을 추가하지 않는다.
 
-알림 작업·후보는 v2에서 `(windowId,stateVersion)`로 연결한다. analysisId는 AI 근거 추적용으로 보존하지만 한 AI 분석에서 체류에 따라 여러 판단이 생기므로 기존 UNIQUE(analysis_id)만으로는 부족하다. 후보 생성·조회·shown 직전 모두 최신 Window/버전·COMPLETED DRIFT·ACTIVE·알림 모드·최소 간격·연속 DRIFT 보호를 재검사한다. 과거 후보는 무효화하고 실제 shown 이력은 삭제하지 않는다. NORMAL→DRIFT 상태 변경은 후보 평가 사유, 같은 DRIFT 입력 갱신은 반복 표시 사유가 아니다. 연속 DRIFT·최소 간격의 기존 설정을 유지하며 v2 리셋 의미는 Window 내 새 NORMAL/TRANSITION 버전도 포함하도록 검토한다. FIXED_INTERVAL과 사용자 선택은 기존 alertId 계약을 유지한다.
+알림 작업·후보는 v2에서 `(windowId,stateVersion)`로 연결한다. analysisId는 AI 근거 추적용으로 보존하지만 한 AI 분석에서 체류에 따라 여러 판단이 생기므로 기존 UNIQUE(analysis_id)만으로는 부족하다. 후보 생성·조회·새 표시 허가 직전 모두 최신 Window/버전·COMPLETED DRIFT·ACTIVE·알림 모드·최소 간격·연속 DRIFT 보호를 재검사한다. 이미 실제 표시된 늦은 shown ACK는 새 표시 허가와 다르며 기존 시각 검증으로 감사 기록한다. 과거 후보는 무효화하고 실제 shown 이력은 삭제하지 않는다. NORMAL→DRIFT 상태 변경은 후보 평가 사유, 같은 DRIFT 입력 갱신은 반복 표시 사유가 아니다. 연속 DRIFT·최소 간격의 기존 설정을 유지한다. #81 권장안은 같은 Window의 새 NORMAL/TRANSITION만으로 재알림을 허용하지 않고 기존처럼 뒤 Window의 복귀를 요구한다. 같은 Window 리셋 허용은 비교 대안이며 승인되지 않았다. FIXED_INTERVAL과 사용자 선택은 기존 alertId 계약을 유지한다.
 
 예시 재현: W1 AI=[DIRECT,DIRECT,UNRELATED], inputSnapshot에는 고정 목표·페이지 텍스트가 있다. v1 judgedAt=t1, behaviors=[P1:b1,P2:b1,P3:b1/5000], NORMAL. PATCH P3 b2/300000 적용 후 v2=t2, 동일 analysisId, DRIFT. Window 1개·AI 분석1개·판단 이력2개다. 지연 b1 PATCH는 applied=false, v3 없음. W2가 이미 생겼다면 W1 v2는 과거 기록만 바꾸고 현재 W2 알림을 되돌리지 않는다.
 
@@ -286,3 +248,9 @@ FE-001~010, BE-001~009, AI-001~003 ID를 유지한다. BE-009는 AI 구성 검�
 | 비동기 | compose CAS·중복/지연/역순 AI·timeout 후 늦은 응답·종료 후 기록/알림 차단 |
 | 복구 | POST ACK 유실·PATCH frozen retry·IDB 오류·quota·END_PENDING drain·권한 철회·legacy 큐 전환 |
 | 평가 | 3인 독립/합의 분리·κ·UNJUDGEABLE 분모·goal12/4/4 누출 없음·상태 버전 중복 Window 수 집계 금지 |
+
+## 13. #81 구체화와 승인 게이트
+
+P1~P6별 현재구현/목표/선택지/근거/코드·데이터 영향/승인담당/결정상태는 [결정안](v2-contract-decisions.md)에 분리했다. 승인된 상위5초·4초·5분·size3/stride1과 신규 세부제안을 혼동하지 않는다. 정책 상태는 모두 PROPOSED, 개인정보 보존·동의절차 및 회수없는 조기배포는 BLOCKED 하위조건이다.
+
+정적 Window 라벨 권장 기준은 최초성공 BE stateVersion의 실제 snapshot, 예측 숨긴 3인 독립→합의 별도, κ는 조정전 네범주와 완전판단가능 세범주를 각각 보고한다. 목표12/4/4·자연세션 같은목표 split 유지, 철회manifest/백업/캐시/파생모델까지 회수범위다. 보존기간 임의확정 없음. API·DB 새제약/호환성·후속작업과 실행 Fixture의 검증한계는 결정안 §8~11 및 [검증보고](data-contract-validation.md)를 따른다.

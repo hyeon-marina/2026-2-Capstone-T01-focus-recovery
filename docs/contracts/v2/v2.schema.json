@@ -1,0 +1,1654 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://focus-recovery.invalid/contracts/v2/v2.schema.json",
+  "title": "Issue #81 proposed v2 contracts; not production approval",
+  "description": "Validate an entry point via #/$defs/Name. Relational/stateful checks are documented and run by validate.py. No network resolution required.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/PageVisitPost"
+    },
+    {
+      "$ref": "#/$defs/BehaviorPatch"
+    },
+    {
+      "$ref": "#/$defs/CompositionRequest"
+    },
+    {
+      "$ref": "#/$defs/CompositionResponse"
+    },
+    {
+      "$ref": "#/$defs/AnalysisRequest"
+    },
+    {
+      "$ref": "#/$defs/AnalysisResponse"
+    },
+    {
+      "$ref": "#/$defs/WindowState"
+    },
+    {
+      "$ref": "#/$defs/StatusResponse"
+    },
+    {
+      "$ref": "#/$defs/StatePageResponse"
+    },
+    {
+      "$ref": "#/$defs/FailureResponse"
+    },
+    {
+      "$ref": "#/$defs/CollectionFailure"
+    },
+    {
+      "$ref": "#/$defs/PrivacyRetraction"
+    },
+    {
+      "$ref": "#/$defs/RetractionAck"
+    },
+    {
+      "$ref": "#/$defs/Manifest"
+    }
+  ],
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "Cursor": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2147483647
+    },
+    "Behavior": {
+      "type": "object",
+      "properties": {
+        "activeDurationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "tabSwitchCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "behaviorVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "activeDurationMs",
+        "tabSwitchCount",
+        "behaviorVersion"
+      ],
+      "additionalProperties": false
+    },
+    "BehaviorPatch": {
+      "$ref": "#/$defs/Behavior"
+    },
+    "BehaviorAck": {
+      "type": "object",
+      "properties": {
+        "activeDurationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "tabSwitchCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "behaviorVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "visitId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "updatedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "applied": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "activeDurationMs",
+        "tabSwitchCount",
+        "behaviorVersion",
+        "visitId",
+        "updatedAt",
+        "applied"
+      ],
+      "additionalProperties": false
+    },
+    "VisitIdentity": {
+      "type": "object",
+      "properties": {
+        "visitId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "sequence": {
+          "$ref": "#/$defs/Sequence"
+        }
+      },
+      "required": [
+        "visitId",
+        "sequence"
+      ],
+      "additionalProperties": false
+    },
+    "PageVisitPost": {
+      "type": "object",
+      "properties": {
+        "visitId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "sequence": {
+          "$ref": "#/$defs/Sequence"
+        },
+        "browserTabKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "normalizedUrl": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 8192,
+          "pattern": "^https?://[^/?#@\\s]+/[^?#\\s]*$"
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253
+        },
+        "title": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000
+        },
+        "searchQuery": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isSearchResultPage": {
+          "type": "boolean"
+        },
+        "visitedAt": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "activeDurationMs": {
+          "type": "integer",
+          "minimum": 5000,
+          "maximum": 9007199254740991
+        },
+        "tabSwitchCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "behaviorVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "extractionStatus": {
+          "const": "SUCCESS"
+        }
+      },
+      "required": [
+        "visitId",
+        "sequence",
+        "browserTabKey",
+        "normalizedUrl",
+        "domain",
+        "title",
+        "content",
+        "searchQuery",
+        "isSearchResultPage",
+        "visitedAt",
+        "activeDurationMs",
+        "tabSwitchCount",
+        "behaviorVersion",
+        "extractionStatus"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "isSearchResultPage": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "searchQuery": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "searchQuery": {
+                "type": "null"
+              },
+              "content": {
+                "type": "string",
+                "minLength": 50,
+                "maxLength": 5000
+              }
+            }
+          }
+        }
+      ]
+    },
+    "PageVisitAck": {
+      "type": "object",
+      "properties": {
+        "visitId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "sequence": {
+          "$ref": "#/$defs/Sequence"
+        },
+        "browserTabKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "normalizedUrl": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 8192,
+          "pattern": "^https?://[^/?#@\\s]+/[^?#\\s]*$"
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253
+        },
+        "title": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000
+        },
+        "searchQuery": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isSearchResultPage": {
+          "type": "boolean"
+        },
+        "visitedAt": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "activeDurationMs": {
+          "type": "integer",
+          "minimum": 5000,
+          "maximum": 9007199254740991
+        },
+        "tabSwitchCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "behaviorVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "extractionStatus": {
+          "const": "SUCCESS"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "updatedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "visitId",
+        "sequence",
+        "browserTabKey",
+        "normalizedUrl",
+        "domain",
+        "title",
+        "content",
+        "searchQuery",
+        "isSearchResultPage",
+        "visitedAt",
+        "activeDurationMs",
+        "tabSwitchCount",
+        "behaviorVersion",
+        "extractionStatus",
+        "sessionId",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "isSearchResultPage": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "searchQuery": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "searchQuery": {
+                "type": "null"
+              },
+              "content": {
+                "type": "string",
+                "minLength": 50,
+                "maxLength": 5000
+              }
+            }
+          }
+        }
+      ]
+    },
+    "CompositionRequest": {
+      "type": "object",
+      "properties": {
+        "apiContractVersion": {
+          "const": 2
+        },
+        "composeRequestId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "afterSequence": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "inputFingerprint": {
+          "$ref": "#/$defs/Hash"
+        },
+        "visits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/VisitIdentity"
+          },
+          "minItems": 1,
+          "maxItems": 256
+        }
+      },
+      "required": [
+        "apiContractVersion",
+        "composeRequestId",
+        "sessionId",
+        "afterSequence",
+        "inputFingerprint",
+        "visits"
+      ],
+      "additionalProperties": false
+    },
+    "ComposedWindow": {
+      "type": "object",
+      "properties": {
+        "visitIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Uuid"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "endVisitId": {
+          "$ref": "#/$defs/Uuid"
+        }
+      },
+      "required": [
+        "visitIds",
+        "endVisitId"
+      ],
+      "additionalProperties": false
+    },
+    "CompositionResponse": {
+      "type": "object",
+      "properties": {
+        "apiContractVersion": {
+          "const": 2
+        },
+        "composeRequestId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "afterSequence": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "inputFingerprint": {
+          "$ref": "#/$defs/Hash"
+        },
+        "composedThroughSequence": {
+          "$ref": "#/$defs/Sequence"
+        },
+        "windows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ComposedWindow"
+          },
+          "minItems": 0,
+          "maxItems": 254
+        }
+      },
+      "required": [
+        "apiContractVersion",
+        "composeRequestId",
+        "sessionId",
+        "afterSequence",
+        "inputFingerprint",
+        "composedThroughSequence",
+        "windows"
+      ],
+      "additionalProperties": false
+    },
+    "AnalysisVisit": {
+      "type": "object",
+      "properties": {
+        "position": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "visitId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "sequence": {
+          "$ref": "#/$defs/Sequence"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000
+        },
+        "searchQuery": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isSearchResultPage": {
+          "type": "boolean"
+        },
+        "visitedAt": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      },
+      "required": [
+        "position",
+        "visitId",
+        "sequence",
+        "title",
+        "content",
+        "searchQuery",
+        "isSearchResultPage",
+        "visitedAt"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "isSearchResultPage": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "searchQuery": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "searchQuery": {
+                "type": "null"
+              },
+              "content": {
+                "type": "string",
+                "minLength": 50,
+                "maxLength": 5000
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AnalysisRequest": {
+      "type": "object",
+      "properties": {
+        "apiContractVersion": {
+          "const": 2
+        },
+        "analysisId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "windowId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "windowIndex": {
+          "$ref": "#/$defs/Sequence"
+        },
+        "goalText": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 150
+        },
+        "inputFingerprint": {
+          "$ref": "#/$defs/Hash"
+        },
+        "visits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AnalysisVisit"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      },
+      "required": [
+        "apiContractVersion",
+        "analysisId",
+        "sessionId",
+        "windowId",
+        "windowIndex",
+        "goalText",
+        "inputFingerprint",
+        "visits"
+      ],
+      "additionalProperties": false
+    },
+    "PageResult": {
+      "type": "object",
+      "properties": {
+        "position": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "visitId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "label": {
+          "type": "string",
+          "enum": [
+            "DIRECT",
+            "JUSTIFIED_DETOUR",
+            "UNRELATED"
+          ]
+        },
+        "semanticRelevance": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "position",
+        "visitId",
+        "label",
+        "semanticRelevance",
+        "rationale"
+      ],
+      "additionalProperties": false
+    },
+    "AnalysisResponse": {
+      "type": "object",
+      "properties": {
+        "apiContractVersion": {
+          "const": 2
+        },
+        "analysisId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "windowId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "inputFingerprint": {
+          "$ref": "#/$defs/Hash"
+        },
+        "pageResults": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PageResult"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "modelVersions": {
+          "type": "object",
+          "properties": {
+            "embedding": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "context": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "labelGuide": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "embedding",
+            "context",
+            "prompt",
+            "labelGuide"
+          ],
+          "additionalProperties": false
+        },
+        "analyzedAt": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      },
+      "required": [
+        "apiContractVersion",
+        "analysisId",
+        "sessionId",
+        "windowId",
+        "inputFingerprint",
+        "pageResults",
+        "modelVersions",
+        "analyzedAt"
+      ],
+      "additionalProperties": false
+    },
+    "BehaviorSnapshot": {
+      "type": "object",
+      "properties": {
+        "visitId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "activeDurationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "tabSwitchCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "behaviorVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "visitId",
+        "activeDurationMs",
+        "tabSwitchCount",
+        "behaviorVersion"
+      ],
+      "additionalProperties": false
+    },
+    "WindowState": {
+      "type": "object",
+      "properties": {
+        "windowId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "stateVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "analysisId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "ruleVersion": {
+          "const": "suffix3-v2-proposed.1"
+        },
+        "judgedAt": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "finalState": {
+          "type": "string",
+          "enum": [
+            "NORMAL",
+            "TRANSITION",
+            "DRIFT"
+          ]
+        },
+        "behaviorSnapshot": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BehaviorSnapshot"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "inputFingerprint": {
+          "$ref": "#/$defs/Hash"
+        }
+      },
+      "required": [
+        "windowId",
+        "stateVersion",
+        "analysisId",
+        "ruleVersion",
+        "judgedAt",
+        "finalState",
+        "behaviorSnapshot",
+        "inputFingerprint"
+      ],
+      "additionalProperties": false
+    },
+    "CurrentDecision": {
+      "type": "object",
+      "properties": {
+        "windowId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "windowIndex": {
+          "$ref": "#/$defs/Sequence"
+        },
+        "stateVersion": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "analysisId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decisionStatus": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "COMPLETED",
+            "FAILED",
+            "INVALIDATED"
+          ]
+        },
+        "finalState": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "NORMAL",
+                "TRANSITION",
+                "DRIFT"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "judgedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "errorCode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ErrorCode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "windowId",
+        "windowIndex",
+        "stateVersion",
+        "analysisId",
+        "decisionStatus",
+        "finalState",
+        "judgedAt",
+        "errorCode"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "decisionStatus": {
+                "const": "COMPLETED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stateVersion": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "analysisId": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "finalState": {
+                "type": "string",
+                "enum": [
+                  "NORMAL",
+                  "TRANSITION",
+                  "DRIFT"
+                ]
+              },
+              "judgedAt": {
+                "$ref": "#/$defs/Timestamp"
+              },
+              "errorCode": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "stateVersion": {
+                "type": "null"
+              },
+              "finalState": {
+                "type": "null"
+              },
+              "judgedAt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decisionStatus": {
+                "const": "PENDING"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "errorCode": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decisionStatus": {
+                "enum": [
+                  "FAILED",
+                  "INVALIDATED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "errorCode": {
+                "$ref": "#/$defs/ErrorCode"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AlertCandidate": {
+      "type": "object",
+      "properties": {
+        "alertId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "alertType": {
+          "type": "string",
+          "enum": [
+            "AI",
+            "FIXED_INTERVAL"
+          ]
+        },
+        "analysisId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "windowId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stateVersion": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "createdAt": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "shownAt": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "alertId",
+        "alertType",
+        "analysisId",
+        "windowId",
+        "stateVersion",
+        "createdAt",
+        "shownAt"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "alertType": {
+                "const": "AI"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "analysisId": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "windowId": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "stateVersion": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "analysisId": {
+                "type": "null"
+              },
+              "windowId": {
+                "type": "null"
+              },
+              "stateVersion": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "StatusResponse": {
+      "type": "object",
+      "properties": {
+        "apiContractVersion": {
+          "const": 2
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "sessionStatus": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "ENDED"
+          ]
+        },
+        "currentDecision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CurrentDecision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastSuccessfulState": {
+          "anyOf": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/CurrentDecision"
+                },
+                {
+                  "properties": {
+                    "decisionStatus": {
+                      "const": "COMPLETED"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "alert": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AlertCandidate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "apiContractVersion",
+        "sessionId",
+        "sessionStatus",
+        "currentDecision",
+        "lastSuccessfulState",
+        "alert"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "sessionStatus": {
+                "const": "ENDED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "alert": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "StatePageResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WindowState"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "totalElements": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "totalPages": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "size",
+        "totalElements",
+        "totalPages"
+      ],
+      "additionalProperties": false
+    },
+    "ErrorCode": {
+      "type": "string",
+      "enum": [
+        "INVALID_REQUEST",
+        "SESSION_NOT_FOUND",
+        "VISIT_NOT_FOUND",
+        "WINDOW_NOT_FOUND",
+        "VISIT_ID_CONFLICT",
+        "VISIT_SEQUENCE_CONFLICT",
+        "VISIT_SEQUENCE_OUT_OF_ORDER",
+        "BEHAVIOR_VERSION_CONFLICT",
+        "BEHAVIOR_COUNTER_DECREASED",
+        "SESSION_ENDED",
+        "COMPOSE_ID_CONFLICT",
+        "COMPOSE_IN_PROGRESS",
+        "COMPOSE_CURSOR_CONFLICT",
+        "COMPOSE_INPUT_MISMATCH",
+        "AI_COMPOSITION_FAILED",
+        "ANALYSIS_ID_CONFLICT",
+        "ANALYSIS_IN_PROGRESS",
+        "AI_ANALYSIS_FAILED",
+        "AI_NOT_READY",
+        "AI_TIMEOUT",
+        "AI_UNAVAILABLE",
+        "AI_INVALID_RESPONSE",
+        "ANALYSIS_QUEUE_FULL",
+        "ANALYSIS_INTERNAL_ERROR",
+        "ANALYSIS_NOT_STARTED",
+        "ANALYSIS_INTERRUPTED",
+        "PRIVACY_RETRACTED",
+        "FAILURE_ID_CONFLICT",
+        "RETRACTION_ID_CONFLICT"
+      ]
+    },
+    "FailureResponse": {
+      "type": "object",
+      "properties": {
+        "apiContractVersion": {
+          "const": 2
+        },
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "fieldErrors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "field",
+              "message"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 50
+        }
+      },
+      "required": [
+        "apiContractVersion",
+        "code",
+        "message",
+        "fieldErrors"
+      ],
+      "additionalProperties": false
+    },
+    "CollectionFailure": {
+      "type": "object",
+      "properties": {
+        "failureId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "candidateId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "browserTabKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "status": {
+          "const": "EXTRACTION_FAILED"
+        },
+        "observedAt": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "activeDurationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "reasonCode": {
+          "type": "string",
+          "enum": [
+            "CONTENT_UNAVAILABLE",
+            "SEARCH_QUERY_MISSING",
+            "SEARCH_RESULTS_MISSING",
+            "UNSUPPORTED_DOM"
+          ]
+        }
+      },
+      "required": [
+        "failureId",
+        "candidateId",
+        "browserTabKey",
+        "status",
+        "observedAt",
+        "activeDurationMs",
+        "reasonCode"
+      ],
+      "additionalProperties": false
+    },
+    "PrivacyRetraction": {
+      "type": "object",
+      "properties": {
+        "retractionId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "visitId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "observedAt": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "reasonCode": {
+          "type": "string",
+          "enum": [
+            "SENSITIVE_CONTENT",
+            "CONSENT_WITHDRAWN"
+          ]
+        }
+      },
+      "required": [
+        "retractionId",
+        "visitId",
+        "observedAt",
+        "reasonCode"
+      ],
+      "additionalProperties": false
+    },
+    "RetractionAck": {
+      "type": "object",
+      "properties": {
+        "retractionId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "visitId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "QUARANTINED",
+            "PURGED"
+          ]
+        },
+        "invalidatedWindowIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Uuid"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "retractionId",
+        "visitId",
+        "status",
+        "invalidatedWindowIds"
+      ],
+      "additionalProperties": false
+    },
+    "Manifest": {
+      "type": "object",
+      "properties": {
+        "datasetVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "collectionSpecVersion": {
+          "const": "2.0"
+        },
+        "apiContractVersion": {
+          "const": 2
+        },
+        "ruleVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "labelGuideVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "exportedAt": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "sourceCommit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "referencePolicy": {
+          "const": "FIRST_SUCCESSFUL_STATE"
+        },
+        "splitByGoal": {
+          "type": "object",
+          "properties": {
+            "train": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "minItems": 12,
+              "maxItems": 12,
+              "uniqueItems": true
+            },
+            "validation": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "minItems": 4,
+              "maxItems": 4,
+              "uniqueItems": true
+            },
+            "test": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "minItems": 4,
+              "maxItems": 4,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "train",
+            "validation",
+            "test"
+          ],
+          "additionalProperties": false
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^[a-z_]+\\.jsonl$"
+              },
+              "sha256": {
+                "$ref": "#/$defs/Hash"
+              },
+              "rowCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "path",
+              "sha256",
+              "rowCount"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 20
+        },
+        "counts": {
+          "type": "object",
+          "properties": {
+            "scriptedSessions": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "naturalSessions": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "validVisits": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "windows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "labeledWindows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "scriptedSessions",
+            "naturalSessions",
+            "validVisits",
+            "windows",
+            "labeledWindows"
+          ],
+          "additionalProperties": false
+        },
+        "exclusions": {
+          "type": "object",
+          "properties": {
+            "extractionFailed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "invalidated": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "unjudgeable": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "unlabeled": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "delayedReference": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "extractionFailed",
+            "invalidated",
+            "unjudgeable",
+            "unlabeled",
+            "delayedReference"
+          ],
+          "additionalProperties": false
+        },
+        "consentPolicyVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "deletionRevision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "datasetVersion",
+        "collectionSpecVersion",
+        "apiContractVersion",
+        "ruleVersion",
+        "labelGuideVersion",
+        "exportedAt",
+        "sourceCommit",
+        "referencePolicy",
+        "splitByGoal",
+        "files",
+        "counts",
+        "exclusions",
+        "consentPolicyVersion",
+        "deletionRevision"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

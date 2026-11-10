@@ -1,6 +1,6 @@
 # FE 기능명세서
 
-> Issue #79 정책을 반영한 목표 명세다. 기준 코드 `d0d40f8`에는 세션·수집·전송·복구가 구현되어 있으며 v2는 미구현이다. 확정/제안 구분·타입·API는 [수집 규격](data-collection-spec.md)과 [공통 계약](data-analysis-contract.md)을 따른다. 기존 기능 ID를 유지한다.
+> Issue #79 정책을 반영한 목표 명세다. 기준 코드 `6e15dd3`에는 세션·수집·전송·복구가 구현되어 있으며 v2는 미구현이다. 확정/제안 구분·타입·API는 [수집 규격](data-collection-spec.md)과 [공통 계약](data-analysis-contract.md)을 따른다. 기존 기능 ID를 유지한다.
 
 ## 1. 문서 개요
 
@@ -495,3 +495,13 @@ tabSwitchCount는 이전 방문 귀속 누적값이며 Window 행동 스냅샷�
 | FE-010.md | 4.10 고정 주기 목표 알림 |
 
 기능 요구사항은 FE-001~010을 기준으로 통합한 것이다. 시스템 구성·성능 보장 범위는 첨부된 `project-plan.md`를, BE 연동 책임은 앞서 정리한 BE 기능 정의를 참고한 것이다. 미확정 구현 정책은 7장에 구분한 사항이다.
+
+### #81 FE 구현 계약 보충 — PROPOSED
+
+현재 collector는 1,000ms 유효성, finalized prefix 순서 발급, reload 무조건 재사용을 사용한다. 이번 문서가 제품 동작을 바꾸지는 않는다. [P1~P3 결정안](v2-contract-decisions.md#3-p1--방문-식별과-캐시)은 관측 시점 leftAt/returnedAt과 단조시간 세대, 탭별 대상과 콘텐츠 세대, 방문 병합과 캐시의 분리, 유효화 순서 sequence를 권고한다. 저장 URL만 비교해서는 안 된다.
+
+POST 후 민감정보가 발견되면 [회수 계약](v2-contract-decisions.md#41-전송-후-민감-판정-이미-보낸-자료의-처리)의 별도 작업으로 서버·AI·Export까지 격리하고 삭제한다. ACTIVE 권한 철회의 로컬 삭제만으로 서버 자료가 삭제되지는 않는다. 회수 작업에는 원문 없이 식별자만 남기며 END_PENDING 자료 처리와 구분한다.
+
+Behavior PATCH는 기존 세 필드 그대로 사용한다. 5분 관측이 늦으면 실제 누적값을 보내고 ACK 시각이나 판단 시각을 임계 통과 시각으로 사용하지 않는다. ACK 자료 정리는 현재 endDataDrained의 배열 결합 검증과 충돌하므로 새 checkpoint·영수증 설계 후 시행한다. 진행 중 v1은 v1으로 종료하며 1,000ms snapshot을 5,000ms로 재해석하지 않는다. END_PENDING·서버 종료 충돌·명시적 재개·발급 sequence 상한을 유지한다.
+
+공통 타입은 [PageVisitPost/BehaviorPatch/StatusResponse/CollectionFailure/PrivacyRetraction](contracts/v2/README.md)의 Schema다. status/alert는 기존 DTO를 보존한 v2 projection이며, 일반 searchQuery는 명시적 null, title/content는 필수, 실패 status는 정확히 EXTRACTION_FAILED다. 새로운 표시 허가와 과거 실제 표시의 늦은 ACK를 구분하고, 종료 선택·dirty·PENDING·오래된 후보에서는 표시하지 않는다. FE·BE·데이터 담당 승인 후 구현할 제안이다.
