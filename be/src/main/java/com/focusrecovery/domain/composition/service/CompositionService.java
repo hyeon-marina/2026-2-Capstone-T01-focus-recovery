@@ -46,11 +46,13 @@ public class CompositionService {
 	private final CanonicalJson json;
 	private final JsonMapper mapper;
 	private final Clock clock;
+	private final com.focusrecovery.domain.alert.service.V2AlertService alerts;
+	private final com.focusrecovery.domain.analysis.service.V2DispatchProperties dispatch;
 
 	public CompositionService(WorkSessionRepository sessions, PageVisitRepository visits, ComposeRequestRepository jobs,
 		AnalysisWindowRepository windows, AnalysisResultRepository analyses, AnalysisOutboxRepository outbox,
-		V2StorageGate gate, CanonicalJson json, JsonMapper mapper, Clock clock) {
-		this.sessions = sessions; this.visits = visits; this.jobs = jobs; this.windows = windows;
+		V2StorageGate gate, CanonicalJson json, JsonMapper mapper, Clock clock, com.focusrecovery.domain.analysis.service.V2DispatchProperties dispatch, com.focusrecovery.domain.alert.service.V2AlertService alerts) {
+		this.dispatch = dispatch; this.alerts = alerts; this.sessions = sessions; this.visits = visits; this.jobs = jobs; this.windows = windows;
 		this.analyses = analyses; this.outbox = outbox; this.gate = gate; this.json = json; this.mapper = mapper; this.clock = clock;
 	}
 
@@ -93,8 +95,8 @@ public class CompositionService {
 	public Composition.Claim claim(UUID sessionId, UUID requestId) {
 		session(sessionId);
 		ComposeRequest job = job(sessionId, requestId);
-		if (!job.getProcessingStatus().equals("PENDING")) return null;
-		return new Composition.Claim(job.claim(now()), input(job));
+		if (!job.getProcessingStatus().equals("PENDING") || (job.getNextAttemptAt() != null && job.getNextAttemptAt().isAfter(now()))) return null;
+		return new Composition.Claim(job.claim(now(), dispatch.lease()), input(job));
 	}
 
 	@Transactional
@@ -137,6 +139,7 @@ public class CompositionService {
 			outbox.save(AnalysisOutbox.pending(analysisId, sessionId, session.getPrivacyRevision(), now()));
 			stored.add(new Composition.StoredWindow(window.getWindowId(), nextIndex, analysisId));
 		}
+		if (!stored.isEmpty()) alerts.invalidateSessionPending(sessionId, now());
 		Composition.Receipt receipt = new Composition.Receipt(requestId, output.composedThroughSequence(), stored);
 		session.composedThrough(output.composedThroughSequence());
 		job.complete(json.write(output), json.write(receipt), now());
@@ -150,13 +153,38 @@ public class CompositionService {
 		job.terminal("FAILED", "AI_COMPOSITION_FAILED", now());
 	}
 
-	// 후속 어댑터가 일시 오류로 분류한 경우에만 같은 ID/본문으로 다시 claim할 수 있다. 자동 HTTP 재호출은 없다.
+	// Dispatcher가 일시 오류로 분류한 경우 같은 ID/본문을 재사용한다. 이 서비스 안에서는 HTTP를 호출하지 않는다.
 	@Transactional
 	public void retry(UUID sessionId, UUID requestId, UUID token, String errorCode) {
 		session(sessionId); ComposeRequest job = job(sessionId, requestId); owned(job, token);
 		if (errorCode == null || !java.util.Set.of("AI_TIMEOUT", "AI_UNAVAILABLE", "AI_NOT_READY", "COMPOSE_IN_PROGRESS", "AI_COMPOSITION_FAILED").contains(errorCode))
 			throw new InvalidRequestException("지원하지 않는 구성 재시도 코드입니다.");
 		job.retry(now(), errorCode);
+	}
+
+	@Transactional
+	public void retryWithBackoff(UUID sessionId, UUID requestId, UUID token, String errorCode) {
+		retry(sessionId, requestId, token, errorCode);
+		ComposeRequest job = job(sessionId, requestId);
+		job.deferUntil(now().plus(dispatch.retryBackoff().multipliedBy(1L << Math.min(10, job.getAttempts() - 1))));
+	}
+
+	@Transactional
+	public void fail(UUID sessionId, UUID requestId, UUID token, String code) {
+		session(sessionId); ComposeRequest job = job(sessionId, requestId); owned(job, token);
+		job.terminal("FAILED", code, now());
+	}
+
+	// dirty is already durable on the session. A failed frozen prefix needs explicit investigation,
+	// rather than minting unbounded new IDs and bypassing the three-claim limit.
+	@Transactional
+	public void prepareDirty(UUID sessionId) {
+		WorkSession session = session(sessionId);
+		if (!session.isCompositionDirty() || jobs.findByActiveSessionId(sessionId).isPresent()) return;
+		var previous = jobs.findFirstBySessionIdOrderByRequestedAtDesc(sessionId);
+		if (previous.isPresent() && previous.get().getAfterSequence() == session.getComposedThroughSequence()
+			&& previous.get().getProcessingStatus().equals("FAILED")) return;
+		prepareNext(sessionId, UUID.randomUUID());
 	}
 
 	@Transactional

@@ -8,6 +8,22 @@ V11·세션 버전·방문 watermark·compose job/Receipt·분석 Outbox·상태
 
 BE v2는 기본 비활성, 정확히 test 프로필+명시 flag에서만 허용한다. #87에서 아래 AI API를 합성 테스트 전용으로 구현했으며 BE의 실제 AI HTTP 변환/dispatcher는 후속이다. 상태 조회 projection·진단·개인정보 공개 API는 아직 구현/공개되지 않았다. v2 legacy 분석 조회·알림도 거절한다. 외부 회수·실제 삭제·PURGED 집계와 운영 활성화는 계속 차단된다. 기존 v1 API는 유지한다.
 
+## #89 Backend 적용
+
+BE 두 v2 HTTP Client/Dispatcher·최종 판단·영속 dirty 재판단·Status/StatePage projection·stateVersion 후보를 구현했다. [BE–AI 검증 보고](../../be-ai-v2-integration-validation.md)에서 H2/MySQL·Mock HTTP·실제 BE/FastAPI(모델만 Mock)·모델 미실행을 분리한다. Schema/Fixture의 입력/기대값은 바꾸지 않았다. 위 #85/#87의 BE 미구현 설명은 당시 기록이다.
+
+BE는 정확히 test+storage flag에서만 v2 API를 허용하고, 자동 실행에는 dispatch flag도 필요하다. 두 flag 모두 기본false다. 운영 활성화 방법이 아니다. V12는 재시도 시각/dirty 판단과 상태 FK 알림을 추가한다. 분석 자동 재호출/v1 fallback 없이 실패를 보존한다. v2 HTTP130초/Lease180초/여유15초·구성 최대3claims/1초·2초 backoff·Worker2/큐0은 합성 개발 한도다.
+
+StatusResponse의 실제 BE 응답은 기존 latestAnalysis/latestCompletedAnalysis와 기존 alert 필드를 함께 유지한다. v2 alert의 windowId/stateVersion은 고정주기에서도 명시 null이다. 검증 시 아래와 같이 projection을 선택한다. 격리 시 currentDecision=INVALIDATED(구간 없으면null), lastSuccessfulState/alert/legacy 분석=null이며 실제 삭제/PURGED를 뜻하지 않는다. 상태 이력 조회는 격리 시409로 차단한다.
+
+실제 HTTP 합성 증거의 Schema·hash·AI 구성/페이지 pairing/상태 hash 재검증:
+
+```sh
+/private/tmp/focus87-ai/bin/python be/src/test/python/validate_http_evidence.py
+```
+
+실행 전 V2LiveHttpTest로 증거를 만들어야 한다. 단순 reference validator PASS와 제품 테스트는 별개다. P1~P6 PROPOSED/P2·P6 BLOCKED 유지, 실삭제·외부 회수/동의·보존·운영 Gate는 여전히 선결이다.
+
 ## #87 AI 런타임 적용
 
 `ai/v2/contracts.py`는 이 Schema의 CompositionRequest/Response·AnalysisRequest/Response·FailureResponse를 직접 사용한다. 복사본·Schema/Fixture 정책 변경은 없다. Schema 밖 fingerprint/position/ID/순서/커서 관계도 검증한다. Python 정규식 `$`가 끝 개행을 허용하는 점을 보완하여 timestamp는 전체 문자열과 실제 날짜를 검사한다. 정수값 `1.0`은 Schema 의미에 따라 수락하되 fingerprint에서는 `1`로 직렬화한다.
@@ -110,7 +126,7 @@ JSON Schema는 동적 ID 일치/DB 소속·저장 이력을 읽을 수 없다. �
 2. Composition ordered distinct visitId/sequence, 신규>=1, 이전 tail 일치·저장 prefix 누락 없음. response의 IDs/hash/cursor·모든 stride1 멤버·endVisitId 일치 및 through=마지막신규. 1~256 total/구간<=254, stream은 다중배치로 무제한 수집. BE 발급 windowId/index는 commit 후 멱등 receipt로 재사용.
 3. Analysis request positions 정확히1,2,3/sequence strictly increasing/visit distinct, request fingerprint 재계산. response positions/visitId 1:1·ID/hash echo 일치. 같은 analysisId의 payload 교체 금지. 분석 실패를 pageResults로 반환하지 않음.
 4. State snapshot 순서와 Window멤버 일치, 행동버전 비감소, stateFingerprint 재계산·Window별 버전 증가 및 중복 입력 unique. 원래 analysisId는 immutable 성공 결과를 가리켜야 함.
-5. Status currentDecision는 최신 windowIndex·최신 완료 판단 또는 dirty/PENDING/실패, lastSuccessfulState는 실제 성공만. AI alert는 currentDecision와 동일 Window/version DRIFT·ACTIVE여야 함. FK·지연응답·실제 표시 ACK 검사는 제품 후속.
+5. Status currentDecision는 최신 windowIndex·최신 완료 판단 또는 dirty/PENDING/실패, lastSuccessfulState는 실제 성공만. AI alert는 currentDecision와 동일 Window/version DRIFT·ACTIVE여야 함. FK·지연응답·실제 표시 ACK는 #89 합성 제품 테스트에서 확인하며 실제 FE 표시 race/분산 운영은 후속이다.
 6. manifest split disjoint·20고유목표, files path중복/실제checksum/rowCount/FK/동의·삭제revision·blind export 검증. Schema counts는0이상이며 수집 목표160/1200 달성은 별도 데이터 품질 검사(샘플0건을 목표달성으로 보지 않음).
 
 Canonical fingerprint: fingerprint 필드를 제외한 요청 객체, 또는 상태의 `{analysisId,ruleVersion,behaviorSnapshot}`를 key 사전순으로 재귀 정렬, 배열 순서 유지, Unicode 정규화 없음, UTF-8 JSON, 공백 없음, 문자열은 `ensure_ascii=false`/JSON 표준 이스케이프, 정수는10진수/불필요0·소수 없음. 이 입력에는 실수 필드를 넣지 않는다. 개행문자·제어문자는 JSON escape. 검증용 Python fingerprint 함수와 교차언어 golden case를 후속 FE/BE/AI 테스트에 재사용한다. 응답은 요청 fingerprint를 echo하며 임의 재계산한 새 해시로 바꾸지 않는다.

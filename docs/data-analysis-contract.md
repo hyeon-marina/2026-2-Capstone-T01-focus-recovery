@@ -4,7 +4,21 @@
 
 > #83: 공식 main `a1a5d97`에서 재대조했다. [승인 요청 대장](v2-contract-approval.md)의 P1~P6는 전부 PROPOSED, P2/P6 선결은 BLOCKED다. 과거 PR 병합을 정책 승인으로 해석하지 않는다.
 
-## #85 저장 구현의 적용 범위
+## #89 Backend 연동 적용 — 비배포
+
+공식 main `4f9b4fb`에서 BE–AI v2 HTTP Client, 구성/분석 Dispatcher, suffix3 최종 판단, 영속 dirty 재판단, 최신 상태·이력 조회와 stateVersion 알림을 구현했다. 실제 코드/트랜잭션/실행 결과·미검증 범위는 [#89 검증 보고](be-ai-v2-integration-validation.md)가 기준이다. 아래 #79/#81/#83/#85/#87 단락의 '후속/미구현'은 각 작업 당시 기록이며 현재 완료를 일괄 선언하지 않는다.
+
+v2는 collectionSpecVersion=2.0/apiContractVersion=2/size3/stride1, 규칙 ID는 Schema와 동일한 `suffix3-v2-proposed.1`이다. 기존 §9의 초기 예시 `be-rule-2.0`과 Schema의 불일치를 이 ID로 정리했다. AI 모델/Schema/Fixture 정책은 변경하지 않았다. v1 size5·확률·10초 준비/기존 알림·데이터를 보존한다.
+
+분석 실패는 자동 재호출 없이 FAILED로 확정하며 v1 fallback은 없다. 구성만 같은 ID/body로 최대3 claims와 영속 backoff를 사용한다. v2 hard HTTP deadline130초, Lease180초, commit margin15초, Worker2/대기큐0은 합성 개발 설정이다. AI 잠금대기60초+soft 추론60초와 구분하며 운영 성능값을 승인한 것이 아니다. 상태 계산·이력 저장·dirty 해제·후보 생성은 한 DB 트랜잭션이다.
+
+상태 조회는 최신 구성 Window가 기준이며 dirty/분석 미완료는 PENDING, 실패/무효화는 해당 상태와 finalState=null이다. 격리 세션은 currentDecision의 INVALIDATED 메타데이터만 반환하고 과거 성공·legacy 분석·alert는 null이다. 이력/분석 상세/알림 조회·표시 ACK는 개인정보 Gate로 거절한다. 최초 Window 이전은 currentDecision=null이다.
+
+v2 알림은 기존 notification.analysis_id UNIQUE를 삭제하지 않고 state_analysis_id와 window_id/state_version 복합 FK/UNIQUE로 확장했다. 후보 키/AI 근거/실제 표시를 구분한다. PATCH·새 Window·새 판단·종료·격리로 이전 미표시 후보를 무효화하고 표시 사실은 수정하지 않는다. shown endpoint는 실제 표시 ACK이지 새로운 UI 표시 허가가 아니며, 과거 실제 표시의 늦은 ACK와 새 표시 차단을 구분한다.
+
+V12만 신규이며 V1~V11은 변경하지 않았다. storage Gate는 제거하지 않았고 dispatcher도 기본 비활성이다. P1~P6 PROPOSED/P2·P6 BLOCKED 유지, 운영/실사용자·전체 삭제/PURGED·외부 회수·모델 품질 승인은 이번 구현에 포함하지 않는다.
+
+## #85 저장 구현의 적용 범위 — 당시 기록
 
 이 문서의 #79/#81/#83 기록은 당시 기준이다. #85에서 V11과 Java 저장 기반을 추가했다. 실제 범위는 [구현·검증 보고](be-v2-storage-foundation-validation.md)가 우선하며 아래 제안 전체의 완료를 뜻하지 않는다. collectionSpecVersion 미지정=1.0, 신규 v2=2.0, 같은 키의 목표+버전 비교, 세션 중 버전 변경 금지다. v2는 기본 false이며 정확히 test 프로필+명시 flag에서만 동작한다.
 
@@ -41,7 +55,7 @@ v2는 기본 비활성이다. `AI_V2_PROFILE=synthetic-test`와 `AI_V2_ENABLED=1
 
 ## 2. 코드 대조 및 변경 전후
 
-경로의 BE 패키지 기준은 `be/src/main/java/com/focusrecovery/`다. 아래는 **후속 수정 대상**이며 이번 변경은 문서만이다.
+경로의 BE 패키지 기준은 `be/src/main/java/com/focusrecovery/`다. 아래 표는 #79/#81 당시의 **후속 수정 대상**이다. #85/#87/#89의 실제 반영 범위는 위 적용 기록을 따른다.
 
 | 실제 파일/구조 | 현재 | 변경 후 계약 |
 | --- | --- | --- |
@@ -173,7 +187,7 @@ sessionId는 방문 POST의 path에 있으며 body에 중복 필수가 아니다
 
 제안 `GET /api/sessions/{sessionId}/windows/{windowId}/states?page=0&size=20`은200 `{items:[{windowId,stateVersion,analysisId,judgedAt,ruleVersion,finalState,behaviorSnapshot,inputFingerprint}],page,size,totalElements,totalPages}`를 반환한다. 항목은 §4/§7 타입이며 BE가 저장값을 반환한다. stateVersion 내림차순, page>=0·size1~100, 잘못된 값400 INVALID_REQUEST, 세션/Window 없거나 다른 세션 소속이면404 SESSION_NOT_FOUND/WINDOW_NOT_FOUND다. 조회는 AI 호출·새 판단·알림 생성을 하지 않는다. 이 경로·필드는 P5 승인 후 구현하며 기존 analysis list/detail에는 최신 판단의 같은 필드를 추가한다.
 
-## 8. DB 변경 및 호환성 (실행 금지, 후속 migration 제안)
+## 8. DB 변경 및 호환성 (#79/#81 당시 제안; 실제 V11/V12는 위 구현 기록 참조)
 
 | 현행 migration | 유지 및 확장 제안 |
 | --- | --- |
@@ -212,7 +226,7 @@ v2 FE는 BE가 해당 collectionSpecVersion을 지원하는지 세션 응답으�
 
 정적 Window 라벨은 **최초 성공 판단 stateVersion**을 referenceStateVersion으로 고정하는 안을 권장한다. 최종 시점은 window_states의 해당 버전을 별도로 라벨링한다. 최신 방문값으로 과거 Window 라벨을 다시 쓰지 않는다. 최초 성공 판단이 없는 Window는 referenceStateVersion=null/UNJUDGEABLE이며 성공 예측 평가에서 제외한다. 대안은 종료 시점 기준이며 결과 분포가 달라진다. 데이터 담당 승인 전 정적 라벨 수집을 시작하지 않는다.
 
-Fleiss' κ는 세 평가자의 조정 전 투표로 단위별 계산한다. 판단 불가를 포함한 4범주 κ와 세 명 모두 판단 가능한 표본의 3범주 κ/표본 수를 같이 보고하는 안이다. 합의 라벨 정확도는 UNJUDGEABLE 제외 수·비율을 함께 낸다. 최소 1,200개는 상태 버전을 여러 Window로 중복 계산해 채우지 않는다. split은 goalId로 고정하고 상태 버전·Window가 집합을 넘지 않는지 검사한다. manifest의 count는 고유 Window와 각 상태 버전을 별도 집계한다. 버전은 collectionSpecVersion=2.0, apiContractVersion=2, ruleVersion=be-rule-2.0, labelGuideVersion=2.0을 초기 제안값으로 쓰되 승인/변경 이력을 manifest에 고정한다.
+Fleiss' κ는 세 평가자의 조정 전 투표로 단위별 계산한다. 판단 불가를 포함한 4범주 κ와 세 명 모두 판단 가능한 표본의 3범주 κ/표본 수를 같이 보고하는 안이다. 합의 라벨 정확도는 UNJUDGEABLE 제외 수·비율을 함께 낸다. 최소 1,200개는 상태 버전을 여러 Window로 중복 계산해 채우지 않는다. split은 goalId로 고정하고 상태 버전·Window가 집합을 넘지 않는지 검사한다. manifest의 count는 고유 Window와 각 상태 버전을 별도 집계한다. 버전은 collectionSpecVersion=2.0, apiContractVersion=2, ruleVersion=suffix3-v2-proposed.1, labelGuideVersion=2.0을 초기 제안값으로 쓰되 승인/변경 이력을 manifest에 고정한다.
 
 AI **wire 식별자**(sessionId/visitId/windowId)는 응답 상관관계·멱등 용도일 뿐 모델 특징이 아니다. participantId, goalId, scenario, cohort, OS/browser, raterId, 정답 라벨은 모델 prompt/embedding/분류기 입력 금지다. goalText, title/content, searchQuery, 순서/position만 의미 분석에 사용한다. 활성 체류·탭 전환은 BE 규칙/평가 스냅샷이고 v2 AI에 필수가 아니다. 공개 재배포·보존기간·삭제/동의 철회·익명 ID 재연결 키 관리·자연 탐색 중 미등록 목표의 배정은 **P6 미확정**이며 임의 수치/권한을 정하지 않는다.
 

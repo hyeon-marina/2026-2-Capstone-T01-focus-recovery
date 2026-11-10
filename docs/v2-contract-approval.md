@@ -2,6 +2,12 @@
 
 **P1~P6 전부 PROPOSED. 승인된 세부 정책은 0건이다. P2 조기 전송과 P6 실데이터 처리는 BLOCKED다.** 이 문서는 구현 권장안을 검토 가능한 형태로 정리한다. 제품 구현·삭제 완료·팀 승인을 선언하지 않는다. [#81 결정안](v2-contract-decisions.md)의 변경하지 않은 상세 설계는 유지하며, 아래 수정 근거가 있는 항목만 보완했다.
 
+## #89 비배포 연동 기록 — 승인 변경 없음
+
+사용자의 #89 지시에 따라 Backend HTTP/Dispatcher·최종 상태·이력/dirty 재판단·최신 조회/알림과 V12를 합성 테스트로 구현했다. [구현·검증 보고](be-ai-v2-integration-validation.md)에 실제 실행과 Mock/모델 미실행을 구분한다. 이는 아래 승인자의 근거를 추가하거나 P1~P6를 APPROVED로 변경한 것이 아니다.
+
+정확히 test 프로필+storage flag와 별도 dispatch flag(각 기본false)를 유지한다. 합성 HTTP130초/Lease180초/여유15초·Worker2/큐0·구성3claims/backoff는 운영 승인값이 아니다. v1은 기존 설정/데이터/응답을 유지하며 v2 실패 fallback은 없다. 개인정보는 격리·노출/지연 Commit 차단까지이며 공개 회수 인증/소유권·실제 삭제·AI cache/Export/학습/백업 전파·PURGED는 미구현이다. P2/P6 BLOCKED 해제 조건은 미충족 그대로다.
+
 ## #85 비배포 구현 기록 — 승인 변경 없음
 
 사용자의 #85 지시에 따라 합성 데이터용 Backend 저장 기반/V11을 구현했다. [실제 구현·테스트·미구현 경계](be-v2-storage-foundation-validation.md)를 참조한다. 이는 §2의 승인자·근거를 추가한 것이 아니며 PROPOSED/BLOCKED를 변경하지 않는다.

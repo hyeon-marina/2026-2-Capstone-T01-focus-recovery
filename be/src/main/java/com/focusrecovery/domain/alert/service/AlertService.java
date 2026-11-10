@@ -36,6 +36,8 @@ public class AlertService {
 	static final String FIXED_INTERVAL_MESSAGE = "작업 목표를 다시 확인해 보세요.";
 
 	private final AlertProperties properties;
+	private final V2AlertService v2Alerts;
+	private final com.focusrecovery.global.config.V2StorageGate v2Gate;
 	private final Clock clock;
 	private final NotificationRepository notificationRepository;
 	private final WorkSessionRepository workSessionRepository;
@@ -44,8 +46,8 @@ public class AlertService {
 
 	public AlertService(AlertProperties properties, Clock clock, NotificationRepository notificationRepository,
 		WorkSessionRepository workSessionRepository, AnalysisResultRepository analysisResultRepository,
-		AnalysisWindowRepository analysisWindowRepository) {
-		this.properties = properties;
+		AnalysisWindowRepository analysisWindowRepository, V2AlertService v2Alerts, com.focusrecovery.global.config.V2StorageGate v2Gate) {
+		this.properties = properties; this.v2Alerts = v2Alerts; this.v2Gate = v2Gate;
 		this.clock = clock;
 		this.notificationRepository = notificationRepository;
 		this.workSessionRepository = workSessionRepository;
@@ -147,7 +149,7 @@ public class AlertService {
 	public FixedIntervalResult requestFixedInterval(UUID sessionId) {
 		WorkSession session = workSessionRepository.findForUpdateBySessionId(sessionId)
 			.orElseThrow(SessionNotFoundException::new);
-		if (session.isV2()) throw new ConflictException("V2_ALERT_DISABLED", "v2 알림은 비활성 상태입니다.");
+		v2Gate.checkAccess(session);
 		if (properties.mode() != AlertType.FIXED_INTERVAL) {
 			throw new ConflictException("FIXED_INTERVAL_DISABLED", "고정 주기 알림이 활성화되어 있지 않습니다.");
 		}
@@ -186,7 +188,10 @@ public class AlertService {
 	// 분석 상태 조회용(읽기 전용, 후보를 만들지 않음): ACTIVE 세션에서 현재 활성화된 방식의 미표시 후보만 반환한다.
 	// AI 후보는 실제 최신 구간의 COMPLETED·DRIFT 분석에 연결되고 현재 표시 이력·최소 간격 조건도 통과한 것만 반환한다
 	public AlertResponse currentCandidate(WorkSession session) {
-		if (session.isV2()) return null;
+		if (session.isV2()) {
+			if (!v2Gate.enabled() || session.isQuarantined()) return null;
+			if (properties.mode() == AlertType.AI) return v2Alerts.currentCandidate(session);
+		}
 		if (session.getStatus() != WorkSessionStatus.ACTIVE) {
 			return null;
 		}

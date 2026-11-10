@@ -46,11 +46,13 @@ public class AnalysisQueryService {
 	private final StoredJsonReader storedJsonReader;
 	private final AlertService alertService;
 	private final V2StorageGate v2Gate;
+	private final V2AnalysisQueryService v2;
+	private final tools.jackson.databind.json.JsonMapper mapper;
 
 	public AnalysisQueryService(WorkSessionRepository workSessionRepository,
 		AnalysisResultRepository analysisResultRepository, AnalysisWindowRepository analysisWindowRepository,
-		PageVisitRepository pageVisitRepository, StoredJsonReader storedJsonReader, AlertService alertService, V2StorageGate v2Gate) {
-		this.workSessionRepository = workSessionRepository;
+		PageVisitRepository pageVisitRepository, StoredJsonReader storedJsonReader, AlertService alertService, V2StorageGate v2Gate, V2AnalysisQueryService v2, tools.jackson.databind.json.JsonMapper mapper) {
+		this.v2 = v2; this.mapper = mapper; this.workSessionRepository = workSessionRepository;
 		this.analysisResultRepository = analysisResultRepository;
 		this.analysisWindowRepository = analysisWindowRepository;
 		this.pageVisitRepository = pageVisitRepository;
@@ -59,8 +61,15 @@ public class AnalysisQueryService {
 	}
 
 	// 최신 여부는 windowIndex로만 판단한다(완료 시각·응답 도착 순서 무관). alert는 읽기만 하며 후보를 만들지 않는다
-	public AnalysisStatusResponse status(UUID sessionId) {
-		WorkSession session = workSessionRepository.findById(sessionId).orElseThrow(SessionNotFoundException::new);
+	public Object status(UUID sessionId) {
+		WorkSession session = workSessionRepository.findForShareBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
+		if (session.isV2()) {
+			v2Gate.requireEnabled();
+			var latest = session.isQuarantined() ? null : first(analysisResultRepository.findSummariesBySessionId(sessionId, FIRST).getContent());
+			var completed = session.isQuarantined() ? null : first(analysisResultRepository.findSummariesBySessionIdAndStatus(sessionId, AnalysisStatus.COMPLETED, FIRST));
+			return new com.focusrecovery.domain.analysis.dto.V2AnalysisStatusResponse(2, sessionId, session.getStatus(),
+				v2.current(session), v2.lastSuccess(session), com.focusrecovery.domain.alert.dto.V2AlertResponse.of(alertService.currentCandidate(session)), latest, completed);
+		}
 		legacyAccess(session);
 		AnalysisSummaryResponse latest = first(analysisResultRepository.findSummariesBySessionId(sessionId, FIRST).getContent());
 		AnalysisSummaryResponse latestCompleted = first(
@@ -69,20 +78,34 @@ public class AnalysisQueryService {
 			alertService.currentCandidate(session));
 	}
 
-	public AnalysisPageResponse list(UUID sessionId, int page, int size) {
-		legacyAccess(workSessionRepository.findById(sessionId).orElseThrow(SessionNotFoundException::new));
-		return AnalysisPageResponse.from(
-			analysisResultRepository.findSummariesBySessionId(sessionId, PageRequest.of(page, size)));
+	public Object list(UUID sessionId, int page, int size) {
+		var session = workSessionRepository.findForShareBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
+		v2Gate.checkAccess(session);
+		var result = AnalysisPageResponse.from(analysisResultRepository.findSummariesBySessionId(sessionId, PageRequest.of(page, size)));
+		if (!session.isV2()) return result;
+		var body = (tools.jackson.databind.node.ObjectNode) mapper.valueToTree(result);
+		for (var item : body.get("items")) {
+			var row = (tools.jackson.databind.node.ObjectNode) item;
+			var window = analysisWindowRepository.findById(UUID.fromString(row.get("windowId").stringValue())).orElseThrow();
+			row.put("apiContractVersion", 2); row.set("currentDecision", mapper.valueToTree(v2.decision(session, window)));
+		}
+		return body;
 	}
 
 	// 다른 세션의 분석은 이 세션에서 찾을 수 없는 리소스(404)로 처리한다
-	public AnalysisDetailResponse detail(UUID sessionId, UUID analysisId) {
-		legacyAccess(workSessionRepository.findById(sessionId).orElseThrow(SessionNotFoundException::new));
+	public Object detail(UUID sessionId, UUID analysisId) {
+		var session = workSessionRepository.findForShareBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
+		v2Gate.checkAccess(session);
 		AnalysisResult analysis = analysisResultRepository.findById(analysisId).orElseThrow(AnalysisNotFoundException::new);
 		AnalysisWindow window = analysisWindowRepository.findById(analysis.getWindowId())
 			.filter(found -> found.getSessionId().equals(sessionId))
 			.orElseThrow(AnalysisNotFoundException::new);
-		return AnalysisDetailResponse.of(analysis, window, windowVisits(analysisId, window), storedJsonReader);
+		var result = AnalysisDetailResponse.of(analysis, window, windowVisits(analysisId, window), storedJsonReader);
+		if (!session.isV2()) return result;
+		var body = (tools.jackson.databind.node.ObjectNode) mapper.valueToTree(result);
+		body.put("apiContractVersion", 2); body.set("currentDecision", mapper.valueToTree(v2.decision(session, window)));
+		body.set("pageResults", analysis.getPageResults() == null ? mapper.nullNode() : mapper.readTree(analysis.getPageResults()));
+		return body;
 	}
 
 	// window_visit → page_visit 외래키가 방문 존재를 보장하지만, 조회 결과가 구간 구성과 다르면 누락을 건너뛰거나

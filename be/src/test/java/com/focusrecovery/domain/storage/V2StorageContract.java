@@ -316,7 +316,9 @@ abstract class V2StorageContract {
 	}
 	@Test void legacyQueriesAndAlertsCannotExposeQuarantinedV2() throws Exception {
 		UUID visit=append(1);privacy.quarantine(session,new Retraction.Request(UUID.randomUUID(),visit,"SENSITIVE_CONTENT",TIME));
-		for(String suffix:List.of("","/visits","/analysis-status","/analyses","/alerts"))
+		mvc.perform(get("/api/sessions/"+session+"/analysis-status")).andExpect(status().isOk())
+			.andExpect(jsonPath("$.currentDecision").isEmpty()).andExpect(jsonPath("$.lastSuccessfulState").isEmpty()).andExpect(jsonPath("$.alert").isEmpty());
+		for(String suffix:List.of("","/visits","/analyses","/alerts"))
 			mvc.perform(get("/api/sessions/"+session+suffix)).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("PRIVACY_RETRACTED"));
 	}
 	@Test void stateFingerprintAndAnalysisOwnershipAreValidated() {

@@ -26,8 +26,13 @@ public class V2StorageRecovery {
 	public void recover() {
 		if (!gate.enabled()) return;
 		for (var job : compose.findByProcessingStatusAndLeaseUntilLessThanEqual("RUNNING", clock.instant()))
-			compositions.recover(job.getSessionId(), job.getComposeRequestId());
+			recoverOne(() -> compositions.recover(job.getSessionId(), job.getComposeRequestId()));
 		for (var task : outbox.findByProcessingStatusAndLeaseUntilLessThanEqual("RUNNING", clock.instant()))
-			analyses.recover(task.getSessionId(), task.getAnalysisId());
+			recoverOne(() -> analyses.recover(task.getSessionId(), task.getAnalysisId()));
+	}
+	private void recoverOne(Runnable work) {
+		try { work.run(); } catch (RuntimeException e) {
+			org.slf4j.LoggerFactory.getLogger(getClass()).warn("v2 복구 미적용 type={}", e.getClass().getSimpleName());
+		}
 	}
 }

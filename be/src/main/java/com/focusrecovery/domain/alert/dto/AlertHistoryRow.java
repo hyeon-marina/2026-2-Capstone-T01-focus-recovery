@@ -18,6 +18,7 @@ public record AlertHistoryRow(
 	Instant shownAt,
 	UUID feedbackId,
 	ResponseAction action,
-	Instant selectedAt
+	Instant selectedAt,
+	UUID windowId, Long stateVersion, Instant invalidatedAt
 ) {
 }

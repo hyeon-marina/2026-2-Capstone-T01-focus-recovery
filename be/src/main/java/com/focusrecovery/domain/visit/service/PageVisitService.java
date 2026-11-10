@@ -52,12 +52,13 @@ public class PageVisitService {
 	private final VisitTombstoneRepository tombstones;
 	private final JsonMapper jsonMapper;
 	private final Validator validator;
+	private final com.focusrecovery.domain.window.service.WindowDecisionService decisions;
 
 	public PageVisitService(WorkSessionRepository workSessionRepository, PageVisitRepository pageVisitRepository,
 		TransactionTemplate transactionTemplate, AnalysisWindowService analysisWindowService,
 		AnalysisRequestService analysisRequestService, V2StorageGate v2Gate,
-		VisitTombstoneRepository tombstones, JsonMapper jsonMapper, Validator validator) {
-		this.jsonMapper = jsonMapper; this.validator = validator;
+		VisitTombstoneRepository tombstones, JsonMapper jsonMapper, Validator validator, com.focusrecovery.domain.window.service.WindowDecisionService decisions) {
+		this.decisions = decisions; this.jsonMapper = jsonMapper; this.validator = validator;
 		this.v2Gate = v2Gate; this.tombstones = tombstones;
 		this.workSessionRepository = workSessionRepository;
 		this.pageVisitRepository = pageVisitRepository;
@@ -154,6 +155,7 @@ public class PageVisitService {
 		Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 		boolean applied = applyBehavior(visit, request.activeDurationMs(), request.tabSwitchCount(),
 			request.behaviorVersion(), now);
+		if (applied && session.isV2()) decisions.markVisitDirty(sessionId, visitId);
 		if (applied && !session.isV2()) {
 			analysisRequestService.requestWindowsEndingAt(sessionId, visitId, now);
 		}
@@ -169,7 +171,8 @@ public class PageVisitService {
 			if (session.isV2()) validateV2Behavior(behavior.activeDurationMs(), behavior.behaviorVersion());
 			PageVisit visit = pageVisitRepository.findForUpdateByVisitIdAndSessionId(UUID.fromString(behavior.visitId()), sessionId)
 				.orElseThrow(VisitNotFoundException::new);
-			applyBehavior(visit, behavior.activeDurationMs(), behavior.tabSwitchCount(), behavior.behaviorVersion(), now);
+			boolean applied = applyBehavior(visit, behavior.activeDurationMs(), behavior.tabSwitchCount(), behavior.behaviorVersion(), now);
+			if (applied && session.isV2()) decisions.markVisitDirty(sessionId, visit.getVisitId());
 		}
 	}
 

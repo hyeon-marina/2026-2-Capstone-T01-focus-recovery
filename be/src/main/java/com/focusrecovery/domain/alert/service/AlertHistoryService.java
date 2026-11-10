@@ -36,9 +36,8 @@ public class AlertHistoryService {
 	}
 
 	public AlertHistoryPageResponse history(UUID sessionId, int page, int size) {
-		WorkSession session = workSessionRepository.findById(sessionId).orElseThrow(SessionNotFoundException::new);
+		WorkSession session = workSessionRepository.findForShareBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
 		v2Gate.checkAccess(session);
-		if (session.isV2()) throw new ConflictException("V2_ALERT_DISABLED", "v2 알림은 비활성 상태입니다.");
 		return AlertHistoryPageResponse.from(notificationRepository.findHistoryBySessionId(sessionId, PageRequest.of(page, size))
 			.map(row -> AlertHistoryItem.of(row, session.getGoalText())));
 	}

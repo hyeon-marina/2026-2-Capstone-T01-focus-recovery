@@ -54,8 +54,8 @@ public class AnalysisOutbox implements Persistable<UUID> {
 		AnalysisOutbox task = new AnalysisOutbox(); task.analysisId = analysisId; task.sessionId = sessionId;
 		task.privacyRevision = revision; task.processingStatus = "PENDING"; task.requestedAt = now; return task;
 	}
-	public UUID claim(Instant now) {
-		processingStatus = "RUNNING"; startedAt = now; leaseUntil = now.plusSeconds(60);
+	public UUID claim(Instant now, java.time.Duration lease) {
+		processingStatus = "RUNNING"; startedAt = now; leaseUntil = now.plus(lease);
 		claimToken = UUID.randomUUID(); return claimToken;
 	}
 	public void terminal(String status, String error, Instant now) {

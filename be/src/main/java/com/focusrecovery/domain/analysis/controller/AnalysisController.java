@@ -31,9 +31,10 @@ public class AnalysisController {
 	private static final String NOT_FOUND_EXAMPLES = "SESSION_NOT_FOUND: 세션 없음";
 
 	private final AnalysisQueryService analysisQueryService;
+	private final com.focusrecovery.domain.analysis.service.V2AnalysisQueryService v2;
 
-	public AnalysisController(AnalysisQueryService analysisQueryService) {
-		this.analysisQueryService = analysisQueryService;
+	public AnalysisController(AnalysisQueryService analysisQueryService, com.focusrecovery.domain.analysis.service.V2AnalysisQueryService v2) {
+		this.analysisQueryService = analysisQueryService; this.v2 = v2;
 	}
 
 	@Operation(
@@ -63,7 +64,7 @@ public class AnalysisController {
 
 			조회만 하며 분석·알림 후보를 만들거나 AI를 호출하지 않습니다(AI 후보는 분석 완료 시 BE 내부에서 만듭니다).
 			""")
-	@ApiResponse(responseCode = "200", description = "조회 성공")
+	@ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(schema = @Schema(oneOf = {AnalysisStatusResponse.class, com.focusrecovery.domain.analysis.dto.V2AnalysisStatusResponse.class})))
 	@ApiResponse(responseCode = "400", description = "세션 ID가 UUID 형식이 아님",
 		content = @Content(schema = @Schema(implementation = ErrorResponse.class), examples = @ExampleObject(value = """
 			{"code": "INVALID_REQUEST", "message": "세션 ID가 올바른 UUID 형식이 아닙니다.", "fieldErrors": []}""")))
@@ -71,11 +72,19 @@ public class AnalysisController {
 		content = @Content(schema = @Schema(implementation = ErrorResponse.class), examples = @ExampleObject(value = """
 			{"code": "SESSION_NOT_FOUND", "message": "작업 세션을 찾을 수 없습니다.", "fieldErrors": []}""")))
 	@GetMapping("/analysis-status")
-	public AnalysisStatusResponse status(
+	public Object status(
 		@Parameter(description = "작업 세션 ID (UUID)", example = "1ba72f77-c166-4e06-88c7-1d6ed919cd9b")
 		@PathVariable String sessionId
 	) {
 		return analysisQueryService.status(Uuids.parse(sessionId, INVALID_SESSION_ID));
+	}
+
+	@Operation(summary = "v2 Window 상태 이력 조회", description = "stateVersion 내림차순. 합성 테스트 Gate와 개인정보 검사를 적용합니다.")
+	@GetMapping("/windows/{windowId}/states")
+	public com.focusrecovery.domain.window.dto.WindowStatePage states(@PathVariable String sessionId, @PathVariable String windowId,
+		@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+		Pages.validate(page, size);
+		return v2.history(Uuids.parse(sessionId, INVALID_SESSION_ID), Uuids.parse(windowId, "Window ID가 올바른 UUID 형식이 아닙니다."), page, size);
 	}
 
 	@Operation(
@@ -84,7 +93,7 @@ public class AnalysisController {
 			세션의 분석을 windowIndex 내림차순으로 조회합니다. PENDING·RUNNING·FAILED도 포함하며 실패를 NORMAL로 바꾸지 않습니다.
 			목록 항목에는 inputSnapshot 등 JSON 필드가 없습니다(상세 조회에서 확인). 분석이 없으면 빈 목록입니다.
 			""")
-	@ApiResponse(responseCode = "200", description = "조회 성공")
+	@ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(schema = @Schema(implementation = AnalysisPageResponse.class)))
 	@ApiResponse(responseCode = "400", description = "잘못된 UUID 또는 페이지네이션 값(page 0 이상, size 1~100, page × size가 int 범위 이내)",
 		content = @Content(schema = @Schema(implementation = ErrorResponse.class), examples = @ExampleObject(value = """
 			{"code": "INVALID_REQUEST", "message": "size는 1 이상 100 이하여야 합니다.", "fieldErrors": []}""")))
@@ -92,7 +101,7 @@ public class AnalysisController {
 		content = @Content(schema = @Schema(implementation = ErrorResponse.class), examples = @ExampleObject(value = """
 			{"code": "SESSION_NOT_FOUND", "message": "작업 세션을 찾을 수 없습니다.", "fieldErrors": []}""")))
 	@GetMapping("/analyses")
-	public AnalysisPageResponse list(
+	public Object list(
 		@Parameter(description = "작업 세션 ID (UUID)", example = "1ba72f77-c166-4e06-88c7-1d6ed919cd9b")
 		@PathVariable String sessionId,
 		@Parameter(description = "페이지 번호 (0부터)", example = "0")
@@ -114,7 +123,7 @@ public class AnalysisController {
 			- contextResult·inputSnapshot·featureSnapshot·modelVersions는 JSON 객체 또는 null입니다(문자열 아님).
 			- 다른 세션의 분석은 404 ANALYSIS_NOT_FOUND입니다.
 			""")
-	@ApiResponse(responseCode = "200", description = "조회 성공")
+	@ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(schema = @Schema(implementation = AnalysisDetailResponse.class)))
 	@ApiResponse(responseCode = "400", description = "세션 ID 또는 분석 ID가 UUID 형식이 아님",
 		content = @Content(schema = @Schema(implementation = ErrorResponse.class), examples = @ExampleObject(value = """
 			{"code": "INVALID_REQUEST", "message": "분석 ID가 올바른 UUID 형식이 아닙니다.", "fieldErrors": []}""")))
@@ -126,7 +135,7 @@ public class AnalysisController {
 				{"code": "ANALYSIS_NOT_FOUND", "message": "해당 세션에서 분석 결과를 찾을 수 없습니다.", "fieldErrors": []}""")
 		}))
 	@GetMapping("/analyses/{analysisId}")
-	public AnalysisDetailResponse detail(
+	public Object detail(
 		@Parameter(description = "작업 세션 ID (UUID)", example = "1ba72f77-c166-4e06-88c7-1d6ed919cd9b")
 		@PathVariable String sessionId,
 		@Parameter(description = "분석 ID (UUID)", example = "5b1f0c2e-8d3a-4c7e-9f21-6a4d2b8e1c90")

@@ -2,7 +2,17 @@
 
 > Issue #79 목표 계약이다. 공식 main `6e15dd3`에는 세션·방문·Window·AI 비동기 분석·알림·조회가 이미 구현되어 있다. 제품 구현을 완료했다는 문서가 아니다. 유지할 설계 요구는 [수집 규격](data-collection-spec.md), v2 API/DB 및 승인 필요한 P1~P6는 [공통 계약](data-analysis-contract.md)을 따른다.
 
-## #85 실제 저장 구현 상태 — 비배포
+## #89 실제 연동 구현 상태 — 합성 테스트 전용
+
+공식 main `4f9b4fb`의 #85 저장 기반과 #87 AI API를 연결했다. `V2AiClient`는 두 v2 HTTP 응답의 타입·ID·Fingerprint·전체 구성/페이지 대응·시간을 검증하고, `V2Dispatcher`는 영속 dirty/compose/Outbox를 별도 Worker에서 실행한다. 네트워크는 DB 트랜잭션 밖이다. 저장한 AI 결과로 `FinalStateRules`가 `suffix3-v2-proposed.1`을 계산하며, PATCH/finalBehaviors는 포함된 모든 기존 Window를 dirty로 만들어 새 AI 호출 없이 최신 행동으로 재판단한다.
+
+판단·상태 이력·dirty 해제·알림 후보는 같은 세션→Window 잠금 트랜잭션이다. 최신 Window/dirty/PENDING/FAILED/INVALIDATED와 과거 성공 참고값을 분리해 조회한다. v2 후보는 windowId+stateVersion, 실제 shown/response는 기존 alertId 기준이다. V12는 v1 analysisId UNIQUE와 이력을 보존하면서 상태 참조·후보 무효화 시각·지연 재시도 시각을 추가한다.
+
+storage Gate는 그대로이며 dispatcher도 기본false다. 정확히 `test` 프로필+storage/dispatch 두 flag를 명시한 합성 환경만 자동 실행한다. 연결2초·v2 응답130초·Lease180초·저장 여유15초·구성3회/1초·2초 backoff는 개발 한도다. v1 응답10초와 분석 자동 재호출 없음은 유지한다. 운영 승인값이나 모델 실행시간 보장이 아니다.
+
+실제 실행·Mock/실제 HTTP/모델 구분·한계는 [#89 구현 검증](be-ai-v2-integration-validation.md)을 따른다. P1~P6 PROPOSED/P2·P6 BLOCKED, 기본 비활성·운영/실사용자 처리 금지·전체 회수/PURGED 미구현은 유지한다. 아래 #85 단락은 당시 저장 기반의 이력이다.
+
+## #85 실제 저장 구현 상태 — 당시 기록
 
 v1 1초/5개/10초/확률·기존 조회·알림은 유지한다. v2 저장만 V11과 서비스 경계로 구현했고 기본 비활성이다. `focus-recovery.v2.storage.enabled=true`도 활성 프로필이 정확히 `test`일 때만 허용한다. 운영 활성화 스위치가 아니다.
 
@@ -20,7 +30,7 @@ H2·MySQL 8.4 합성 테스트와 실제 Spring 재시작 범위/명령·한계�
 | --- | --- |
 | 영역 | BE |
 | 통합 대상 | BE-001~BE-009 |
-| 기능 상태 | 기존 구현 있음; #79 변경은 후속 |
+| 기능 상태 | v1 유지, #89 합성 v2 연동 구현; 운영 승인·실제 모델 검증 미완료 |
 | 연동 대상 | FE(Chrome Extension), Python AI Service |
 | 분석 단위 | 같은 세션의 최근 3개 유효 Page Visit으로 구성한 탐색 구간 |
 | 구간 이동 방식 | 새로운 유효 방문마다 1개씩 이동하는 stride 1 sliding window |
@@ -223,7 +233,7 @@ FE-004 페이지 정보 수집, FE-005 체류시간 측정, FE-006 탭 전환 �
 
 **변경 사유:** 기존 BE 5개 구성·10초 대기·AI 확률 최종 분류를 #79의 AI 구성·BE 규칙 판단으로 변경한다.
 
-P4 권장 흐름은 AI window-compositions 요청 → BE-009 검증/식별/저장 → 기존 /api/ai/analyses v2 요청이다. Window 저장 후 analysisId와 불변 input_snapshot을 같은 트랜잭션에서 기록하고 commit 후 AnalysisExecutor가 실행한다. AI 호출 중 DB 잠금을 유지하지 않는다. 정확한 wire 타입은 공통 계약 §6을 따른다.
+P4 권장 흐름은 AI window-compositions 요청 → BE-009 검증/식별/저장 → 기존 /api/ai/analyses v2 요청이다. Window 저장 후 analysisId와 불변 input_snapshot/Outbox를 같은 트랜잭션에서 기록하고 commit 후 V2Dispatcher가 실행한다. 기존 AnalysisExecutor는 v1 전용이다. AI 호출 중 DB 잠금을 유지하지 않는다. 정확한 wire 타입은 공통 계약 §6을 따른다.
 
 - 요청: apiContractVersion=2, analysisId/sessionId/windowId, windowIndex, goalText, position1~3 visits. 실패 추출·5초 미만 입력 금지.
 - 응답: ID 일치, 각 position/visitId에 pageResults(label, semanticRelevance, rationale), modelVersions, analyzedAt UTC 밀리초. label은 DIRECT/JUSTIFIED_DETOUR/UNRELATED다.
@@ -459,7 +469,7 @@ sequence 공백을 허용하고 오름차순의 인접한 유효 방문3개를 �
 
 [결정안 P2/P4/P5](v2-contract-decisions.md#6-p4--ai-구성과-be-저장)에 따라 수신 lastAcceptedSequence와 구성 composedThroughSequence를 분리한다. 권장안은 첫 Window 이전부터 신규 sequence의 단조 증가를 요구하고 숫자 공백을 허용하며, 개인정보 tombstone/격리 검사 후 비철회 같은 원본 replay를 처리하는 방식이다.
 
-AI 구성 요청은 본문 없이 ID/sequence의 직전 최대 두 방문과 신규 prefix를 보낸다. 1~2개 입력에서도 커서를 전진시킨다. 별도 compose job에는 session FK만 두고, 트랜잭션 밖에서 HTTP를 호출한 뒤 세션 잠금/CAS로 Window·분석 PENDING·outbox·커서를 원자 저장한다. V4 Window FK 확보 전에는 분석행을 저장할 수 없다. 구성 실패 시 커서는 불변이며 기존 10초 대기 제거는 후속 구현이다.
+AI 구성 요청은 본문 없이 ID/sequence의 직전 최대 두 방문과 신규 prefix를 보낸다. 1~2개 입력에서도 커서를 전진시킨다. 별도 compose job에는 session FK만 두고, 트랜잭션 밖에서 HTTP를 호출한 뒤 세션 잠금/CAS로 Window·분석 PENDING·outbox·커서를 원자 저장한다. V4 Window FK 확보 전에는 분석행을 저장할 수 없다. 구성 실패 시 커서는 불변이며 v2에는 기존 10초 대기를 적용하지 않는다. v1은 그대로 유지한다.
 
 행동 변경은 해당 방문을 포함하는 기존 Window 최대 세 개를 dirty로 만들고, 고정 AI 결과로 재판단한다. 실제 판단 입력 변경마다 stateVersion을 추가한다. 같은 Window의 DRIFT 버전 증가만으로 반복 표시하지 않고, 기존의 뒤 Window 복귀 조건과 shownAt 최소 간격을 유지하도록 권고한다. 실제 표시의 늦은 기록은 새로운 후보 허가와 구분한다. V6 UNIQUE(analysis_id)와 V7 PK(analysis_id)는 상태별 후보와 충돌하므로 신규 키/FK 이관이 필요하다.
 
