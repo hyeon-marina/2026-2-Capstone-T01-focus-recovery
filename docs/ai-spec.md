@@ -2,7 +2,7 @@
 
 ## 1. 범위·변경 이유
 
-Issue #79 이후의 목표 명세다. 기준 공식 main `6e15dd3`에는 AI-001/002/003, FastAPI 연동, 학습 분류기 로드, Context 구성·캐시가 이미 존재한다. 이번 작업은 문서만이며 모델 학습·API 구현을 수행하지 않는다. 확정 정책은 [수집 규격](data-collection-spec.md), 추가 설계 P1~P6와 wire/DB는 [공통 계약](data-analysis-contract.md)을 따른다.
+Issue #79 이후의 목표 명세다. 기준 공식 main `6e15dd3`에는 AI-001/002/003, FastAPI 연동, 학습 분류기 로드, Context 구성·캐시가 이미 존재한다. 이번 작업은 문서만이며 모델 학습·API 구현을 수행하지 않는다. 유지할 설계 요구는 [수집 규격](data-collection-spec.md), 추가 설계 P1~P6와 wire/DB는 [공통 계약](data-analysis-contract.md)을 따른다.
 
 | 기능 ID | 변경 후 책임 | 기존 요구사항의 처리 |
 | --- | --- | --- |
@@ -124,6 +124,8 @@ AI-001/002/003 ID와 모델 비교·특징/확률·검증/실패 요구는 위�
 P2 순서 의미, P4 두 단계 구성 API, P5 suffix/버전 판단, P6 라벨 스냅샷·관리 정책을 승인해야 한다. 모델/프롬프트·페이지 라벨 품질·Context 유지 여부·성능 예산은 실제 Validation/파일럿으로 결정한다. 추측한 모델 성능·학습 완료·3개 계약 구현 완료를 보고하지 않는다.
 
 ### #81 AI 구현 계약 보충 — PROPOSED
+
+#83의 [승인 요청](v2-contract-approval.md)은 이 설계를 PROPOSED로 유지한다. AI가 ordered stream에서 실제 Window를 선택해야 하며 BE가 미리 만든 triples를 반환만 해서는 안 된다. 회수 중 늦은 추론이 registry/임베딩/Context 캐시를 재오염시키지 않도록 유효성 재확인·폐기/전체 캐시 격리 경로가 필요하다. 기존 학습 loader는 5개 및 연속 숫자를 요구하므로 v2 sparse sequence·목표12/4/4용 loader가 별도로 필요하다. 실제 학습·모델 변경은 이번 범위가 아니다.
 
 [결정안 P4](v2-contract-decisions.md#6-p4--ai-구성과-be-저장)의 권장 A는 모델이 필요 없는 구성 API → BE 식별·저장 → 기존 analysis API v2다. 구성 입력은 visitId/sequence만이며, afterSequence 이하 직전 최대 두 방문과 신규 prefix로 AI가 인접 세 방문을 stride 1로 구성한다. 1~2개는 windows=[]이지만 커서는 전진한다. 숫자 공백은 허용하고 저장 방문 누락·역순·중복은 허용하지 않는다. 기존 pipeline.iter_windows는 5개 오프라인 도구이며 현재 구성 endpoint가 있다는 뜻이 아니다.
 

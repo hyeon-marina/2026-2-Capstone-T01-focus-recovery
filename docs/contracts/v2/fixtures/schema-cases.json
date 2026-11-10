@@ -1908,6 +1908,150 @@
         "valid": false,
         "keyword": "maximum"
       }
+    },
+    {
+      "name": "state-invalid-short-visit",
+      "contract": "WindowState",
+      "input": {
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "stateVersion": 1,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "ruleVersion": "suffix3-v2-proposed.1",
+        "judgedAt": "2026-11-10T00:00:00.000Z",
+        "finalState": "NORMAL",
+        "behaviorSnapshot": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 4999,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ],
+        "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "minimum"
+      }
+    },
+    {
+      "name": "state-invalid-zero-duration",
+      "contract": "WindowState",
+      "input": {
+        "windowId": "00000000-0000-4000-8000-000000000094",
+        "stateVersion": 1,
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "ruleVersion": "suffix3-v2-proposed.1",
+        "judgedAt": "2026-11-10T00:00:00.000Z",
+        "finalState": "NORMAL",
+        "behaviorSnapshot": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 0,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ],
+        "inputFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "minimum"
+      }
+    },
+    {
+      "name": "composed-duplicate-member",
+      "contract": "CompositionResponse",
+      "input": {
+        "apiContractVersion": 2,
+        "composeRequestId": "00000000-0000-4000-8000-000000000091",
+        "sessionId": "00000000-0000-4000-8000-000000000092",
+        "afterSequence": 0,
+        "inputFingerprint": "43b02c1d3e28b198599aeb8a46791cf0058970a555f82b881cb724d3016b1828",
+        "composedThroughSequence": 3,
+        "windows": [
+          {
+            "visitIds": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000003"
+            ],
+            "endVisitId": "00000000-0000-4000-8000-000000000003"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "uniqueItems"
+      }
+    },
+    {
+      "name": "retraction-duplicate-window",
+      "contract": "RetractionAck",
+      "input": {
+        "retractionId": "00000000-0000-4000-8000-000000000096",
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "status": "QUARANTINED",
+        "invalidatedWindowIds": [
+          "00000000-0000-4000-8000-000000000094",
+          "00000000-0000-4000-8000-000000000094"
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "uniqueItems"
+      }
+    },
+    {
+      "name": "retraction-purged-shape-only",
+      "contract": "RetractionAck",
+      "input": {
+        "retractionId": "00000000-0000-4000-8000-000000000096",
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "status": "PURGED",
+        "invalidatedWindowIds": []
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "retraction-unknown-completion",
+      "contract": "RetractionAck",
+      "input": {
+        "retractionId": "00000000-0000-4000-8000-000000000096",
+        "visitId": "00000000-0000-4000-8000-000000000001",
+        "status": "COMPLETE",
+        "invalidatedWindowIds": []
+      },
+      "expected": {
+        "valid": false,
+        "keyword": "enum"
+      }
     }
   ]
 }

@@ -1,4 +1,63 @@
-# 데이터 수집·분석 계약 검증 — Issue #81
+# 데이터 수집·분석 계약 검증 — Issue #83
+
+## #83 기준과 실제 실행
+
+2026-11-10 KST, 공식 main `a1a5d9701d45e0f7ce07b14ead27d67a53eec08c` 기준, 브랜치 `docs/83/v2-contract-approval`. 시작 detached HEAD `6e15dd3fa1789e96c42bc4f33250c4221d6d2616`, tracked 수정·미추적 파일 0. Git/Issue/PR·승인 근거 조사는 [승인 요청 대장](v2-contract-approval.md#1-기준과-승인-근거-조사)을 따른다. P1~P6 승인 0건, PROPOSED 유지. P2 조기 전송·P6 동의/보존/기관 확인의 BLOCKED 유지.
+
+제품 소스·기존 테스트·의존성·Flyway는 변경하지 않았다. 이번 정적 계약 검증을 제품 테스트·회수 기능 완성·팀 승인으로 보고하지 않는다. 아래 #81 당시 기록은 과거 증거로 보존한다.
+
+저장소의 기존 정확한 실행 방법은 `docs/contracts/v2/README.md`의 임시 venv + `jsonschema[format]==4.26.0` + `validate.py`다. 기본 `python3`에는 jsonschema가 없어 첫 환경 확인은 실패했다. 기존 임시 venv `/private/tmp/focus81-validator`의 jsonschema **4.26.0**을 확인하고 같은 인터프리터로 baseline과 최종본을 실행했다. 제품 의존성 설치·수정 없음.
+
+```sh
+# 새 환경에서 재현할 때만 생성/설치
+python3 -m venv /private/tmp/focus83-validator
+/private/tmp/focus83-validator/bin/python -m pip install 'jsonschema[format]==4.26.0'
+/private/tmp/focus83-validator/bin/python docs/contracts/v2/validate.py
+
+# 이번 실제 실행(이미 존재하는 임시 venv 재사용)
+/private/tmp/focus81-validator/bin/python docs/contracts/v2/validate.py
+git diff --check
+```
+
+baseline(수정 전) 실제 결과: Draft 2020-12 / 30정의 / Schema74 / 시나리오82 / 규칙216조합 / κ4건 PASS.
+
+최종 실행 결과:
+
+```text
+PASS: 10 Markdown documents, 156 relative links/anchors, code fences
+PASS: Draft 2020-12, 30 definitions, 80 schema cases, 139 reference scenarios, 216 rule combinations, 4 kappa checks
+LIMIT: reference contract checks only; no FE/BE/AI product, DB, Chrome, or model execution.
+```
+
+| #83 검증 대상 | 실제 검사 | 한계·남은 검증 |
+| --- | --- | --- |
+| Draft2020-12·UUID·timestamp·필수/null | check_schema + 모든30정의, FormatChecker, 기존 정상/오류74건 보존 | API 런타임에서 같은 검증을 쓰는지는 제품 구현 후 확인 |
+| 5초/4초/5분·sequence | 기존 경계·버전/중복/stale/누적감소, 추가 commit abort·지연 A/B·동시 직렬 순서 | 실제 Chrome 시간·IDB transaction/ACK 실패 주입 아님 |
+| Schema 보완6건 | 성공 snapshot4999/0 거절, 구성 중복 visitId·회수 중복 Window ID 거절, PURGED 모양 정상·알 수 없는 완료 상태 거절 | PURGED 모양 통과는 삭제 증명 아님 |
+| AI 구성 size3/stride1·커서 | 기존1~5개·tail·번호공백/실제누락·response 멤버/끝/커서 검증, 추가 append 허용·privacy revision/CAS 충돌·receipt replay | DB UNIQUE/FK/트랜잭션/lease·네트워크 호출은 미실행 |
+| AI visitId/position 관계 | 요청 관계검사와 응답 pairing 결합. 요청 자체 중복 visit/sequence를 함께 거절 | 실제 AI 추론·모델/검색어 경로 미실행 |
+| BE 규칙·stateVersion | 216조합 독립 조건식, 새 전체3개 snapshot의 ordered ID/analysis/fingerprint/state 검사, 동일 입력 replay·동일상태 새 입력·5분 새버전·stale commit 거절 | DB 잠금/CAS·동시 worker 검증은 후속 |
+| 관련 Window 전체·AI 지연 | 공유 방문의 모든 기존 Window 선택(최대3), 각 위치 snapshot 검사, AI 완료 전 행동 갱신의 첫 성공값 | 실제 dirty outbox fanout·조회·알림 통합 미실행 |
+| 개인정보 회수 | 저장후/POST 유실/미존재ID 선회수/AI 진행중·결과저장/Window·이력/후보·shown/Export/모델/백업 잔존·늦은 재저장 차단. 회수 ID replay/conflict·완료상태 비회귀 | named inventory와 guard의 합성 모델일 뿐. HTTP·실제 삭제·캐시/수신자/모델 영향 제거 실행 안 함 |
+| P6 분할·라벨 유출 | 기존 manifest12/4/4 goal 교집합 검사·κ4건, 새 nested blind projection의 예측/시나리오/자동 후보라벨 누출 거절 | 실제 JSONL/FK/checksum/rowCount·동의·라벨링 UI/사람 평가 미실행 |
+| Markdown·정적 범위 | 검증기에10문서의 상대 파일/anchor·fence 검사 추가, diff --check, 기존 Fixture/기능 ID 보존 및 docs 경로만 변경 확인 | 외부 URL 가용성/기관 승인·모든 Markdown 문법 검증 아님 |
+
+추가 시나리오는 **57건**이며 기존82건의 입력과 기대값을 그대로 유지한다. 단순 설명을 실행 PASS로 세지 않는다. `state-history`의 STALE_INPUT/STATE_VERSION_CONFLICT와 blind LABEL_LEAK는 reference 내부 진단이며 새로운 운영 HTTP 코드로 Schema enum에 추가하지 않았다.
+
+검증 중 새 Fixture 생성 코드가 PURGED 정상 예시 객체를 재사용하여 COMPLETE로 바꾼 오류를 검출했다. 정상 입력을 PURGED로 복원하고 별도 오류 예시를 보존했다. 신규 승인 문서의 중간점이 들어간 잘못된 anchor 두 개도 링크 검사에서 검출하여 수정했다. 기존 제품 테스트·기존74/82 기대값은 변경하지 않았다.
+
+추가 검토 근거: FE collector/active-time/index/delivery/durable/end 및 보호/검색 경로, BE WorkSession/PageVisit/Window/AnalysisRequest·Executor/Recovery/Query/AI DTO·Alert/Display/Task, AI main/pipeline/embedding/context/classifier/training/compare와 V1~V10 SQL·기존 회귀 테스트를 읽었다. 현행 1초·5개·10초·확률 API와 v2 목표를 구분했다. 소스·심볼별 충돌은 [코드 근거표](v2-contract-approval.md#3-현행-코드와-충돌을-재확인한-근거)에 기록했다.
+
+## #83 실행하지 않은 항목과 gate
+
+FE Vitest/typecheck/build/Playwright·실제 Chrome/Windows, BE Gradle/MySQL/API 통합·Flyway/이관, AI 모델 로드/추론/benchmark/학습, 실제 개인정보 수집·삭제·Export 회수·백업 복원·모델 영향 제거를 실행하지 않았다. 이번 변경은 docs13파일이며 project-plan은 검토·링크 검사만 하고 수정하지 않았다. 과거 제품 테스트 PASS를 이번 실행 결과로 전용하지 않는다.
+
+승인 주체·일시·URL이 없어 APPROVED로 승격한 정책은 없다. 기술 승인 후 합성 구현과 운영 활성화 gate를 구분한다. 회수/소유권/END 예외·파생 회수의 실제 구현·검증 및 보존/동의/기관 확인 전 조기 전송·실데이터 수집/공유/학습은 BLOCKED다. 해제 조건과 독립 후속 Issue 초안은 [승인 요청 §5~8](v2-contract-approval.md#8-후속-구현-issue-초안과-의존성)에 기록했고 GitHub Issue는 생성하지 않았다.
+
+---
+
+
+# Issue #81 당시 검증 기록 (보존)
 
 ## 기준과 결과의 의미
 

@@ -1,6 +1,6 @@
 # BE 기능명세서
 
-> Issue #79 목표 계약이다. 공식 main `6e15dd3`에는 세션·방문·Window·AI 비동기 분석·알림·조회가 이미 구현되어 있다. 제품 구현을 완료했다는 문서가 아니다. 확정 정책은 [수집 규격](data-collection-spec.md), v2 API/DB 및 승인 필요한 P1~P6는 [공통 계약](data-analysis-contract.md)을 따른다.
+> Issue #79 목표 계약이다. 공식 main `6e15dd3`에는 세션·방문·Window·AI 비동기 분석·알림·조회가 이미 구현되어 있다. 제품 구현을 완료했다는 문서가 아니다. 유지할 설계 요구는 [수집 규격](data-collection-spec.md), v2 API/DB 및 승인 필요한 P1~P6는 [공통 계약](data-analysis-contract.md)을 따른다.
 
 ## 1. 문서 개요
 
@@ -445,7 +445,11 @@ sequence 공백을 허용하고 오름차순의 인접한 유효 방문3개를 �
 
 ### #81 BE 구현 계약 보충 — PROPOSED
 
-[결정안 P2/P4/P5](v2-contract-decisions.md#6-p4--ai-구성과-be-저장)에 따라 수신 lastAcceptedSequence와 구성 composedThroughSequence를 분리한다. 권장안은 첫 Window 이전부터 신규 sequence의 단조 증가를 요구하고 숫자 공백을 허용하며, 같은 원본 replay를 먼저 처리하는 방식이다.
+#83의 [비동기 일관성 보완](v2-contract-approval.md#6-p4p5-비동기-일관성-보완)을 따른다. 구성 입력의 불변 prefix·privacy revision과 cursor CAS를 분리하여 append/PATCH가 구성 job을 불필요하게 취소하지 않게 한다. 판단은 commit 시 최신 행동 벡터 확인이 필요하다. 시작 멱등키의 목표+규격 버전, finalBehaviors의 dirty 처리, durable outbox를 검증한다.
+
+개인정보 tombstone/세션 격리는 원본 replay보다 먼저 검사한다. 회수 중 currentDecision은 가능한 경우 INVALIDATED, lastSuccessfulState/alert는 null이며 Window가 없더라도 분석/공유를 차단한다. PURGED는 Export/학습/백업 영향까지 증거가 확인된 집계 상태다. 현행 FK/인증/API로 완료된 기능이 아니며 [회수 검토](v2-contract-approval.md#5-p2-개인정보-회수의-단계별-차단)의 신규 저장·권한·삭제 구현이 필요하다.
+
+[결정안 P2/P4/P5](v2-contract-decisions.md#6-p4--ai-구성과-be-저장)에 따라 수신 lastAcceptedSequence와 구성 composedThroughSequence를 분리한다. 권장안은 첫 Window 이전부터 신규 sequence의 단조 증가를 요구하고 숫자 공백을 허용하며, 개인정보 tombstone/격리 검사 후 비철회 같은 원본 replay를 처리하는 방식이다.
 
 AI 구성 요청은 본문 없이 ID/sequence의 직전 최대 두 방문과 신규 prefix를 보낸다. 1~2개 입력에서도 커서를 전진시킨다. 별도 compose job에는 session FK만 두고, 트랜잭션 밖에서 HTTP를 호출한 뒤 세션 잠금/CAS로 Window·분석 PENDING·outbox·커서를 원자 저장한다. V4 Window FK 확보 전에는 분석행을 저장할 수 없다. 구성 실패 시 커서는 불변이며 기존 10초 대기 제거는 후속 구현이다.
 

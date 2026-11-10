@@ -1,12 +1,14 @@
-# 데이터 수집·분석 공통 연동 계약 — Issue #79 / #81
+# 데이터 수집·분석 공통 연동 계약 — Issue #79 / #81 / #83
 
 > #81 검토 기준: 공식 main `6e15dd3fa1789e96c42bc4f33250c4221d6d2616` (2026-11-10 KST). **P1~P6와 아래 v2 API는 PROPOSED**, 승인 근거 없음. 세부 결정·대안·현행 코드 대조는 [v2 결정안](v2-contract-decisions.md), 기계 검증 타입은 [계약 패키지](contracts/v2/README.md)가 이 문서의 초안 타입보다 우선한다. 제품 코드·DB 변경 없음.
+
+> #83: 공식 main `a1a5d97`에서 재대조했다. [승인 요청 대장](v2-contract-approval.md)의 P1~P6는 전부 PROPOSED, P2/P6 선결은 BLOCKED다. 과거 PR 병합을 정책 승인으로 해석하지 않는다.
 
 ## 1. 기준·근거·변경 상태
 
 - #79 당시 분석 이력(현재 작업 Git 상태와 구분): 2026-11-10 KST, 공식 main `d0d40f892a8ed54253a12884fb6f64a149272f27`. 시작 worktree는 detached `5e49cb3`, 변경/미추적 파일 없음. origin=개인 Fork(hyeon-marina), upstream=공식 저장소. 같은 이름의 로컬/원격 브랜치 없음 확인 후 `docs/79/data-collection-analysis-contract` 생성.
 - #79 당시 Issue 실제 본문·댓글 0건 확인. 당시 관련 open Issue는 #79만, open PR은 없음. #81 현재 상태·Git 준비는 [결정안 §1](v2-contract-decisions.md#1-상태와-검토-기준) 참조. 아래 PR은 main 병합 로그로 확인했다. 별도 AGENTS.md/CONTRIBUTING/Git 가이드는 발견되지 않았다. project-plan의 develop 통합 방침과 달리 이번 제출은 사용자의 명시적 공식 main 대상 PR 지시를 따른다. main 직접 commit/push/merge는 하지 않는다.
-- [수집 규격](data-collection-spec.md)은 확정 정책의 기준이다. 이 문서의 **P1~P6 및 v2 API/DB 명칭은 구현 검토 제안**이다. 문서 PR 승인과 별개로 후속 Issue에 선택 결과를 기록해야 한다. 구현 완료·팀 합의·실제 배포로 읽지 않는다.
+- [수집 규격](data-collection-spec.md)은 이번 작업에서 유지할 설계 요구의 기준이다. 명시적 팀 승인은 별도 대장을 따른다. 이 문서의 **P1~P6 및 v2 API/DB 명칭은 구현 검토 제안**이다. 문서 PR 승인과 별개로 후속 Issue에 선택 결과를 기록해야 한다. 구현 완료·팀 합의·실제 배포로 읽지 않는다.
 
 | 근거 | 현재 구현/검증 | #79 영향 |
 | --- | --- | --- |
@@ -102,11 +104,11 @@ sessionId는 방문 POST의 path에 있으며 body에 중복 필수가 아니다
 
 ### P2. 5초 전달과 sequence
 
-권장안: 활성 5초+콘텐츠 성공 순간 Background 직렬 트랜잭션에서 sequence를 부여하고 POST 원본을 영속 동결한다. sequence는 **유효성 확정 순서**, visitedAt은 시작 시각으로 분리한다. 같은 시각에는 직렬 처리 순서를 쓴다. 열린 탭 종료를 기다리지 않아 5초 전달이 가능하다. 이후 행동만 PATCH하며 재복귀해도 기존 번호를 바꾸지 않는다. 후보가 제외되면 번호를 소급 채우지 않는다. 권한 재개 시 기존 발급 상한을 보존하고 공백을 허용한다(PR #65). #81 권장안은 첫 Window 이전에도 BE 신규 sequence가 수신 high watermark보다 커야 한다. 현재 첫 Window 전 역순 허용과 다른 동작이며 신규 v2에만 적용한다.
+권장안: 활성 5초+콘텐츠 성공 순간 Background 직렬 트랜잭션에서 sequence를 부여하고 POST 원본을 영속 동결한다. sequence는 **유효성 확정 순서**, visitedAt은 시작 시각으로 분리한다. 같은 시각에는 직렬 처리 순서를 쓴다. 열린 탭 종료를 기다리지 않아 5초 전달이 가능하다. 이후 행동만 PATCH하며 재복귀해도 기존 번호를 바꾸지 않는다. 후보가 제외되면 번호를 소급 채우지 않는다. 권한 재개 시 기존 발급 상한을 보존하고 공백을 허용한다(PR #65). #81 권장안은 첫 Window 이전에도 BE 신규 sequence가 수신 high watermark보다 커야 한다. 현재 첫 Window 전 역순 허용과 다른 동작이며 신규 v2에만 적용한다. tombstone/격리 검사가 원본 replay보다 우선하여 삭제 후 재전송 복원과 원문 ACK 반환을 차단해야 한다.
 
 **변경 비용:** 기존 후보 시작 순서와 다르다. 예를 들어 A의 콘텐츠가 늦어 B가 먼저 유효해지면 B sequence1, A sequence2일 수 있다. 최근 탐색 흐름의 의미가 달라지므로 **FE·BE·AI·데이터 담당 승인 전 확정하지 않는다.** 대안은 후보 시작 순서 유지+앞 후보 결론까지 5초 전달 지연인데, Issue의 실시간 의도와 충돌한다. 다른 대안인 후보 순서와 분석 순서를 이원화하면 재정렬/Window 재구성 계약이 추가된다.
 
-5초 전송 후 DOM 정책 변경은 기존 finalized 전 제외와 달리 서버에 이미 본문이 있을 수 있다. 현재 API에는 정정/삭제 계약이 없다. **서버 정정·개인정보 처리 방식을 별도 합의하기 전 조기 POST를 배포하지 않는다.** #81에서는 [P2 회수 계약](v2-contract-decisions.md#41-전송-후-민감-판정-이미-보낸-자료의-처리)에 격리→원문/AI snapshot/캐시/Export 회수·파생무효화·미존재ID tombstone·지연응답 차단까지 구체화했다. 이 회수 수단과 권한 체계가 배포 선결이다. 보호 검사를 제거하거나 기존 큐/영수증을 지워 해결하지 않는다. ACK 완료 자료 정리·짧은 복귀 캐시 수명·저장소 quota backpressure는 같은 후속 FE Issue에서 정한다.
+5초 전송 후 DOM 정책 변경은 기존 finalized 전 제외와 달리 서버에 이미 본문이 있을 수 있다. 현재 API에는 정정/삭제 구현이 없다. **서버 정정·개인정보 처리 방식을 별도 합의하기 전 조기 POST를 배포하지 않는다.** #81에서는 [P2 회수 계약](v2-contract-decisions.md#41-전송-후-민감-판정-이미-보낸-자료의-처리)에 격리→원문/AI snapshot/캐시/Export 회수·파생무효화·미존재ID tombstone·지연응답 차단까지 구체화했다. 이 회수 수단과 권한 체계가 배포 선결이다. 보호 검사를 제거하거나 기존 큐/영수증을 지워 해결하지 않는다. ACK 완료 자료 정리·짧은 복귀 캐시 수명·저장소 quota backpressure는 같은 후속 FE Issue에서 정한다.
 
 ### P3. 5분 통과
 
@@ -251,6 +253,12 @@ FE-001~010, BE-001~009, AI-001~003 ID를 유지한다. BE-009는 AI 구성 검�
 
 ## 13. #81 구체화와 승인 게이트
 
-P1~P6별 현재구현/목표/선택지/근거/코드·데이터 영향/승인담당/결정상태는 [결정안](v2-contract-decisions.md)에 분리했다. 승인된 상위5초·4초·5분·size3/stride1과 신규 세부제안을 혼동하지 않는다. 정책 상태는 모두 PROPOSED, 개인정보 보존·동의절차 및 회수없는 조기배포는 BLOCKED 하위조건이다.
+P1~P6별 현재구현/목표/선택지/근거/코드·데이터 영향/승인담당/결정상태는 [결정안](v2-contract-decisions.md)에 분리했다. 유지할 설계 요구인5초·4초·5분·size3/stride1과 팀 승인 사실을 혼동하지 않는다. 정책 상태는 모두 PROPOSED, 개인정보 보존·동의절차 및 회수없는 조기배포는 BLOCKED 하위조건이다.
 
 정적 Window 라벨 권장 기준은 최초성공 BE stateVersion의 실제 snapshot, 예측 숨긴 3인 독립→합의 별도, κ는 조정전 네범주와 완전판단가능 세범주를 각각 보고한다. 목표12/4/4·자연세션 같은목표 split 유지, 철회manifest/백업/캐시/파생모델까지 회수범위다. 보존기간 임의확정 없음. API·DB 새제약/호환성·후속작업과 실행 Fixture의 검증한계는 결정안 §8~11 및 [검증보고](data-contract-validation.md)를 따른다.
+
+## #83 비동기·회수 보완 — PROPOSED
+
+구성 job의 불변 prefix와 privacy/멤버 유효성 revision을 사용한다. 새 방문 append·행동 PATCH는 진행 중 구성 응답을 폐기하는 revision 변경이 아니며 cursor CAS·tombstone/멤버 변경은 폐기 사유다. receipt·Window/멤버·분석 PENDING/outbox·cursor는 원자 commit한다. 시작 멱등키는 목표와 collectionSpecVersion 모두 비교하고 v1 세션을 v2로 재해석하지 않는다.
+
+판단 commit은 최신 행동 벡터를 잠금 또는 CAS로 확인한다. 오래된 snapshot으로 더 높은 stateVersion을 발급하지 않는다. 성공 behaviorSnapshot은 유효 방문이므로 duration>=5000이다. 회수는 tombstone 우선, 세션 분석 격리, lastSuccessfulState/alert 반환 중지, END_PENDING 정상 drain 중단·개인정보 예외 경로가 필요하다. PURGED는 Export/백업/학습 영향 포함 전체 증거가 확인된 집계 상태이며 실제 구현은 없다. [승인 요청](v2-contract-approval.md)에 단계별 처리·해제 조건·후속 의존성을 기록했다.

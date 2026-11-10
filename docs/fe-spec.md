@@ -498,6 +498,10 @@ tabSwitchCount는 이전 방문 귀속 누적값이며 Window 행동 스냅샷�
 
 ### #81 FE 구현 계약 보충 — PROPOSED
 
+#83 재검토의 [승인 대장·경계조건](v2-contract-approval.md#4-p1p3-보완-계약과-구현-전-경계)을 함께 따른다. URL 변경과 본문 교체는 독립 검사하고 stale snapshot 세대를 폐기한다. sequence·POST·nextSequence는 한 IDB commit 후 공개하며 v1 checkpoint는 보존한다. 단조시계와 별도로 OS 휴면·미관측 구간을 제외해야 한다.
+
+민감 판정 시 END_PENDING의 일반 원문 drain도 중단한다. 회수 작업은 POST ACK를 기다리지 않는 별도 영속 작업이고, 원문 안전 삭제·최소 영수증 전환·회수 ACK와 종료를 조정하는 개인정보 예외 경로가 필요하다. 이 경로와 서버/AI/Export 회수가 미구현인 상태에서는 5초 조기 POST 운영 활성화가 BLOCKED다.
+
 현재 collector는 1,000ms 유효성, finalized prefix 순서 발급, reload 무조건 재사용을 사용한다. 이번 문서가 제품 동작을 바꾸지는 않는다. [P1~P3 결정안](v2-contract-decisions.md#3-p1--방문-식별과-캐시)은 관측 시점 leftAt/returnedAt과 단조시간 세대, 탭별 대상과 콘텐츠 세대, 방문 병합과 캐시의 분리, 유효화 순서 sequence를 권고한다. 저장 URL만 비교해서는 안 된다.
 
 POST 후 민감정보가 발견되면 [회수 계약](v2-contract-decisions.md#41-전송-후-민감-판정-이미-보낸-자료의-처리)의 별도 작업으로 서버·AI·Export까지 격리하고 삭제한다. ACTIVE 권한 철회의 로컬 삭제만으로 서버 자료가 삭제되지는 않는다. 회수 작업에는 원문 없이 식별자만 남기며 END_PENDING 자료 처리와 구분한다.

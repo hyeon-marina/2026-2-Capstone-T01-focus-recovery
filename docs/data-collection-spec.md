@@ -4,9 +4,9 @@
 
 [Issue #79](https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/issues/79)의 중간 발표 이후 정책이다. 분석 기준 코드는 공식 main `6e15dd3fa1789e96c42bc4f33250c4221d6d2616`이다. **문서 변경으로 제품 동작이나 DB가 변경되지는 않는다.**
 
-- **상위 정책 APPROVED:** #79/#80에서 수용한 5초·4초·5분·size3/stride1·역할·수집 목표 및 기존 전송·보호 계약. #81 기재만으로 신규 세부 정책이 승인되지는 않는다.
+- **유지할 설계 요구:** 5초·4초·5분·size3/stride1·역할·수집 목표 및 기존 전송·보호 계약. 명시적 승인 주체·일시·근거가 없어 APPROVED로 표시하지 않는다. [#83 승인 대장](v2-contract-approval.md)에서 P1~P6 전부 PROPOSED, P2/P6 선결 BLOCKED를 관리한다.
 - **제안 P1~P6:** 구현에 필요한 추가 설계다. 합의 완료를 뜻하지 않는다. [공통 연동 계약](data-analysis-contract.md)에 대안·근거·확정 담당자를 기록한다. 승인 전 제안마다 다른 방식을 구현하지 않는다.
-- 우선순위: #79 확정 정책 → 승인된 공통 계약 → 기능명세. README·project-plan·과거 검증 보고서의 5페이지/확률 분류는 변경 전 기준이다. 과거 PASS는 새 정책의 검증 결과가 아니다.
+- 우선순위: #83 승인 대장·명시적 사용자 요구 → 공통 제안 계약 → 기능명세. README·project-plan·과거 검증 보고서의 5페이지/확률 분류는 변경 전 기준이다. 과거 PASS는 새 정책의 검증 결과가 아니다.
 
 ## 2. 책임과 유효 방문
 
@@ -24,7 +24,7 @@
 
 ## 3. 방문 재사용과 콘텐츠
 
-확정 정책: 동일 URL 복귀 간격 **4초 미만이면 같은 방문과 활성 체류 누적**, **4초 이상이면 새 visitId**다. 새 방문에서도 기존 제목·본문을 우선 재사용한다. 캐시 재사용은 방문 합치기를 뜻하지 않는다.
+유지할 요구: 동일 대상 복귀 간격 **4초 미만이면 같은 방문과 활성 체류 누적**, **4초 이상이면 새 visitId**다. 새 방문에서도 보호·대상/콘텐츠 동등성 재검증을 통과한 제목·본문 캐시를 우선 재사용한다. 캐시 재사용은 방문 합치기를 뜻하지 않는다.
 
 구현 경계는 **제안 P1**이다.
 
@@ -35,7 +35,7 @@
 | 다른 탭의 동일 URL | browserTabKey가 다르므로 다른 방문. 세션 내 콘텐츠만 재사용 가능 |
 | 같은 탭 A→B→A | A 이탈부터 복귀까지 <4초이며 동일 대상이면 A 재개. B는 별도 후보이고 5초 미만이면 제외 |
 | 새로고침 | 동일 대상의 비활성 간격에 같은 4초 경계 적용. 기존 무조건 방문 유지 정책 변경 |
-| SPA | 기존 URL identity와 주요 콘텐츠 동시 변경 판정 유지. 다른 검색어/게시글이면 새 대상, 같은 대상 복귀에만 4초 규칙 적용 |
+| SPA | URL/검색어/route 변경 또는 같은 URL의 주요 콘텐츠 교체를 독립 검사. URL만 먼저 바뀌면 안정된 새 콘텐츠까지 보류. 기존 동시 변경 조건은 수정 대상 |
 | Worker·브라우저 재시작 | 관측 불가 시간을 더하지 않음. 간격·문서 동일성을 입증하지 못하면 recoveryRequired 경로로 보류 |
 
 동일 URL 판정에는 **저장용 normalizedUrl만 사용하면 안 된다.** 기존 `shared/url.ts`의 로컬 identity와 검색어/콘텐츠 검증을 이용한다. Query를 제거한 검색 URL, `?id=100`/`?id=200`은 저장 URL이 같아도 다른 대상일 수 있다. 원본 Query 전체를 새 서버 필드로 저장하지 않는다. identity 비교·SPA 로딩 대기 세부값은 P1 승인 항목이다.
@@ -97,7 +97,7 @@ AI는 페이지별 DIRECT / JUSTIFIED_DETOUR / UNRELATED를 예측한다. BE는 
 | 5 | 연속 UNRELATED 2개, 모두 300,000ms 미만 | TRANSITION |
 | 6 | 연속 UNRELATED 1개, 300,000ms 미만 | NORMAL |
 
-과거 무관 페이지의 긴 체류가 최신 관련 페이지보다 우선하지 않는다. AI 확률·Context 중간 상태는 이 규칙을 대체하지 않는다. P5는 연속 범위·평가 순서의 구체화 제안이며 Issue의 여섯 조건 자체는 확정이다.
+과거 무관 페이지의 긴 체류가 최신 관련 페이지보다 우선하지 않는다. AI 확률·Context 중간 상태는 이 규칙을 대체하지 않는다. P5는 연속 범위·평가 순서의 구체화 제안이며 Issue의 여섯 조건은 유지할 설계 요구다.
 
 체류 갱신으로 새 Window나 AI 재호출을 만들지 않는다. BE는 해당 방문을 포함하는 **모든 기존 Window**를 고정 AI 결과와 새 행동 스냅샷으로 재판단한다. windowId + stateVersion(1부터), judgedAt, 방문별 activeDurationMs·behaviorVersion, finalState, 관련 AI 분석 ID·결과, ruleVersion을 append-only로 보존한다. 같은 상태라도 입력이 바뀌면 새 버전, 같은 입력 재처리는 새 버전이 아니다(P5).
 
@@ -145,3 +145,9 @@ collectionSpecVersion, apiContractVersion, ruleVersion, datasetVersion, labelGui
 정적 Window 라벨은 최초 성공 stateVersion의 실제 snapshot을 referenceStateVersion으로 고정하도록 권고한다. Page 정답은 해당 시점까지의 문맥, Window 정답은 세 페이지와 행동 snapshot, state 정답은 각 실제 버전을 기준으로 세 명이 독립 평가한다. AI·BE 예측, 사람 투표, 합의는 별도 자료다. UNJUDGEABLE을 포함한 네 범주 κ와 세 명 모두 판단 가능한 세 범주 κ·표본수를 함께 보고하며 분모 0은 undefined다. 목표 12/4/4 split은 자연 세션과 모든 겹치는 Window·버전까지 같은 목표에 유지한다.
 
 전송 후 민감정보 발견은 수집 제외만으로 끝나지 않는다. visit-retractions를 통한 서버 tombstone·원문 격리, 포함 Window·결과·알림 무효화, snapshot·캐시·Export·백업·학습 artifact 영향 회수, 늦은 응답 재저장 차단을 제안한다. V3~V9 FK 때문에 현재 단일 DELETE는 불가능하다. 삭제 검증·소유권·학교 규정·동의·보존 절차 승인 전 실데이터 본수집·공유를 시작하지 않는다. 특정 기간을 임의로 확정하지 않는다.
+
+## #83 회수·측정 보완 — PROPOSED
+
+[#83 재검토](v2-contract-approval.md)에 따라 단조시계만으로 OS 휴면·이벤트 공백을 활성시간으로 가산하지 않는다. 5초/5분은 관측된 누적값의 경계이지 정확한 HTTP 완료시각 보장이 아니다. sequence는 유효화의 영속 commit 순서 권고이며 시작 chronology는 visitedAt으로 구분한다.
+
+민감 판정 시 일반 POST/PATCH·END_PENDING drain을 중단하고 별도 회수 작업을 영속 보존한다. tombstone은 기존 원본 replay보다 우선하며 회수 중 세션 분석·lastSuccessfulState·알림·공유를 차단한다. 원문 삭제·최소 영수증 전환이 가능한 개인정보 예외 경로와 Export/학습/백업 회수 증거가 없으면 조기 전송을 활성화하지 않는다. 실제 회수 기능은 미구현이다.

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://focus-recovery.invalid/contracts/v2/v2.schema.json",
-  "title": "Issue #81 proposed v2 contracts; not production approval",
+  "title": "Issue #81 / #83 proposed v2 contracts; not production approval",
   "description": "Validate an entry point via #/$defs/Name. Relational/stateful checks are documented and run by validate.py. No network resolution required.",
   "oneOf": [
     {
@@ -467,7 +467,8 @@
             "$ref": "#/$defs/Uuid"
           },
           "minItems": 3,
-          "maxItems": 3
+          "maxItems": 3,
+          "uniqueItems": true
         },
         "endVisitId": {
           "$ref": "#/$defs/Uuid"
@@ -775,7 +776,7 @@
         },
         "activeDurationMs": {
           "type": "integer",
-          "minimum": 0,
+          "minimum": 5000,
           "maximum": 9007199254740991
         },
         "tabSwitchCount": {
@@ -1428,7 +1429,8 @@
           "items": {
             "$ref": "#/$defs/Uuid"
           },
-          "minItems": 0
+          "minItems": 0,
+          "uniqueItems": true
         }
       },
       "required": [

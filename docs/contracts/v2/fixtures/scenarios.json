@@ -3131,6 +3131,2733 @@
         "configuredMinIntervalMs": 60000
       },
       "expected": false
+    },
+    {
+      "name": "sequence-delayed-a-after-b",
+      "kind": "sequence-commit",
+      "input": {
+        "nextSequence": 1,
+        "events": [
+          {
+            "visitId": "A",
+            "activeDurationMs": 5000,
+            "contentValid": false,
+            "privacyValid": true,
+            "commit": true
+          },
+          {
+            "visitId": "B",
+            "activeDurationMs": 5000,
+            "contentValid": true,
+            "privacyValid": true,
+            "commit": true
+          },
+          {
+            "visitId": "A",
+            "activeDurationMs": 5000,
+            "contentValid": true,
+            "privacyValid": true,
+            "commit": true
+          }
+        ]
+      },
+      "expected": {
+        "assigned": {
+          "B": 1,
+          "A": 2
+        },
+        "nextSequence": 3
+      }
+    },
+    {
+      "name": "sequence-same-time-serial-order",
+      "kind": "sequence-commit",
+      "input": {
+        "nextSequence": 1,
+        "events": [
+          {
+            "visitId": "B",
+            "activeDurationMs": 5000,
+            "contentValid": true,
+            "privacyValid": true,
+            "commit": true
+          },
+          {
+            "visitId": "A",
+            "activeDurationMs": 5000,
+            "contentValid": true,
+            "privacyValid": true,
+            "commit": true
+          },
+          {
+            "visitId": "B",
+            "activeDurationMs": 5000,
+            "contentValid": true,
+            "privacyValid": true,
+            "commit": true
+          }
+        ]
+      },
+      "expected": {
+        "assigned": {
+          "B": 1,
+          "A": 2
+        },
+        "nextSequence": 3
+      }
+    },
+    {
+      "name": "sequence-commit-abort-no-consume",
+      "kind": "sequence-commit",
+      "input": {
+        "nextSequence": 7,
+        "events": [
+          {
+            "visitId": "A",
+            "activeDurationMs": 5000,
+            "contentValid": true,
+            "privacyValid": true,
+            "commit": false
+          },
+          {
+            "visitId": "B",
+            "activeDurationMs": 5000,
+            "contentValid": true,
+            "privacyValid": true,
+            "commit": true
+          },
+          {
+            "visitId": "A",
+            "activeDurationMs": 5000,
+            "contentValid": true,
+            "privacyValid": true,
+            "commit": true
+          }
+        ]
+      },
+      "expected": {
+        "assigned": {
+          "B": 7,
+          "A": 8
+        },
+        "nextSequence": 9
+      }
+    },
+    {
+      "name": "sequence-4999-sensitive-no-allocation",
+      "kind": "sequence-commit",
+      "input": {
+        "nextSequence": 1,
+        "events": [
+          {
+            "visitId": "A",
+            "activeDurationMs": 4999,
+            "contentValid": true,
+            "privacyValid": true,
+            "commit": true
+          },
+          {
+            "visitId": "B",
+            "activeDurationMs": 5000,
+            "contentValid": true,
+            "privacyValid": false,
+            "commit": true
+          },
+          {
+            "visitId": "C",
+            "activeDurationMs": 5000,
+            "contentValid": true,
+            "privacyValid": true,
+            "commit": true
+          }
+        ]
+      },
+      "expected": {
+        "assigned": {
+          "C": 1
+        },
+        "nextSequence": 2
+      }
+    },
+    {
+      "name": "compose-append-does-not-invalidate-prefix",
+      "kind": "composition-commit",
+      "input": {
+        "receiptExists": false,
+        "quarantined": false,
+        "jobPrivacyRevision": 2,
+        "privacyRevision": 2,
+        "cursor": 0,
+        "afterSequence": 0,
+        "persistedPrefix": [
+          1,
+          3,
+          4
+        ],
+        "jobPrefix": [
+          1,
+          3,
+          4
+        ],
+        "lastAcceptedSequence": 6
+      },
+      "expected": {
+        "cursor": 4,
+        "queuedThrough": 6
+      }
+    },
+    {
+      "name": "compose-crash-after-commit-receipt",
+      "kind": "composition-commit",
+      "input": {
+        "receiptExists": true,
+        "quarantined": false,
+        "jobPrivacyRevision": 2,
+        "privacyRevision": 2,
+        "cursor": 4,
+        "afterSequence": 0,
+        "persistedPrefix": [
+          1,
+          3,
+          4
+        ],
+        "jobPrefix": [
+          1,
+          3,
+          4
+        ],
+        "lastAcceptedSequence": 6
+      },
+      "expected": "REPLAY_RECEIPT"
+    },
+    {
+      "name": "compose-privacy-change",
+      "kind": "composition-commit",
+      "input": {
+        "receiptExists": false,
+        "quarantined": false,
+        "jobPrivacyRevision": 2,
+        "privacyRevision": 3,
+        "cursor": 0,
+        "afterSequence": 0,
+        "persistedPrefix": [
+          1,
+          3,
+          4
+        ],
+        "jobPrefix": [
+          1,
+          3,
+          4
+        ],
+        "lastAcceptedSequence": 6
+      },
+      "expected": {
+        "error": "PRIVACY_RETRACTED"
+      }
+    },
+    {
+      "name": "compose-session-quarantine",
+      "kind": "composition-commit",
+      "input": {
+        "receiptExists": false,
+        "quarantined": true,
+        "jobPrivacyRevision": 2,
+        "privacyRevision": 2,
+        "cursor": 0,
+        "afterSequence": 0,
+        "persistedPrefix": [
+          1,
+          3,
+          4
+        ],
+        "jobPrefix": [
+          1,
+          3,
+          4
+        ],
+        "lastAcceptedSequence": 6
+      },
+      "expected": {
+        "error": "PRIVACY_RETRACTED"
+      }
+    },
+    {
+      "name": "compose-cursor-race",
+      "kind": "composition-commit",
+      "input": {
+        "receiptExists": false,
+        "quarantined": false,
+        "jobPrivacyRevision": 2,
+        "privacyRevision": 2,
+        "cursor": 3,
+        "afterSequence": 0,
+        "persistedPrefix": [
+          1,
+          3,
+          4
+        ],
+        "jobPrefix": [
+          1,
+          3,
+          4
+        ],
+        "lastAcceptedSequence": 6
+      },
+      "expected": {
+        "error": "COMPOSE_CURSOR_CONFLICT"
+      }
+    },
+    {
+      "name": "compose-prefix-mutation",
+      "kind": "composition-commit",
+      "input": {
+        "receiptExists": false,
+        "quarantined": false,
+        "jobPrivacyRevision": 2,
+        "privacyRevision": 2,
+        "cursor": 0,
+        "afterSequence": 0,
+        "persistedPrefix": [
+          1,
+          4
+        ],
+        "jobPrefix": [
+          1,
+          3,
+          4
+        ],
+        "lastAcceptedSequence": 6
+      },
+      "expected": {
+        "error": "COMPOSE_INPUT_MISMATCH"
+      }
+    },
+    {
+      "name": "compose-receipt-no-privacy-bypass",
+      "kind": "composition-commit",
+      "input": {
+        "receiptExists": true,
+        "quarantined": true,
+        "jobPrivacyRevision": 2,
+        "privacyRevision": 2,
+        "cursor": 0,
+        "afterSequence": 0,
+        "persistedPrefix": [
+          1,
+          3,
+          4
+        ],
+        "jobPrefix": [
+          1,
+          3,
+          4
+        ],
+        "lastAcceptedSequence": 6
+      },
+      "expected": {
+        "error": "PRIVACY_RETRACTED"
+      }
+    },
+    {
+      "name": "pair-rejects-request-duplicate-visits",
+      "kind": "analysis-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "goalText": "공개 문서 비교하기",
+          "visits": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            }
+          ],
+          "inputFingerprint": "87e60134c68c2ba040a44e8e7986759d600dac3d743b17411d003ad5889d193a"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "inputFingerprint": "87e60134c68c2ba040a44e8e7986759d600dac3d743b17411d003ad5889d193a",
+          "pageResults": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "label": "UNRELATED",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            }
+          ],
+          "modelVersions": {
+            "embedding": "synthetic-v1",
+            "context": "synthetic-v1",
+            "prompt": "synthetic-v1",
+            "labelGuide": "proposed-v1"
+          },
+          "analyzedAt": "2026-11-10T00:00:00.000Z"
+        }
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "pair-rejects-request-duplicate-sequence",
+      "kind": "analysis-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "windowIndex": 1,
+          "goalText": "공개 문서 비교하기",
+          "visits": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 1,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3,
+              "title": "합성 공개 문서",
+              "content": "공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. 공개 문서만으로 구성한 계약 검증용 가상 본문입니다. ",
+              "searchQuery": null,
+              "isSearchResultPage": false,
+              "visitedAt": "2026-11-10T00:00:00.000Z"
+            }
+          ],
+          "inputFingerprint": "c4f5a363b28246e5678c804b57ab9f9150e640891bcb9997f114b00f6c2eff56"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "inputFingerprint": "c4f5a363b28246e5678c804b57ab9f9150e640891bcb9997f114b00f6c2eff56",
+          "pageResults": [
+            {
+              "position": 1,
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 2,
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "label": "DIRECT",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            },
+            {
+              "position": 3,
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "label": "UNRELATED",
+              "semanticRelevance": 0.5,
+              "rationale": "목표와 페이지의 관계를 설명하는 합성 근거."
+            }
+          ],
+          "modelVersions": {
+            "embedding": "synthetic-v1",
+            "context": "synthetic-v1",
+            "prompt": "synthetic-v1",
+            "labelGuide": "proposed-v1"
+          },
+          "analyzedAt": "2026-11-10T00:00:00.000Z"
+        }
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "history-first-version",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "history": [],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 1,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "NORMAL",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "created": true,
+        "stateVersion": 1
+      }
+    },
+    {
+      "name": "history-fingerprint-replay",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "history": [
+          {
+            "windowId": "00000000-0000-4000-8000-000000000094",
+            "stateVersion": 1,
+            "analysisId": "00000000-0000-4000-8000-000000000093",
+            "ruleVersion": "suffix3-v2-proposed.1",
+            "judgedAt": "2026-11-10T00:00:00.000Z",
+            "finalState": "NORMAL",
+            "behaviorSnapshot": [
+              {
+                "visitId": "00000000-0000-4000-8000-000000000001",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000002",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000003",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              }
+            ],
+            "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+          }
+        ],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 1,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "NORMAL",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "created": false,
+        "stateVersion": 1
+      }
+    },
+    {
+      "name": "history-five-minute-version",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "history": [
+          {
+            "windowId": "00000000-0000-4000-8000-000000000094",
+            "stateVersion": 1,
+            "analysisId": "00000000-0000-4000-8000-000000000093",
+            "ruleVersion": "suffix3-v2-proposed.1",
+            "judgedAt": "2026-11-10T00:00:00.000Z",
+            "finalState": "NORMAL",
+            "behaviorSnapshot": [
+              {
+                "visitId": "00000000-0000-4000-8000-000000000001",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000002",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000003",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              }
+            ],
+            "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+          }
+        ],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "DRIFT",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 300000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 2
+            }
+          ],
+          "inputFingerprint": "78b96db80c886bf8ffcf8ed9d7644b1908cc3640dd207af59284c37db8cf00df"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 300000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 2
+          }
+        ]
+      },
+      "expected": {
+        "created": true,
+        "stateVersion": 2
+      }
+    },
+    {
+      "name": "history-same-state-different-input",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "history": [
+          {
+            "windowId": "00000000-0000-4000-8000-000000000094",
+            "stateVersion": 1,
+            "analysisId": "00000000-0000-4000-8000-000000000093",
+            "ruleVersion": "suffix3-v2-proposed.1",
+            "judgedAt": "2026-11-10T00:00:00.000Z",
+            "finalState": "NORMAL",
+            "behaviorSnapshot": [
+              {
+                "visitId": "00000000-0000-4000-8000-000000000001",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000002",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000003",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              }
+            ],
+            "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+          }
+        ],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "NORMAL",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "db8606c22acec9405d8d83ad35a73b7de61119b1433685d8e1da0b50817a9221"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 2
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "created": true,
+        "stateVersion": 2
+      }
+    },
+    {
+      "name": "history-stale-worker-cannot-advance",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "history": [
+          {
+            "windowId": "00000000-0000-4000-8000-000000000094",
+            "stateVersion": 1,
+            "analysisId": "00000000-0000-4000-8000-000000000093",
+            "ruleVersion": "suffix3-v2-proposed.1",
+            "judgedAt": "2026-11-10T00:00:00.000Z",
+            "finalState": "NORMAL",
+            "behaviorSnapshot": [
+              {
+                "visitId": "00000000-0000-4000-8000-000000000001",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000002",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000003",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              }
+            ],
+            "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+          }
+        ],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "NORMAL",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "db8606c22acec9405d8d83ad35a73b7de61119b1433685d8e1da0b50817a9221"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 3
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "error": "STALE_INPUT"
+      }
+    },
+    {
+      "name": "history-old-replay-keeps-receipt",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "history": [
+          {
+            "windowId": "00000000-0000-4000-8000-000000000094",
+            "stateVersion": 1,
+            "analysisId": "00000000-0000-4000-8000-000000000093",
+            "ruleVersion": "suffix3-v2-proposed.1",
+            "judgedAt": "2026-11-10T00:00:00.000Z",
+            "finalState": "NORMAL",
+            "behaviorSnapshot": [
+              {
+                "visitId": "00000000-0000-4000-8000-000000000001",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000002",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000003",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              }
+            ],
+            "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+          },
+          {
+            "windowId": "00000000-0000-4000-8000-000000000094",
+            "stateVersion": 2,
+            "analysisId": "00000000-0000-4000-8000-000000000093",
+            "ruleVersion": "suffix3-v2-proposed.1",
+            "judgedAt": "2026-11-10T00:00:00.000Z",
+            "finalState": "DRIFT",
+            "behaviorSnapshot": [
+              {
+                "visitId": "00000000-0000-4000-8000-000000000001",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000002",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000003",
+                "activeDurationMs": 300000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 2
+              }
+            ],
+            "inputFingerprint": "78b96db80c886bf8ffcf8ed9d7644b1908cc3640dd207af59284c37db8cf00df"
+          }
+        ],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 1,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "NORMAL",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "created": false,
+        "stateVersion": 1
+      }
+    },
+    {
+      "name": "history-wrong-order",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "history": [],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 1,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "NORMAL",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "history-wrong-analysis",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "history": [],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 1,
+          "analysisId": "00000000-0000-4000-8000-000000000099",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "NORMAL",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "history-wrong-state",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "history": [],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 1,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "DRIFT",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "history-wrong-hash",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "history": [],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 1,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "NORMAL",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "history-version-gap",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "DIRECT",
+          "DIRECT",
+          "UNRELATED"
+        ],
+        "history": [],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000094",
+          "stateVersion": 3,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "NORMAL",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "error": "STATE_VERSION_CONFLICT"
+      }
+    },
+    {
+      "name": "history-shared-visit-window-1",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "UNRELATED",
+          "UNRELATED",
+          "UNRELATED"
+        ],
+        "history": [
+          {
+            "windowId": "00000000-0000-4000-8000-000000000101",
+            "stateVersion": 1,
+            "analysisId": "00000000-0000-4000-8000-000000000093",
+            "ruleVersion": "suffix3-v2-proposed.1",
+            "judgedAt": "2026-11-10T00:00:00.000Z",
+            "finalState": "DRIFT",
+            "behaviorSnapshot": [
+              {
+                "visitId": "00000000-0000-4000-8000-000000000001",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000002",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000003",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              }
+            ],
+            "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+          }
+        ],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000101",
+          "stateVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "DRIFT",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 300000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 2
+            }
+          ],
+          "inputFingerprint": "78b96db80c886bf8ffcf8ed9d7644b1908cc3640dd207af59284c37db8cf00df"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 300000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 2
+          }
+        ]
+      },
+      "expected": {
+        "created": true,
+        "stateVersion": 2
+      }
+    },
+    {
+      "name": "history-shared-visit-window-2",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "UNRELATED",
+          "UNRELATED",
+          "UNRELATED"
+        ],
+        "history": [
+          {
+            "windowId": "00000000-0000-4000-8000-000000000102",
+            "stateVersion": 1,
+            "analysisId": "00000000-0000-4000-8000-000000000093",
+            "ruleVersion": "suffix3-v2-proposed.1",
+            "judgedAt": "2026-11-10T00:00:00.000Z",
+            "finalState": "DRIFT",
+            "behaviorSnapshot": [
+              {
+                "visitId": "00000000-0000-4000-8000-000000000001",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000002",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000003",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              }
+            ],
+            "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+          }
+        ],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000102",
+          "stateVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "DRIFT",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 300000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "7402d895260d0a8aa685605e03245f9687b460849a3dce163932bacb77b80861"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 300000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 2
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "created": true,
+        "stateVersion": 2
+      }
+    },
+    {
+      "name": "history-shared-visit-window-3",
+      "kind": "state-history",
+      "input": {
+        "windowVisitIds": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "analysisId": "00000000-0000-4000-8000-000000000093",
+        "labels": [
+          "UNRELATED",
+          "UNRELATED",
+          "UNRELATED"
+        ],
+        "history": [
+          {
+            "windowId": "00000000-0000-4000-8000-000000000103",
+            "stateVersion": 1,
+            "analysisId": "00000000-0000-4000-8000-000000000093",
+            "ruleVersion": "suffix3-v2-proposed.1",
+            "judgedAt": "2026-11-10T00:00:00.000Z",
+            "finalState": "DRIFT",
+            "behaviorSnapshot": [
+              {
+                "visitId": "00000000-0000-4000-8000-000000000001",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000002",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              },
+              {
+                "visitId": "00000000-0000-4000-8000-000000000003",
+                "activeDurationMs": 5000,
+                "tabSwitchCount": 0,
+                "behaviorVersion": 1
+              }
+            ],
+            "inputFingerprint": "640f4e58df869f917436c8e1ecbb39592ae5cbe885f248074154ae13bcb40393"
+          }
+        ],
+        "candidate": {
+          "windowId": "00000000-0000-4000-8000-000000000103",
+          "stateVersion": 2,
+          "analysisId": "00000000-0000-4000-8000-000000000093",
+          "ruleVersion": "suffix3-v2-proposed.1",
+          "judgedAt": "2026-11-10T00:00:00.000Z",
+          "finalState": "DRIFT",
+          "behaviorSnapshot": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "activeDurationMs": 300000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          ],
+          "inputFingerprint": "f71e74bbf5d67e28330ddcf596b697cc5505277de191abbaf9be970c5f890206"
+        },
+        "currentBehavior": [
+          {
+            "visitId": "00000000-0000-4000-8000-000000000001",
+            "activeDurationMs": 300000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 2
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000002",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          },
+          {
+            "visitId": "00000000-0000-4000-8000-000000000003",
+            "activeDurationMs": 5000,
+            "tabSwitchCount": 0,
+            "behaviorVersion": 1
+          }
+        ]
+      },
+      "expected": {
+        "created": true,
+        "stateVersion": 2
+      }
+    },
+    {
+      "name": "behavior-before-ai-first-success",
+      "kind": "flow",
+      "input": {
+        "windows": [
+          {
+            "index": 1,
+            "labels": [
+              "DIRECT",
+              "DIRECT",
+              "UNRELATED"
+            ],
+            "behavior": {
+              "activeDurationMs": 5000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 1
+            }
+          }
+        ],
+        "events": [
+          {
+            "kind": "behavior",
+            "index": 1,
+            "request": {
+              "activeDurationMs": 300000,
+              "tabSwitchCount": 0,
+              "behaviorVersion": 2
+            }
+          },
+          {
+            "kind": "result",
+            "index": 1
+          }
+        ]
+      },
+      "expected": {
+        "currentIndex": 1,
+        "currentState": "DRIFT",
+        "versions": {
+          "1": [
+            "DRIFT"
+          ]
+        },
+        "alertEligible": true
+      }
+    },
+    {
+      "name": "privacy-post-already-stored",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [
+          "visit"
+        ],
+        "events": [
+          {
+            "kind": "retract"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "QUARANTINED",
+        "tombstone": true,
+        "remaining": [
+          "visit"
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "name": "privacy-post-response-lost",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [
+          "visit"
+        ],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "post"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "QUARANTINED",
+        "tombstone": true,
+        "remaining": [
+          "visit"
+        ],
+        "blocked": [
+          "post"
+        ]
+      }
+    },
+    {
+      "name": "privacy-retraction-before-post",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "post"
+          },
+          {
+            "kind": "purge"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "PURGED",
+        "tombstone": true,
+        "remaining": [],
+        "blocked": [
+          "post"
+        ]
+      }
+    },
+    {
+      "name": "privacy-running-ai-late-response",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [
+          "visit",
+          "aiCache"
+        ],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "result"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "QUARANTINED",
+        "tombstone": true,
+        "remaining": [
+          "aiCache",
+          "visit"
+        ],
+        "blocked": [
+          "result"
+        ]
+      }
+    },
+    {
+      "name": "privacy-saved-ai-derived",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [
+          "visit",
+          "analysis",
+          "inputSnapshot"
+        ],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "delete",
+            "copies": [
+              "visit"
+            ]
+          },
+          {
+            "kind": "purge"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "QUARANTINED",
+        "tombstone": true,
+        "remaining": [
+          "analysis",
+          "inputSnapshot"
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "name": "privacy-window-and-state",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [
+          "visit",
+          "window",
+          "state"
+        ],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "delete",
+            "copies": [
+              "visit"
+            ]
+          },
+          {
+            "kind": "purge"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "QUARANTINED",
+        "tombstone": true,
+        "remaining": [
+          "state",
+          "window"
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "name": "privacy-candidate-and-shown",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [
+          "notification",
+          "shown"
+        ],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "alert"
+          },
+          {
+            "kind": "purge"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "QUARANTINED",
+        "tombstone": true,
+        "remaining": [
+          "notification",
+          "shown"
+        ],
+        "blocked": [
+          "alert"
+        ]
+      }
+    },
+    {
+      "name": "privacy-export-copy-outstanding",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [
+          "visit",
+          "export"
+        ],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "delete",
+            "copies": [
+              "visit"
+            ]
+          },
+          {
+            "kind": "purge"
+          },
+          {
+            "kind": "export"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "QUARANTINED",
+        "tombstone": true,
+        "remaining": [
+          "export"
+        ],
+        "blocked": [
+          "export"
+        ]
+      }
+    },
+    {
+      "name": "privacy-trained-model-outstanding",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [
+          "visit",
+          "model"
+        ],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "delete",
+            "copies": [
+              "visit"
+            ]
+          },
+          {
+            "kind": "purge"
+          },
+          {
+            "kind": "train"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "QUARANTINED",
+        "tombstone": true,
+        "remaining": [
+          "model"
+        ],
+        "blocked": [
+          "train"
+        ]
+      }
+    },
+    {
+      "name": "privacy-backup-outstanding",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [
+          "backup"
+        ],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "purge"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "QUARANTINED",
+        "tombstone": true,
+        "remaining": [
+          "backup"
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "name": "privacy-no-evidence-no-completion",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "purge"
+          }
+        ],
+        "evidenceComplete": false
+      },
+      "expected": {
+        "status": "QUARANTINED",
+        "tombstone": true,
+        "remaining": [],
+        "blocked": []
+      }
+    },
+    {
+      "name": "privacy-complete-inventory-no-resurrection",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [
+          "visit",
+          "analysis",
+          "export",
+          "model",
+          "backup",
+          "shown"
+        ],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "delete",
+            "copies": [
+              "visit",
+              "analysis",
+              "export",
+              "model",
+              "backup",
+              "shown"
+            ]
+          },
+          {
+            "kind": "purge"
+          },
+          {
+            "kind": "post"
+          },
+          {
+            "kind": "result"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "PURGED",
+        "tombstone": true,
+        "remaining": [],
+        "blocked": [
+          "post",
+          "result"
+        ]
+      }
+    },
+    {
+      "name": "blind-label-input-safe",
+      "kind": "blind-export",
+      "input": {
+        "goalText": "합성 목표",
+        "visits": [
+          {
+            "content": "합성 본문"
+          }
+        ],
+        "snapshotRef": {
+          "stateVersion": 1
+        }
+      },
+      "expected": "ACCEPT"
+    },
+    {
+      "name": "blind-rejects-ai_predictions",
+      "kind": "blind-export",
+      "input": {
+        "rows": [
+          {
+            "nested": {
+              "ai_predictions": "synthetic"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "error": "LABEL_LEAK"
+      }
+    },
+    {
+      "name": "blind-rejects-finalState",
+      "kind": "blind-export",
+      "input": {
+        "rows": [
+          {
+            "nested": {
+              "finalState": "synthetic"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "error": "LABEL_LEAK"
+      }
+    },
+    {
+      "name": "blind-rejects-pageResults",
+      "kind": "blind-export",
+      "input": {
+        "rows": [
+          {
+            "nested": {
+              "pageResults": "synthetic"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "error": "LABEL_LEAK"
+      }
+    },
+    {
+      "name": "blind-rejects-rationale",
+      "kind": "blind-export",
+      "input": {
+        "rows": [
+          {
+            "nested": {
+              "rationale": "synthetic"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "error": "LABEL_LEAK"
+      }
+    },
+    {
+      "name": "blind-rejects-scenario",
+      "kind": "blind-export",
+      "input": {
+        "rows": [
+          {
+            "nested": {
+              "scenario": "synthetic"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "error": "LABEL_LEAK"
+      }
+    },
+    {
+      "name": "blind-rejects-candidateLabel",
+      "kind": "blind-export",
+      "input": {
+        "rows": [
+          {
+            "nested": {
+              "candidateLabel": "synthetic"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "error": "LABEL_LEAK"
+      }
+    },
+    {
+      "name": "compose-pair-invalid-request-reverse",
+      "kind": "compose-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000005",
+              "sequence": 5
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            }
+          ],
+          "inputFingerprint": "ed5cb22f5dd8b26435a3c5707c387a771d98738a3d266e51ed714eb76df613f3"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff",
+          "composedThroughSequence": 5,
+          "windows": [
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000003"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000004"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004",
+                "00000000-0000-4000-8000-000000000005"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000005"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "compose-pair-invalid-request-duplicate-id",
+      "kind": "compose-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000005",
+              "sequence": 5
+            }
+          ],
+          "inputFingerprint": "3f47cea0321e3e01ae16e441ebe1b0295bc9de01d97454a55efb327c8454dd9c"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff",
+          "composedThroughSequence": 5,
+          "windows": [
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000003"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000004"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004",
+                "00000000-0000-4000-8000-000000000005"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000005"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "compose-pair-invalid-request-no-new",
+      "kind": "compose-pair",
+      "input": {
+        "request": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 5,
+          "visits": [
+            {
+              "visitId": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000002",
+              "sequence": 2
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000003",
+              "sequence": 3
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000004",
+              "sequence": 4
+            },
+            {
+              "visitId": "00000000-0000-4000-8000-000000000005",
+              "sequence": 5
+            }
+          ],
+          "inputFingerprint": "8d143e5d1b5450330972bcfe1b4b3ebb158adbc92ce65228e6dea7f9722b8204"
+        },
+        "response": {
+          "apiContractVersion": 2,
+          "composeRequestId": "00000000-0000-4000-8000-000000000091",
+          "sessionId": "00000000-0000-4000-8000-000000000092",
+          "afterSequence": 0,
+          "inputFingerprint": "d2e64532be08c45e7079d9ad038f5fb815d30bcf3f219fe57cb900fd7596bfff",
+          "composedThroughSequence": 5,
+          "windows": [
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000003"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000004"
+            },
+            {
+              "visitIds": [
+                "00000000-0000-4000-8000-000000000003",
+                "00000000-0000-4000-8000-000000000004",
+                "00000000-0000-4000-8000-000000000005"
+              ],
+              "endVisitId": "00000000-0000-4000-8000-000000000005"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    {
+      "name": "behavior-all-existing-windows-P1",
+      "kind": "affected-windows",
+      "input": {
+        "visitId": "P1",
+        "windows": [
+          {
+            "windowId": "W1",
+            "visitIds": [
+              "P1",
+              "P2",
+              "P3"
+            ]
+          },
+          {
+            "windowId": "W2",
+            "visitIds": [
+              "P2",
+              "P3",
+              "P4"
+            ]
+          },
+          {
+            "windowId": "W3",
+            "visitIds": [
+              "P3",
+              "P4",
+              "P5"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        "W1"
+      ]
+    },
+    {
+      "name": "behavior-all-existing-windows-P3",
+      "kind": "affected-windows",
+      "input": {
+        "visitId": "P3",
+        "windows": [
+          {
+            "windowId": "W1",
+            "visitIds": [
+              "P1",
+              "P2",
+              "P3"
+            ]
+          },
+          {
+            "windowId": "W2",
+            "visitIds": [
+              "P2",
+              "P3",
+              "P4"
+            ]
+          },
+          {
+            "windowId": "W3",
+            "visitIds": [
+              "P3",
+              "P4",
+              "P5"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        "W1",
+        "W2",
+        "W3"
+      ]
+    },
+    {
+      "name": "behavior-all-existing-windows-P5",
+      "kind": "affected-windows",
+      "input": {
+        "visitId": "P5",
+        "windows": [
+          {
+            "windowId": "W1",
+            "visitIds": [
+              "P1",
+              "P2",
+              "P3"
+            ]
+          },
+          {
+            "windowId": "W2",
+            "visitIds": [
+              "P2",
+              "P3",
+              "P4"
+            ]
+          },
+          {
+            "windowId": "W3",
+            "visitIds": [
+              "P3",
+              "P4",
+              "P5"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        "W3"
+      ]
+    },
+    {
+      "name": "behavior-all-existing-windows-P6",
+      "kind": "affected-windows",
+      "input": {
+        "visitId": "P6",
+        "windows": [
+          {
+            "windowId": "W1",
+            "visitIds": [
+              "P1",
+              "P2",
+              "P3"
+            ]
+          },
+          {
+            "windowId": "W2",
+            "visitIds": [
+              "P2",
+              "P3",
+              "P4"
+            ]
+          },
+          {
+            "windowId": "W3",
+            "visitIds": [
+              "P3",
+              "P4",
+              "P5"
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "privacy-retraction-id-replay",
+      "kind": "replay",
+      "input": {
+        "type": "privacy",
+        "original": {
+          "retractionId": "00000000-0000-4000-8000-000000000096",
+          "visitId": "00000000-0000-4000-8000-000000000001",
+          "observedAt": "2026-11-10T00:00:00.000Z",
+          "reasonCode": "SENSITIVE_CONTENT"
+        },
+        "request": {
+          "retractionId": "00000000-0000-4000-8000-000000000096",
+          "visitId": "00000000-0000-4000-8000-000000000001",
+          "observedAt": "2026-11-10T00:00:00.000Z",
+          "reasonCode": "SENSITIVE_CONTENT"
+        }
+      },
+      "expected": "REPLAY"
+    },
+    {
+      "name": "privacy-retraction-id-conflict",
+      "kind": "replay",
+      "input": {
+        "type": "privacy",
+        "original": {
+          "retractionId": "00000000-0000-4000-8000-000000000096",
+          "visitId": "00000000-0000-4000-8000-000000000001",
+          "observedAt": "2026-11-10T00:00:00.000Z",
+          "reasonCode": "SENSITIVE_CONTENT"
+        },
+        "request": {
+          "retractionId": "00000000-0000-4000-8000-000000000096",
+          "visitId": "00000000-0000-4000-8000-000000000001",
+          "observedAt": "2026-11-10T00:00:00.000Z",
+          "reasonCode": "CONSENT_WITHDRAWN"
+        }
+      },
+      "expected": {
+        "error": "RETRACTION_ID_CONFLICT"
+      }
+    },
+    {
+      "name": "privacy-completed-retraction-replay-no-regression",
+      "kind": "privacy-flow",
+      "input": {
+        "copies": [],
+        "events": [
+          {
+            "kind": "retract"
+          },
+          {
+            "kind": "purge"
+          },
+          {
+            "kind": "retract"
+          }
+        ],
+        "evidenceComplete": true
+      },
+      "expected": {
+        "status": "PURGED",
+        "tombstone": true,
+        "remaining": [],
+        "blocked": []
+      }
     }
   ]
 }
