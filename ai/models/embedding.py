@@ -4,9 +4,7 @@ import shutil
 import threading
 from collections import OrderedDict
 from pathlib import Path
-import torch
 from typing import Union
-from sentence_transformers import SentenceTransformer, util
 
 # 임베딩 캐시 크기 (임베딩 1개 약 4KB, 4096개 약 16MB)
 EMBEDDING_CACHE_SIZE = int(os.getenv("EMBEDDING_CACHE_SIZE", "4096"))
@@ -21,6 +19,8 @@ class LocalSemanticEmbeddingModel:
         model_name: str = "Qwen/Qwen3-Embedding-0.6B", 
         save_dir: Union[str, Path, None] = None
     ):
+        import torch
+
         self.model_name = model_name
         
         # 1. 환경 변수 우선 적용, 없으면 기본 파일 경로 기준 설정
@@ -41,6 +41,7 @@ class LocalSemanticEmbeddingModel:
         # 새로 임베딩해야 하는 것은 새 방문 1개뿐이다.
         self._cache: "OrderedDict[str, torch.Tensor]" = OrderedDict()
         self._cache_lock = threading.Lock()
+        self._cache_generation = 0
 
     def _is_model_valid(self, path: Path) -> bool:
         """
@@ -52,7 +53,9 @@ class LocalSemanticEmbeddingModel:
         config_file = path / "config.json"
         return config_file.is_file() and any(path.iterdir())
 
-    def _load_or_download_model(self) -> SentenceTransformer:
+    def _load_or_download_model(self):
+        from sentence_transformers import SentenceTransformer
+
         save_path_str = str(self.save_dir)
         
         if self._is_model_valid(self.save_dir):
@@ -91,11 +94,24 @@ class LocalSemanticEmbeddingModel:
 
         return SentenceTransformer(save_path_str, device=self.device)
 
-    def _embed(self, text: str) -> torch.Tensor:
-        """텍스트 임베딩을 반환한다. 같은 텍스트는 캐시된 임베딩을 재사용한다."""
-        key = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    @property
+    def cache_generation(self):
         with self._cache_lock:
-            cached = self._cache.get(key)
+            return self._cache_generation
+
+    def invalidate_cache(self):
+        """Clear all vectors; in-flight old generations cannot repopulate them."""
+        with self._cache_lock:
+            self._cache_generation += 1
+            self._cache.clear()
+
+    def _embed(self, text: str, namespace: str = "", cache_generation=None):
+        """텍스트 임베딩을 반환한다. 같은 텍스트는 캐시된 임베딩을 재사용한다."""
+        # Preserve legacy keys. v2 is isolated by model, session and input format.
+        key = hashlib.sha256((namespace + text).encode("utf-8")).hexdigest()
+        with self._cache_lock:
+            generation = self._cache_generation if cache_generation is None else cache_generation
+            cached = self._cache.get(key) if generation == self._cache_generation else None
             if cached is not None:
                 self._cache.move_to_end(key)
                 return cached
@@ -103,10 +119,11 @@ class LocalSemanticEmbeddingModel:
         embedding = self.model.encode([text], convert_to_tensor=True, device=self.device)[0]
 
         with self._cache_lock:
-            self._cache[key] = embedding
-            self._cache.move_to_end(key)
-            while len(self._cache) > EMBEDDING_CACHE_SIZE:
-                self._cache.popitem(last=False)
+            if generation == self._cache_generation:
+                self._cache[key] = embedding
+                self._cache.move_to_end(key)
+                while len(self._cache) > EMBEDDING_CACHE_SIZE:
+                    self._cache.popitem(last=False)
         return embedding
 
     def warm_up(self) -> None:
@@ -117,6 +134,8 @@ class LocalSemanticEmbeddingModel:
         """
         최초 작업 목표(goal)와 페이지 Title + Content 간의 의미적 관련성(Semantic Relevance)을 계산합니다.
         """
+        from sentence_transformers import util
+
         # 빈 값 및 공백만 있는 문자열 검증
         if not goal or not goal.strip() or not (title or content) or not (title.strip() or content.strip()):
             raise ValueError("[AI-001] 유효한 최초 목표와 공백이 아닌 페이지 텍스트가 필요합니다.")
@@ -125,6 +144,23 @@ class LocalSemanticEmbeddingModel:
         cosine_sim = util.cos_sim(self._embed(goal), self._embed(page_text)).item()
 
         return cosine_sim
+
+    def calculate_v2_relevance(self, goal, title, content, search_query, *, namespace, cache_generation):
+        import json
+        import math
+        from sentence_transformers import util
+
+        if not goal.strip() or not content.strip():
+            raise ValueError("invalid embedding input")
+        # JSON preserves field boundaries and binds each query to its own page.
+        page_text = json.dumps({"searchQuery": search_query, "title": title, "content": content},
+                               ensure_ascii=False, separators=(",", ":"))
+        scope = json.dumps(["v2-page-text.1", self.model_name, namespace], separators=(",", ":"))
+        score = util.cos_sim(self._embed(goal, scope, cache_generation),
+                             self._embed(page_text, scope, cache_generation)).item()
+        if not math.isfinite(score) or not -1 <= score <= 1:
+            raise ValueError("invalid cosine")
+        return score
 
 
 # --- 실행 및 검증 예시 코드 ---

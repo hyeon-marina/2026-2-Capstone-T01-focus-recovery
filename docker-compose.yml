@@ -28,6 +28,7 @@ services:
     volumes:
       # 최초 실행 시 내려받은 모델을 보관해 재시작마다 다시 받지 않는다
       - ai-models:/models
+      - ./docs/contracts/v2/v2.schema.json:/app/v2.schema.json:ro
     # GPU를 쓰려면 아래 주석을 해제한다 (NVIDIA Container Toolkit 필요)
     # deploy:
     #   resources:

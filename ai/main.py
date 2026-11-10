@@ -9,24 +9,31 @@ BE(AiAnalysisClient)와의 계약:
   INVALID_REQUEST(422) / ANALYSIS_ID_CONFLICT(409) / ANALYSIS_IN_PROGRESS(409) / AI_ANALYSIS_FAILED(500) / AI_NOT_READY(503)
 분석 실패는 정상 결과(NORMAL 등)로 대체하지 않고 오류 코드로 응답한다.
 """
+from __future__ import annotations
+
 import hashlib
 import json
 import threading
-import traceback
 from collections import OrderedDict
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+from starlette.concurrency import run_in_threadpool
 
-from models.context import WINDOW_SIZE, PageVisit
-from pipeline import FocusRecoveryPipeline, aggregate_behavior
+from v2.contracts import V2Error, strict_json, validator as contract_validator
+from v2.service import V2Service
+
+if TYPE_CHECKING:
+    from pipeline import FocusRecoveryPipeline
+
+WINDOW_SIZE = 5  # Legacy v1 contract, independent from v2 composition size3.
 
 MAX_REMEMBERED_ANALYSES = 1000  # analysisId 중복 판단용으로 기억하는 최근 분석 수
 
@@ -84,16 +91,17 @@ class ModelState:
 
     def load(self) -> None:
         try:
+            from pipeline import FocusRecoveryPipeline
+
             pipeline = FocusRecoveryPipeline.from_default()
             # 첫 요청의 초기화 지연을 없애기 위해 READY 전에 한 번 추론한다.
             pipeline.embedding_model.warm_up()
             if pipeline.context_model is not None:
                 pipeline.context_model.warm_up()
             self.pipeline = pipeline
-        except Exception as e:  # 로드 실패 시 서버는 떠 있되 AI_NOT_READY로 응답한다
-            self.load_error = f"{type(e).__name__}: {e}"
-            print(f"[API] 모델 로드 실패: {self.load_error}")
-            traceback.print_exc()
+        except Exception:  # 로드 실패 시 서버는 떠 있되 AI_NOT_READY로 응답한다
+            self.load_error = "모델을 준비할 수 없습니다."
+            print("[API] AI_NOT_READY")
 
 
 class AnalysisRegistry:
@@ -145,11 +153,17 @@ class AnalysisRegistry:
 
 state = ModelState()
 registry = AnalysisRegistry(MAX_REMEMBERED_ANALYSES)
+v2_service = V2Service(state.inference_lock)
+
+
+def load_models():
+    state.load()
+    v2_service.load(state)  # v2 can load even if the legacy classifier is absent.
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    threading.Thread(target=state.load, name="model-loader", daemon=True).start()
+    threading.Thread(target=load_models, name="model-loader", daemon=True).start()
     yield
 
 
@@ -172,8 +186,7 @@ async def handle_validation_error(request: Request, exc: RequestValidationError)
 
 @app.exception_handler(Exception)
 async def handle_unexpected_error(request: Request, exc: Exception):
-    traceback.print_exception(exc)
-    return error_response(500, "AI_ANALYSIS_FAILED", f"{type(exc).__name__}: {exc}")
+    return error_response(500, "AI_ANALYSIS_FAILED", "분석을 완료할 수 없습니다.")
 
 
 # ---------------------------------------------------------------------- 처리
@@ -233,9 +246,13 @@ def feature_snapshot(pipeline: FocusRecoveryPipeline, features: List[float], rel
 
 
 def run_analysis(pipeline: FocusRecoveryPipeline, request: AnalysisRequest, visits: List[VisitRequest]) -> dict:
+    from models.context import PageVisit
+
     page_visits = [PageVisit(title=v.title, content=v.content) for v in visits]
     behavior = None
     if pipeline.classifier.use_behavior:
+        from pipeline import aggregate_behavior
+
         behavior = aggregate_behavior([v.activeDurationMs for v in visits], [v.tabSwitchCount for v in visits])
         if behavior is None:
             raise ApiError(422, "INVALID_REQUEST", "행동 특징을 사용하는 모델이지만 행동 측정값이 없는 방문이 있습니다.")
@@ -243,11 +260,10 @@ def run_analysis(pipeline: FocusRecoveryPipeline, request: AnalysisRequest, visi
     try:
         with state.inference_lock:
             result = pipeline.analyze(request.goalText, page_visits, behavior)
-    except ValueError as e:
-        raise ApiError(422, "INVALID_REQUEST", str(e))
-    except Exception as e:  # ContextAnalysisError 등 분석 실패
-        traceback.print_exc()
-        raise ApiError(500, "AI_ANALYSIS_FAILED", str(e))
+    except ValueError:
+        raise ApiError(422, "INVALID_REQUEST", "분석 입력을 처리할 수 없습니다.") from None
+    except Exception:  # ContextAnalysisError 등 분석 실패
+        raise ApiError(500, "AI_ANALYSIS_FAILED", "분석을 완료할 수 없습니다.") from None
 
     p_normal, p_transition, p_drift = normalized_probabilities(result.probabilities)
     return {
@@ -277,7 +293,6 @@ def health():
     return error_response(status, "AI_NOT_READY", message)
 
 
-@app.post("/api/ai/analyses")
 def analyze(request: AnalysisRequest):
     """
     최초 목표와 최근 5개 방문을 분석하여 탐색 상태(NORMAL, TRANSITION, DRIFT)를 반환합니다.
@@ -299,6 +314,111 @@ def analyze(request: AnalysisRequest):
         raise
     registry.complete(request.analysisId, response)
     return response
+
+
+async def read_body(request: Request, *, composition=False):
+    raw = await request.body()
+    try:
+        body = json.loads(raw)
+        if composition or (isinstance(body, dict) and "apiContractVersion" in body):
+            return strict_json(raw)
+        return body  # Preserve the legacy JSON parser for unversioned v1.
+    except (ValueError, UnicodeError, RecursionError):
+        # A malformed versioned payload must never enter the legacy analyzer.
+        if composition or b'apiContractVersion' in raw:
+            raise V2Error() from None
+        raise ApiError(422, "INVALID_REQUEST", "요청 형식이 올바르지 않습니다.") from None
+
+
+def execute_v2(kind, payload):
+    try:
+        return v2_service.execute(kind, payload)
+    except V2Error as exc:
+        return JSONResponse(status_code=exc.status, content=exc.body())
+    except Exception:
+        # No traceback or exception text containing model/request data.
+        exc = V2Error(500, "AI_COMPOSITION_FAILED" if kind == "compose" else "AI_ANALYSIS_FAILED")
+        return JSONResponse(status_code=exc.status, content=exc.body())
+
+
+@app.exception_handler(V2Error)
+async def handle_v2_error(request: Request, exc: V2Error):
+    return JSONResponse(status_code=exc.status, content=exc.body())
+
+
+@app.post("/api/ai/window-compositions")
+async def window_compositions(request: Request):
+    return await run_in_threadpool(execute_v2, "compose", await read_body(request, composition=True))
+
+
+@app.post("/api/ai/analyses")
+async def versioned_analysis(request: Request):
+    body = await read_body(request)
+    if isinstance(body, dict) and "apiContractVersion" in body:
+        if type(body["apiContractVersion"]) in (int, float) and body["apiContractVersion"] == 1:
+            pass
+        else:
+            return await run_in_threadpool(execute_v2, "analysis", body)
+    try:
+        legacy = AnalysisRequest.model_validate(body)
+    except ValidationError as exc:
+        raise RequestValidationError(exc.errors()) from None
+    return await run_in_threadpool(analyze, legacy)
+
+
+def api_openapi():
+    """Keep legacy DTO documentation and expose v2 from the same shared Schema."""
+    from fastapi.openapi.utils import get_openapi
+    if app.openapi_schema:
+        return app.openapi_schema
+    document = get_openapi(title=app.title, version=app.version, routes=app.routes)
+    components = document.setdefault("components", {}).setdefault("schemas", {})
+    legacy = AnalysisRequest.model_json_schema(ref_template="#/components/schemas/{model}")
+    legacy["properties"]["apiContractVersion"] = {"const": 1}
+    components.update(legacy.pop("$defs", {}))
+    components["AnalysisRequest"] = legacy
+    analysis = document["paths"]["/api/ai/analyses"]["post"]
+    alternatives = [{"$ref": "#/components/schemas/AnalysisRequest"}]
+    analysis["requestBody"] = {"required": True, "content": {"application/json": {"schema": {"oneOf": alternatives}}}}
+    try:
+        definitions = contract_validator("AnalysisRequest").schema["$defs"]
+    except V2Error:
+        # A standalone legacy image without the shared file still documents v1.
+        app.openapi_schema = document
+        return document
+
+    def refs(value):
+        if isinstance(value, list):
+            return [refs(v) for v in value]
+        if isinstance(value, dict):
+            return {k: (v.replace("#/$defs/", "#/components/schemas/V2") if k == "$ref"
+                        else refs(v)) for k, v in value.items()}
+        return value
+
+    components.update({"V2" + k: refs(v) for k, v in definitions.items()})
+    alternatives.append({"$ref": "#/components/schemas/V2AnalysisRequest"})
+    composition = document["paths"]["/api/ai/window-compositions"]["post"]
+    composition["description"] = "합성 테스트 전용 v2. 정책 승인·운영 활성화 아님."
+    composition["requestBody"] = {"required": True, "content": {"application/json": {
+        "schema": {"$ref": "#/components/schemas/V2CompositionRequest"}}}}
+    composition["responses"]["200"]["content"] = {"application/json": {
+        "schema": {"$ref": "#/components/schemas/V2CompositionResponse"}}}
+    analysis["responses"]["200"]["content"] = {"application/json": {"schema": {"anyOf": [
+        {"$ref": "#/components/schemas/V2AnalysisResponse"}, {"type": "object", "description": "기존 v1 확률 응답"}]}}}
+    for status in (422, 409, 500, 503):
+        composition["responses"][str(status)] = {"description": "v2 failure", "content": {
+            "application/json": {"schema": {"$ref": "#/components/schemas/V2FailureResponse"}}}}
+        analysis["responses"][str(status)] = {"description": "v1 또는 v2 failure", "content": {
+            "application/json": {"schema": {"anyOf": [
+                {"$ref": "#/components/schemas/V2FailureResponse"},
+                {"type": "object", "required": ["code", "message", "fieldErrors"],
+                 "properties": {"code": {"type": "string"}, "message": {"type": "string"},
+                                "fieldErrors": {"type": "array"}}, "additionalProperties": False}]}}}}
+    app.openapi_schema = document
+    return document
+
+
+app.openapi = api_openapi
 
 
 if __name__ == "__main__":

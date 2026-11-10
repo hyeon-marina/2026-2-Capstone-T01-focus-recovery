@@ -196,7 +196,31 @@ Embedding Model은 텍스트별 임베딩을 LRU 캐시(`EMBEDDING_CACHE_SIZE`, 
 
 ## 개발 상태
 
-현재 AI 영역은 기능 설계가 완료된 초기 개발 환경 구성 단계입니다.
+v1은 기존 5방문/확률 API와 학습 파이프라인을 유지합니다. #87에서 v2 구성·페이지 분석 API를 합성 테스트 전용으로 추가했습니다. 정책 P1~P6는 PROPOSED, 개인정보 선결은 BLOCKED입니다. 실제 모델 품질은 검증하지 않았습니다.
 
-Python 프로젝트 구조, 의존성, 실행 방법 및 테스트 방법은
-AI 개발 환경 구성이 완료된 이후 본 문서에 추가합니다.
+## v2 합성 테스트와 실제 모델 경로
+
+- `POST /api/ai/window-compositions`: visitId/sequence만으로 size3/stride1을 구성합니다. 모델 준비와 독립입니다.
+- `POST /api/ai/analyses`: apiContractVersion=2이면 정확히3개 방문의 목표 관련성·페이지 라벨/근거를 분석합니다. 버전 생략/1은 기존 v1입니다. v2 실패를 v1으로 전달하지 않습니다.
+- v2는 `AI_V2_PROFILE=synthetic-test`와 `AI_V2_ENABLED=1`을 함께 지정해야 동작합니다. 기본/prod 비활성, 운영 활성화 옵션이 아닙니다. 합성 데이터만 사용하세요.
+- DTO는 [공통 Schema](../docs/contracts/v2/v2.schema.json)를 직접 검증합니다. 저장소 실행은 자동 탐색하며 별도 패키징 시 `AI_V2_SCHEMA_PATH`를 지정합니다. Compose는 공통 파일을 read-only mount합니다.
+- 실제 분석은 기존 Qwen3 Embedding cosine과 Qwen3 Context CausalLM의 별도 페이지 프롬프트를 사용합니다. Context 모델이 필요하며 v1 학습 분류기는 사용하지 않습니다. v1이 embedding-only여도 v2에는 Context를 로드합니다.
+- v2 생성 설정: `AI_V2_MAX_NEW_TOKENS=1024`, `AI_V2_INFERENCE_TIMEOUT_SECONDS=60`. 개발 한도이며 timeout은 soft limit입니다. 실제 모델 응답시간/품질을 측정한 운영값이 아닙니다. 기존 v1 Context 설정은 유지합니다.
+
+```sh
+# 저장소 루트: 모델 라이브러리/가중치 없이 Mock API 테스트
+python3 -m venv /private/tmp/focus87-ai
+/private/tmp/focus87-ai/bin/python -m pip install -r ai/requirements-test.txt
+/private/tmp/focus87-ai/bin/python -m pytest ai/tests -q
+
+# 오프라인 모델 preflight + 가능한 경우에만 합성 실제 추론 (다운로드하지 않음)
+/private/tmp/focus87-ai/bin/python ai/smoke_v2.py
+
+# 별도 모델 런타임 환경 + 로컬 모델 준비 후에만 합성 API 서버 실행
+cd ai
+AI_V2_PROFILE=synthetic-test AI_V2_ENABLED=1 uvicorn main:app --port 8000
+```
+
+`/health`는 기존 v1 준비 상태를 유지합니다. v1 classifier가 없어도 v2 로더는 독립적으로 준비를 시도하고 구성은 모델 없이 가능합니다. 위 서버 실행의 기존 모델 로더에는 다운로드 기능이 있으므로 모델 파일을 준비한 개발 환경에서 사용합니다. 이번 검증에서는 서버 모델 로더를 실행하거나 가중치를 다운로드하지 않았습니다.
+
+`V2Service.invalidate_visits`는 내부 캐시 격리 hook이며 공개 회수 API가 아닙니다. 프로세스별 메모리 tombstone/Registry는 재시작 시 사라집니다. BE 영속 격리·모든 프로세스 전파·학습 캐시/외부 사본 회수·실제 삭제는 후속입니다. 상세 결과와 미검증 범위는 [AI v2 검증 보고](../docs/ai-v2-window-analysis-validation.md)를 참조하세요.

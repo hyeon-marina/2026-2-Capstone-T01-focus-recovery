@@ -2,7 +2,7 @@
 
 ## 1. 범위·변경 이유
 
-Issue #79 이후의 목표 명세다. 기준 공식 main `6e15dd3`에는 AI-001/002/003, FastAPI 연동, 학습 분류기 로드, Context 구성·캐시가 이미 존재한다. 이번 작업은 문서만이며 모델 학습·API 구현을 수행하지 않는다. 유지할 설계 요구는 [수집 규격](data-collection-spec.md), 추가 설계 P1~P6와 wire/DB는 [공통 계약](data-analysis-contract.md)을 따른다.
+Issue #79 이후의 목표 명세와 #87 AI 구현 상태다. #79 당시 main `6e15dd3`에는 AI-001/002/003, FastAPI 연동, 학습 분류기 로드, Context 구성·캐시가 존재했다. #87은 공식 main `37706428`에서 v1을 보존하고 합성 테스트 전용 v2 API를 구현했다. 실제 범위·검증·제약은 [AI v2 검증 보고](ai-v2-window-analysis-validation.md)를 따른다. 모델 학습·운영 활성화·정책 승인은 수행하지 않았다. 유지할 설계 요구는 [수집 규격](data-collection-spec.md), P1~P6와 wire/DB는 [공통 계약](data-analysis-contract.md)을 따른다.
 
 | 기능 ID | 변경 후 책임 | 기존 요구사항의 처리 |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ AI는 페이지 예측을 제공하고 BE가 최종 상태를 판단한다. 수�
 
 ## 6. API·오류·비동기
 
-실제 기존 경로 `POST /api/ai/analyses`를 유지하고 apiContractVersion=2로 구분한다. v1은5개+확률 응답, v2는3개+페이지 응답이다. 구성 endpoint는 P4 제안이며 아직 구현되지 않았다. 모든 타입·필수값·생성 주체·저장 위치·오류는 공통 계약 §3~6을 단일 기준으로 삼는다.
+실제 기존 경로 `POST /api/ai/analyses`를 유지하고 apiContractVersion=2로 구분한다. v1은5개+확률 응답, v2는3개+페이지 응답이다. #87에서 구성 endpoint와 v2 분석을 합성 테스트 전용으로 구현했다. 정책 P4는 여전히 PROPOSED다. 모든 타입·필수값·생성 주체·저장 위치·오류는 공통 계약 §3~6 및 Schema를 단일 기준으로 삼는다.
 
 - 같은 analysisId+같은 요청 완료는 동일 응답, 다른 payload는409 ANALYSIS_ID_CONFLICT, 진행 중은409 ANALYSIS_IN_PROGRESS.
 - INVALID_REQUEST(422), AI_ANALYSIS_FAILED(500), AI_NOT_READY(503), 공통 `{code,message,fieldErrors}`를 유지한다. Context 재시도1회는 서버 출력 검증에 적용한다. 통신 재시도와 구분한다.
@@ -115,7 +115,7 @@ Train12/Validation4/Test4 **목표 단위** 분리를 먼저 고정한다. 동�
 | BE-009 | AI 구성 결과 검증·UUID 발급·Window 저장 |
 | FE-008 | BE가 승인한 최신 DRIFT 후보 표시. AI 중간 결과로 직접 알림 금지 |
 
-통합 검증은 첫2방문 대기,3/4/5방문 Window1/2/3, stride1, 같은 구성 멱등, 각 페이지 라벨/실패 분리, 5분 체류만 변경 시 AI 호출/Window수 불변, 목표 split 누출 방지, 종료·역순 응답 알림 차단이다. 공통 계약 §12의 검증 케이스와 연결한다. 이번에는 실행 검증하지 않았고 [문서 검증 기록](data-contract-validation.md)에 정적 검사 결과만 보고한다.
+통합 검증은 첫2방문 대기,3/4/5방문 Window1/2/3, stride1, 같은 구성 멱등, 각 페이지 라벨/실패 분리, 5분 체류만 변경 시 AI 호출/Window수 불변, 목표 split 누출 방지, 종료·역순 응답 알림 차단이다. 공통 계약 §12와 연결한다. #87 AI API·Mock 경계 검증과 BE 기존 회귀는 [검증 기록](data-contract-validation.md), 실제 모델 미실행·통합 미구현 경계는 [AI v2 보고](ai-v2-window-analysis-validation.md)에 구분한다.
 
 ## 9. 원본과 미확정 항목
 
@@ -129,6 +129,18 @@ P2 순서 의미, P4 두 단계 구성 API, P5 suffix/버전 판단, P6 라벨 �
 
 [결정안 P4](v2-contract-decisions.md#6-p4--ai-구성과-be-저장)의 권장 A는 모델이 필요 없는 구성 API → BE 식별·저장 → 기존 analysis API v2다. 구성 입력은 visitId/sequence만이며, afterSequence 이하 직전 최대 두 방문과 신규 prefix로 AI가 인접 세 방문을 stride 1로 구성한다. 1~2개는 windows=[]이지만 커서는 전진한다. 숫자 공백은 허용하고 저장 방문 누락·역순·중복은 허용하지 않는다. 기존 pipeline.iter_windows는 5개 오프라인 도구이며 현재 구성 endpoint가 있다는 뜻이 아니다.
 
-CompositionRequest/Response, AnalysisRequest/Response, FailureResponse는 [Schema](contracts/v2/README.md)를 따른다. apiContractVersion=2, 요청 fingerprint echo, position 1~3과 visitId 일대일 검증, finite cosine [-1,1], 페이지 label·근거·모델 네 종류 버전이 필수다. 행동값·사람 정답·참여자 메타는 입력하지 않는다. 최종 상태는 BE가 판단하며 v1 분류기·확률 API는 제거하지 않는다. 현행 searchQuery는 DTO에서 모델로 전달되지 않으므로 검색 문맥 확장은 후속 구현이다.
+CompositionRequest/Response, AnalysisRequest/Response, FailureResponse는 [Schema](contracts/v2/README.md)를 따른다. apiContractVersion=2, 요청 fingerprint echo, position 1~3과 visitId 일대일 검증, finite cosine [-1,1], 페이지 label·근거·모델 네 종류 버전이 필수다. 행동값·사람 정답·참여자 메타는 입력하지 않는다. 최종 상태는 BE가 판단하며 v1 분류기·확률 API는 제거하지 않는다. v1의 searchQuery 미전달 동작은 보존하며 #87의 독립 v2 경로에서 검색어를 실제 임베딩·LLM 입력에 전달한다.
+
+## #87 구현 상태 — 합성 테스트 전용
+
+- 기본 비활성. `AI_V2_PROFILE=synthetic-test`와 `AI_V2_ENABLED=1` 조합만 허용한다. prod·복합 프로필은 503이며 운영 승인 옵션이 아니다. P1~P6 PROPOSED/P2·P6 BLOCKED 유지.
+- `v2/contracts.py`가 공통 Schema로 요청/응답 DTO를 검증한다. UUID v4, 필수/null/추가필드, UTC 밀리초·실제 날짜, 길이·관계·canonical fingerprint를 검사한다. OpenAPI도 같은 Schema와 기존 v1 DTO를 제공한다.
+- 구성은 모델 독립 size3/stride1. 1~256 방문, sparse sequence, tail 최대2·커서 방문·신규 경계를 검사한다. DB prefix 누락과 진짜 tail identity는 BE 책임이다. AI는 UUID/index를 발급하지 않는다.
+- `PageAnalysisModel`은 기존 Qwen3 임베딩과 `LocalContextModel._generate`의 실제 tokenizer/CausalLM 생성을 사용한다. v1 Context 분석·Classifier는 호출하지 않는다. 최초 목표와 3개 페이지 전체 제목·본문·검색어를 JSON으로 전달한다. cosine 임계값으로 라벨을 정하지 않는다.
+- 임베딩 페이지 텍스트는 `{searchQuery,title,content}` JSON, 목표는 별도 인코딩이다. LRU 키에 입력 형식·모델·세션·실제 텍스트를 포함하며 목표별 점수 캐시는 없다. 검색어는 자신의 방문과만 결합한다.
+- 프롬프트 `page-context-v2-proposed.1`, 라벨 가이드 `page-label-v2-proposed.1`은 코드 내 정의의 개발 버전이다. 기본 모델은 Qwen/Qwen3-Embedding-0.6B와 Qwen/Qwen3-4B이며 응답은 실제 인스턴스 설정을 기록한다. 품질 승인/평가된 버전이 아니다.
+- LLM JSON의 ID·position·라벨·근거를 검증한다. 부적합 출력만 1회 재생성, 재실패·임베딩 오류·비유한 수치는 500이다. v2는 확률·최종 상태·원문 예외를 반환하지 않는다. 생성1024토큰·추론60초·잠금 대기는 개발 한도이며 생성 timeout은 step 단위 soft limit이다.
+- `V2Service.invalidate_visits`는 v2 Registry 전체·공유 임베딩 캐시를 비우고 generation으로 늦은 저장을 막는 내부 격리 hook이다. v1 Registry·학습 Context JSONL·외부 사본 회수와 메모리 보안 삭제는 미구현이다. BE 외부 회수 API와 연결되지 않았으며 삭제 완료를 반환하지 않는다.
+- AI 테스트 220건 통과. 실제 모델 스모크 preflight는 의존성·로컬 가중치 부재로 SKIPPED다. 실제 모델 로드·추론·정확도·우회 판단 품질은 미검증이다.
 
 메모리 registry와 embedding LRU는 재시작·eviction으로 영속 멱등을 보장하지 않으며 BE job·UNIQUE가 기준이다. 기존 Context 중간 enum을 새 페이지 label로 치환하지 않는다. 추론 실패는 일반 메시지로 반환하고 현재 exception str·traceback의 원문 노출 가능성을 후속 수정한다. 회수는 캐시·입출력 snapshot·학습 Context 캐시·Export·모델 artifact 영향까지 처리한다. 방문별 캐시 역색인이 없으면 관련 캐시 전체 폐기 등 검증 가능한 절차가 필요하다. AI·BE·데이터 승인 전 운영 확정 계약이 아니다.

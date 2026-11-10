@@ -7,10 +7,6 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import List, Optional, Union
 
-import torch
-from huggingface_hub import snapshot_download
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-
 WINDOW_SIZE = 5
 MAX_RETRIES = 1  # 구조화 출력 검증 실패 시 1회 재시도 (총 2회 시도)
 MAX_CONTENT_CHARS = 600  # 페이지당 프롬프트에 포함할 본문 최대 길이
@@ -121,6 +117,9 @@ class LocalContextModel:
         use_4bit: Optional[bool] = None,  # Qwen3-8B 4-bit 사용 시 True (CUDA + bitsandbytes 필요)
         max_new_tokens: Optional[int] = None,
     ):
+        import torch
+        from transformers import AutoTokenizer
+
         self.config = ContextModelConfig.resolve(model_name, use_4bit, max_new_tokens)
         self.model_name = self.config.model_name
         self.use_4bit = self.config.use_4bit
@@ -163,6 +162,8 @@ class LocalContextModel:
         임시 폴더에 다운로드 -> 검증 -> rename 하는 원자적 다운로드.
         네트워크가 끊겨도 임시 폴더를 유지해 이어받기를 하며, 정리 실패가 원래 오류를 가리지 않는다.
         """
+        from huggingface_hub import snapshot_download
+
         if self._is_model_valid(self.save_dir):
             print(f"[AI-002] 로컬 폴더에서 Context 모델을 로드합니다: {self.save_dir}")
             return
@@ -204,6 +205,9 @@ class LocalContextModel:
         print(f"[AI-002] 모델 다운로드 및 안전한 저장이 완료되었습니다: {self.save_dir}")
 
     def _load_model(self):
+        import torch
+        from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+
         kwargs = {}
         if self.use_4bit:
             kwargs["quantization_config"] = BitsAndBytesConfig(
@@ -249,20 +253,29 @@ class LocalContextModel:
         return "\n".join(lines)
 
     # ------------------------------------------------------------------ 생성 / 파싱
-    def _generate(self, user_prompt: str, max_new_tokens: Optional[int] = None) -> str:
+    def _generate(self, user_prompt: str, max_new_tokens: Optional[int] = None, *,
+                  system_prompt: str = SYSTEM_PROMPT, max_time: Optional[float] = None) -> str:
+        import torch
+
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
         text = self.tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True, enable_thinking=False
         )
         inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+        if max_time is not None:
+            limit = getattr(self.model.config, "max_position_embeddings", None)
+            if limit and inputs["input_ids"].shape[1] + (max_new_tokens or self.max_new_tokens) > limit:
+                raise ValueError("v2 prompt exceeds model context capacity")
+        generation_options = {"max_time": max_time} if max_time is not None else {}
         with torch.no_grad():
             output_ids = self.model.generate(
                 **inputs,
                 max_new_tokens=max_new_tokens or self.max_new_tokens,
                 do_sample=False,  # 재현성을 위해 greedy decoding
+                **generation_options,
             )
         new_tokens = output_ids[0][inputs["input_ids"].shape[1]:]
         return self.tokenizer.decode(new_tokens, skip_special_tokens=True)
@@ -316,7 +329,7 @@ class LocalContextModel:
                 return self._parse_and_validate(raw)
             except (ValueError, json.JSONDecodeError) as e:
                 last_error = e
-                print(f"[AI-002] 구조화 출력 검증 실패 (시도 {attempt + 1}/{1 + MAX_RETRIES}): {e}")
+                print(f"[AI-002] 구조화 출력 검증 실패 (시도 {attempt + 1}/{1 + MAX_RETRIES})")
 
         raise ContextAnalysisError(f"[AI-002] Context 분석 실패: {last_error}")
 
