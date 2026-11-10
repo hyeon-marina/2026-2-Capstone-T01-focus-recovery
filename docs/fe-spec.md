@@ -1,5 +1,11 @@
 # FE 기능명세서
 
+## #91 FE 합성 전용 구현 — 승인 변경 없음
+
+FE의 v1은 기존 1초/후보 종료 순서 수집을 유지한다. #91의 v2 수집기·5초/4초/5분·IndexedDB/ACK/END_PENDING·상태 어댑터는 별도 합성 확장 진입점으로 구현했다. production popup/background에는 v2 설정이나 활성화 경로가 없다.
+
+실제 구현·명령·Mock/Chrome/HTTP 구분·미구현/미검증 범위는 [FE v2 검증 보고](fe-v2-collection-validation.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.** 아래 과거 작업의 미구현 설명은 각 작업 당시 기록이다.
+
 > Issue #79 정책을 반영한 목표 명세다. 기준 코드 `6e15dd3`에는 세션·수집·전송·복구가 구현되어 있으며 v2는 미구현이다. 확정/제안 구분·타입·API는 [수집 규격](data-collection-spec.md)과 [공통 계약](data-analysis-contract.md)을 따른다. 기존 기능 ID를 유지한다.
 
 ## 1. 문서 개요

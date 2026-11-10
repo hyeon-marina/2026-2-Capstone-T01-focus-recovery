@@ -1,5 +1,6 @@
 export interface CreateWorkSessionRequest { goalText: string }
 export interface WorkSessionResponse {
+  collectionSpecVersion?: '1.0' | '2.0';
   sessionId: string;
   goalText: string;
   startedAt: string;

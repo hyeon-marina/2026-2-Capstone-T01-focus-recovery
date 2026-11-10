@@ -24,7 +24,7 @@ export function matchesBehaviorResponse(value: unknown, visitId: string, request
   return v.visitId === visitId && typeof v.applied === 'boolean' && (validTime(v.updatedAt) || (!v.applied && v.updatedAt === null))
     && (v.applied ? sameBehavior(v, request) : coversBehavior(v, request));
 }
-const codes = ['INVALID_REQUEST', 'SESSION_NOT_FOUND', 'VISIT_NOT_FOUND', 'SESSION_ENDED', 'BEHAVIOR_VERSION_CONFLICT', 'BEHAVIOR_COUNTER_DECREASED'];
+const codes = ['PRIVACY_RETRACTED', 'V2_STORAGE_DISABLED', 'COLLECTION_VERSION_MISMATCH', 'INVALID_REQUEST', 'SESSION_NOT_FOUND', 'VISIT_NOT_FOUND', 'SESSION_ENDED', 'BEHAVIOR_VERSION_CONFLICT', 'BEHAVIOR_COUNTER_DECREASED'];
 export async function updateVisitBehavior(sessionId: string, visitId: string, request: UpdateVisitBehaviorRequest): Promise<VisitBehaviorResponse> {
   if (!validBehavior(request)) throw new VisitApiError('response', '행동 요청의 누적값과 버전을 확인해 주세요.', false);
   const snapshot = behaviorSnapshot(request);

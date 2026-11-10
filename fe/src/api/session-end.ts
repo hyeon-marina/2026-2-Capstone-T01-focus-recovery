@@ -3,7 +3,7 @@ import { isWorkSession, UUID } from './session';
 import { validBehavior } from './behavior';
 import type { EndWorkSessionRequest, WorkSessionResponse } from './types';
 
-const codes = ['INVALID_REQUEST', 'SESSION_NOT_FOUND', 'VISIT_NOT_FOUND', 'BEHAVIOR_VERSION_CONFLICT', 'BEHAVIOR_COUNTER_DECREASED'];
+const codes = ['PRIVACY_RETRACTED', 'V2_STORAGE_DISABLED', 'INVALID_REQUEST', 'SESSION_NOT_FOUND', 'VISIT_NOT_FOUND', 'BEHAVIOR_VERSION_CONFLICT', 'BEHAVIOR_COUNTER_DECREASED'];
 export class SessionEndError extends ApiError {
   constructor(kind: ApiError['kind'], message: string, public retryable: boolean, status?: number, public code?: string) {
     super(kind, message, status);
@@ -17,14 +17,14 @@ export function validEndRequest(value: unknown): value is EndWorkSessionRequest 
     && new Set(entries.map(e => e.visitId)).size === entries.length;
 }
 export function matchesSession(value: unknown, session: WorkSessionResponse): value is WorkSessionResponse {
-  return isWorkSession(value) && value.sessionId === session.sessionId && value.goalText === session.goalText
+  return isWorkSession(value, session.collectionSpecVersion ?? '1.0') && value.sessionId === session.sessionId && value.goalText === session.goalText
     && value.startedAt === session.startedAt && (value.endedAt === null || Date.parse(value.endedAt) >= Date.parse(session.startedAt));
 }
 export function matchesEndedSession(value: unknown, session: WorkSessionResponse): value is WorkSessionResponse & { status: 'ENDED'; endedAt: string } {
   return matchesSession(value, session) && value.status === 'ENDED';
 }
 async function requestSession(session: WorkSessionResponse, body?: EndWorkSessionRequest): Promise<WorkSessionResponse> {
-  if (!isWorkSession(session) || session.status !== 'ACTIVE' || !UUID.test(session.sessionId)
+  if (!isWorkSession(session, session.collectionSpecVersion ?? '1.0') || session.status !== 'ACTIVE' || !UUID.test(session.sessionId)
     || body !== undefined && !validEndRequest(body)) throw new SessionEndError('response', '종료 대상 또는 고정 요청 정보 확인이 필요합니다.', false);
   // Copy before any asynchronous work so callers cannot change an in-flight request.
   const expected = structuredClone(session);

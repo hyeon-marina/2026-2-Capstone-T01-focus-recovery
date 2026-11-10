@@ -197,7 +197,7 @@ try {
     assert.ok(before.value.behaviorDelivery.entries.every(e => e.phase === 'acked'));
     if (fault === 'revision') {
       await popup.evaluate(async () => {
-        const db = await new Promise(resolve => { const r = indexedDB.open('focus-recovery', 1); r.onsuccess = () => resolve(r.result); });
+        const db = await new Promise(resolve => { const r = indexedDB.open('focus-recovery'); r.onsuccess = () => resolve(r.result); });
         try {
           await new Promise((resolve, reject) => {
             const tx = db.transaction('state', 'readwrite'), store = tx.objectStore('state'), r = store.get('current');

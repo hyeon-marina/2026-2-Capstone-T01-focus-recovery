@@ -1,5 +1,11 @@
 # 데이터 수집·분석 공통 연동 계약 — Issue #79 / #81 / #83
 
+## #91 FE 합성 전용 구현 — 승인 변경 없음
+
+FE는 collectionSpecVersion=2.0의 세션과 extractionStatus=SUCCESS POST, 기존 세 필드 Behavior PATCH, ACK drain 후 END를 구현했다. currentDecision/windowId/stateVersion을 검증하며 FE에서 최종 판단/AI 요청을 만들지 않는다. Schema/Fixture와 BE/AI 제품은 변경하지 않았다.
+
+실제 구현·명령·Mock/Chrome/HTTP 구분·미구현/미검증 범위는 [FE v2 검증 보고](fe-v2-collection-validation.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.** 아래 과거 작업의 미구현 설명은 각 작업 당시 기록이다.
+
 > #81 검토 기준: 공식 main `6e15dd3fa1789e96c42bc4f33250c4221d6d2616` (2026-11-10 KST). **P1~P6와 아래 v2 API는 PROPOSED**, 승인 근거 없음. 세부 결정·대안·현행 코드 대조는 [v2 결정안](v2-contract-decisions.md), 기계 검증 타입은 [계약 패키지](contracts/v2/README.md)가 이 문서의 초안 타입보다 우선한다. 제품 코드·DB 변경 없음.
 
 > #83: 공식 main `a1a5d97`에서 재대조했다. [승인 요청 대장](v2-contract-approval.md)의 P1~P6는 전부 PROPOSED, P2/P6 선결은 BLOCKED다. 과거 PR 병합을 정책 승인으로 해석하지 않는다.

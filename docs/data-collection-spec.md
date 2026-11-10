@@ -1,5 +1,11 @@
 # 데이터 수집 규격
 
+## #91 FE 합성 전용 구현 — 승인 변경 없음
+
+v2 측정·방문 경계·불변 POST·Commit 순서 sequence·5분 PATCH·안전한 완료 prefix 정리를 실제 TypeScript로 구현했다. 합성 catalog를 재검증한 데이터만 loopback 테스트 서버에 전송한다. 아래 정책 제안과 기존 v1의 동작은 별개이며 일반 사용자 사이트의 v2 수집/전송은 열지 않았다.
+
+실제 구현·명령·Mock/Chrome/HTTP 구분·미구현/미검증 범위는 [FE v2 검증 보고](fe-v2-collection-validation.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.** 아래 과거 작업의 미구현 설명은 각 작업 당시 기록이다.
+
 ## 1. 적용 범위와 결정 상태
 
 [Issue #79](https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/issues/79)의 중간 발표 이후 정책이다. 분석 기준 코드는 공식 main `6e15dd3fa1789e96c42bc4f33250c4221d6d2616`이다. **문서 변경으로 제품 동작이나 DB가 변경되지는 않는다.**

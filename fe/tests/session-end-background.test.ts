@@ -20,7 +20,7 @@ async function restart() {
   await import('../src/background/index');
 }
 async function raw() {
-  const db = await new Promise<IDBDatabase>(resolve => { const r = indexedDB.open('focus-recovery', 1); r.onsuccess = () => resolve(r.result); });
+  const db = await new Promise<IDBDatabase>(resolve => { const r = indexedDB.open('focus-recovery'); r.onsuccess = () => resolve(r.result); });
   try { return await new Promise<any>(resolve => { const tx = db.transaction('state'), r = tx.objectStore('state').get('current'); tx.oncomplete = () => resolve(r.result); }); } finally { db.close(); }
 }
 async function visit(duration = 1500) {

@@ -1,5 +1,11 @@
 # v2 계약 패키지 — 2.0-proposed.2
 
+## #91 FE 합성 전용 구현 — 승인 변경 없음
+
+FE는 공유 Schema의 PageVisitPost/BehaviorPatch를 실제 validator·Fixture와 대조하고 실제 Chrome→Spring/H2의 wire 요청/응답을 이 Schema로 재검증한다. DB version2의 v2 전용 store/receipt는 로컬 구현 세부이며 wire 필드를 늘리지 않는다. production FE는 v1이고 v2는 별도 synthetic-test 빌드만 허용한다.
+
+실제 구현·명령·Mock/Chrome/HTTP 구분·미구현/미검증 범위는 [FE v2 검증 보고](../../fe-v2-collection-validation.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED 유지.** 아래 과거 작업의 미구현 설명은 각 작업 당시 기록이다.
+
 **PROPOSED / Backend 저장 기반과 AI API를 합성 테스트 구현 / 운영 활성화 승인 아님.** 정책별 근거·대안·담당은 [결정안](../../v2-contract-decisions.md), 현행 API·호환성은 [공통 계약](../../data-analysis-contract.md) 참조. `.invalid` Schema ID는 식별자이며 다운로드 주소가 아니다. 네트워크 없는 local `$ref`만 사용한다.
 
 ## #85 제품 저장 경계와 계약 패키지의 구분

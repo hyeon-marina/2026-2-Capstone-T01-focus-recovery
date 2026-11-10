@@ -19,6 +19,7 @@ export interface PageVisit extends VisitBehavior {
   visitId: string;
   sessionId: string;
   sequence: number;
+  extractionStatus?: 'SUCCESS'; // Only the isolated v2 path sets this.
   browserTabKey: string;
   normalizedUrl: string;
   domain: string;

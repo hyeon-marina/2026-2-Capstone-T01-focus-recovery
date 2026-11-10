@@ -2,7 +2,7 @@
 export async function readDurable(page, key) {
   return page.evaluate(async key => {
     const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open('focus-recovery', 1);
+      const request = indexedDB.open('focus-recovery');
       request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
     });
     try {
