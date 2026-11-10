@@ -3,3 +3,7 @@
 
 # docker compose 환경 변수
 /.env
+
+# Collection credentials and local operating evidence stay outside Git.
+/.collection/
+**/__pycache__/

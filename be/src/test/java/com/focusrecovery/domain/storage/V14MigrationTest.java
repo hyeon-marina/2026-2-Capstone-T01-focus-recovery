@@ -28,7 +28,7 @@ class V14MigrationTest {
         var before=new LinkedHashMap<String,List<Map<String,Object>>>();
         for(String table:List.of("work_session","page_visit","analysis_window","window_visit","analysis_result","notification","notification_response","privacy_retraction","retraction_target"))
             before.put(table,new V2MigrationTest().normalize(jdbc.queryForList("SELECT * FROM "+table)));
-        var flyway=Flyway.configure().dataSource(ds).load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+        var flyway=Flyway.configure().dataSource(ds).target("14").load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
         before.forEach((table,rows)->assertThat(new V2MigrationTest().normalize(jdbc.queryForList("SELECT "+String.join(",",rows.getFirst().keySet())+" FROM "+table))).containsExactlyInAnyOrderElementsOf(rows));
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM work_session WHERE owner_participant_id IS NOT NULL OR consent_id IS NOT NULL",Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM consent_policy",Integer.class)).isZero();

@@ -14,7 +14,12 @@
     "test": "vitest run",
     "test:browser": "node scripts/browser-test.mjs",
     "build:synthetic": "vite build --mode synthetic-test --config vite.synthetic.config.ts && vite build --config vite.synthetic.content.config.ts",
-    "test:v2:browser": "node scripts/v2-browser-test.mjs"
+    "test:v2:browser": "node scripts/v2-browser-test.mjs",
+    "build:participant": "npm run typecheck && vite build --mode participant --config vite.participant.config.ts",
+    "build:pilot": "npm run typecheck && vite build --mode collection-pilot --config vite.participant.config.ts && vite build --config vite.synthetic.content.config.ts --outDir dist-pilot",
+    "package:collection": "node scripts/package-collection.mjs",
+    "test:collection:browser": "node scripts/collection-browser-test.mjs",
+    "test:participant:browser": "node scripts/participant-locked-browser-test.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",
