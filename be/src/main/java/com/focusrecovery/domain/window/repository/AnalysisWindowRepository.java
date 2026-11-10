@@ -11,6 +11,9 @@ import com.focusrecovery.domain.window.entity.AnalysisWindow;
 
 public interface AnalysisWindowRepository extends JpaRepository<AnalysisWindow, UUID> {
 
+	@Query("select w from AnalysisWindow w join AnalysisResult a on a.windowId = w.windowId where w.apiContractVersion = 2 and w.invalidated = false and w.decisionDirty = true and a.processingStatus = com.focusrecovery.domain.analysis.entity.AnalysisStatus.COMPLETED order by w.createdAt, w.windowIndex")
+	List<AnalysisWindow> findReadyDecisions(org.springframework.data.domain.Pageable page);
+
 	@org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
 	Optional<AnalysisWindow> findForUpdateByWindowId(UUID windowId);
 	List<AnalysisWindow> findBySessionIdOrderByWindowIndex(UUID sessionId);

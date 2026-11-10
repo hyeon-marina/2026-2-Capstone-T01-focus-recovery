@@ -32,12 +32,14 @@ public record AlertResponse(
 	Instant createdAt,
 	@Schema(description = "실제 표시 시각 (UTC). 표시 확인 전에는 null", types = {"string", "null"}, format = "date-time")
 	@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
-	Instant shownAt
+	Instant shownAt,
+	@JsonInclude(JsonInclude.Include.NON_NULL) UUID windowId,
+	@JsonInclude(JsonInclude.Include.NON_NULL) Long stateVersion
 ) {
 
 	public static AlertResponse of(Notification notification, Integer windowIndex, String goalText) {
 		return new AlertResponse(notification.getAlertId(), notification.getSessionId(), notification.getAlertType(),
 			notification.getAnalysisId(), windowIndex, goalText, notification.getMessage(), notification.getCreatedAt(),
-			notification.getShownAt());
+			notification.getShownAt(), notification.getWindowId(), notification.getStateVersion());
 	}
 }

@@ -52,6 +52,25 @@ public class Notification implements Persistable<UUID> {
 	@Column(name = "scheduled_at", columnDefinition = "DATETIME(3)", updatable = false)
 	private Instant scheduledAt;
 
+	@JdbcTypeCode(SqlTypes.CHAR)
+	@Column(name = "window_id", columnDefinition = "CHAR(36)", updatable = false)
+	private UUID windowId;
+	@Column(name = "state_version", updatable = false)
+	private Long stateVersion;
+	@JdbcTypeCode(SqlTypes.CHAR)
+	@Column(name = "state_analysis_id", columnDefinition = "CHAR(36)", updatable = false)
+	private UUID stateAnalysisId;
+	@Column(name = "invalidated_at", columnDefinition = "DATETIME(3)")
+	private Instant invalidatedAt;
+	public UUID getWindowId() { return windowId; }
+	public Long getStateVersion() { return stateVersion; }
+	public Instant getInvalidatedAt() { return invalidatedAt; }
+	public void invalidate(Instant at) { if (shownAt == null && invalidatedAt == null) invalidatedAt = at; }
+	public static Notification v2(UUID sessionId, UUID windowId, long version, UUID analysisId, String message, Instant now) {
+		Notification n = create(sessionId, null, AlertType.AI, message, now);
+		n.windowId = windowId; n.stateVersion = version; n.stateAnalysisId = analysisId; return n;
+	}
+
 	// 서버가 ID를 발급하므로 save()가 merge(조회 후 INSERT)하지 않도록 항상 INSERT 하게 한다
 	@Transient
 	private boolean isNew = true;
@@ -111,7 +130,7 @@ public class Notification implements Persistable<UUID> {
 	}
 
 	public UUID getAnalysisId() {
-		return analysisId;
+		return stateAnalysisId == null ? analysisId : stateAnalysisId;
 	}
 
 	public AlertType getAlertType() {

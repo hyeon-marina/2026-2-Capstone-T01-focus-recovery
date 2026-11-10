@@ -35,15 +35,16 @@ public class V2AnalysisOutboxService {
 	private final CanonicalJson json;
 	private final JsonMapper mapper;
 	private final Clock clock;
+	private final V2DispatchProperties dispatch;
 	public V2AnalysisOutboxService(WorkSessionRepository sessions, AnalysisOutboxRepository tasks,
 		AnalysisResultRepository analyses, AnalysisWindowRepository windows, V2StorageGate gate, CanonicalJson json,
-		JsonMapper mapper, Clock clock) {
-		this.sessions = sessions; this.tasks = tasks; this.analyses = analyses; this.windows = windows;
+		JsonMapper mapper, Clock clock, V2DispatchProperties dispatch) {
+		this.dispatch = dispatch; this.sessions = sessions; this.tasks = tasks; this.analyses = analyses; this.windows = windows;
 		this.gate = gate; this.json = json; this.mapper = mapper; this.clock = clock;
 	}
 	public record Claim(UUID analysisId, UUID token, String inputSnapshot) {}
 
-	// 후속 dispatcher용 durable 목록. 이 Issue에는 AI 호출이나 자동 분석 재시도가 없다.
+	// Durable discovery; analysis failures are terminal, with no automatic AI retry.
 	@Transactional(readOnly = true)
 	public List<UUID> pending() {
 		gate.requireEnabled();
@@ -56,7 +57,7 @@ public class V2AnalysisOutboxService {
 		if (!task.getProcessingStatus().equals("PENDING")) return null;
 		AnalysisResult analysis = analysis(analysisId); valid(session, task, analysis);
 		if (analysis.getProcessingStatus() != AnalysisStatus.PENDING) return null;
-		UUID token = task.claim(now()); analysis.start(now());
+		UUID token = task.claim(now(), dispatch.lease()); analysis.start(now());
 		return new Claim(analysisId, token, analysis.getInputSnapshot());
 	}
 	@Transactional
@@ -76,7 +77,7 @@ public class V2AnalysisOutboxService {
 			|| result.pageResults().size() != 3 || result.analyzedAt() == null
 			|| !result.analyzedAt().equals(result.analyzedAt().truncatedTo(ChronoUnit.MILLIS))
 			|| result.modelVersions() == null || !result.modelVersions().keySet().equals(Set.of("embedding", "context", "prompt", "labelGuide"))
-			|| result.modelVersions().values().stream().anyMatch(v -> v == null || v.isBlank() || v.length() > 200))
+			|| result.modelVersions().values().stream().anyMatch(v -> v == null || v.isBlank() || v.codePointCount(0, v.length()) > 200))
 			throw conflict("AI_INVALID_RESPONSE");
 		for (int i = 0; i < 3; i++) {
 			var page = result.pageResults().get(i);
@@ -87,14 +88,19 @@ public class V2AnalysisOutboxService {
 				throw conflict("AI_INVALID_RESPONSE");
 		}
 		analysis.completeV2(json.write(result.pageResults()), json.write(result.modelVersions()), json.write(result), result.analyzedAt(), now());
+		window.markDecisionDirty();
 		task.terminal("COMPLETED", null, now());
 	}
 	@Transactional
 	public void fail(UUID sessionId, UUID analysisId, UUID token) {
+		fail(sessionId, analysisId, token, "AI_ANALYSIS_FAILED");
+	}
+	@Transactional
+	public void fail(UUID sessionId, UUID analysisId, UUID token, String code) {
 		WorkSession session = session(sessionId); AnalysisOutbox task = task(sessionId, analysisId);
 		AnalysisResult analysis = analysis(analysisId); valid(session, task, analysis); owned(task, token);
-		analysis.finish(AiAnalysisOutcome.failed("AI_ANALYSIS_FAILED"), now());
-		task.terminal("FAILED", "AI_ANALYSIS_FAILED", now());
+		analysis.finish(AiAnalysisOutcome.failed(code), now());
+		task.terminal("FAILED", code, now());
 	}
 	// 중단된 RUNNING은 FAILED로 확정한다. AI를 다시 호출하지 않는다.
 	@Transactional

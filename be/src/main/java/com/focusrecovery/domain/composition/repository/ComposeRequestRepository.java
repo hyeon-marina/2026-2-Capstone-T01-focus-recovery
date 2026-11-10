@@ -6,4 +6,6 @@ public interface ComposeRequestRepository extends JpaRepository<ComposeRequest, 
 	java.util.Optional<ComposeRequest> findByActiveSessionId(UUID sessionId);
 	java.util.List<ComposeRequest> findBySessionId(UUID sessionId);
 	java.util.List<ComposeRequest> findByProcessingStatusAndLeaseUntilLessThanEqual(String status, java.time.Instant now);
+	java.util.Optional<ComposeRequest> findFirstBySessionIdOrderByRequestedAtDesc(UUID sessionId);
+	java.util.List<ComposeRequest> findByProcessingStatusAndNextAttemptAtLessThanEqualOrderByRequestedAt(String status, java.time.Instant now, org.springframework.data.domain.Pageable page);
 }

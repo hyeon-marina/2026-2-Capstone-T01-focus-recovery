@@ -1,5 +1,19 @@
 # 데이터 수집·분석 계약 검증 — Issue #83
 
+## #89 Backend 연동 실제 구현·검증
+
+공식 main `4f9b4fb570d0b0594b453a0a67b1f180d6411fb8`에서 #85 저장 기반과 #87 AI API를 연결했다. [BE–AI v2 구현 검증](be-ai-v2-integration-validation.md)에 Git/파일/트랜잭션/실제 명령/미구현·미검증 범위와 제출 정보를 기록한다. 아래 #87/#85/#83/#81은 당시 기록이다.
+
+- 수정 전 Backend `./gradlew test --console=plain` 성공. JUnit XML430건(404실행/26환경 skip), 실패/오류0. MySQL/live 환경변수 없이 실행한 baseline이며 기존 보고의 MySQL 포함436건과 다르다.
+- 최종 Backend: `FOCUS85_MYSQL_URL='jdbc:mysql://127.0.0.1:3389/focus85?serverTimezone=UTC' FOCUS89_MYSQL_URL='jdbc:mysql://127.0.0.1:3389/focus89?serverTimezone=UTC' FOCUS89_AI_URL=http://127.0.0.1:8897 ./gradlew test --console=plain` → **757건, 실패0/오류0/skip0**.
+- 기존436건 보존+신규321건: 규칙217(216조합+누락), v2 Client7, H2/MySQL 공통 통합 각46, 실제 Spring 재시작1, 실제 BE/FastAPI HTTP1, v2 고정주기1, V12 이관2. 기존 v1 기대값은 변경하지 않았다.
+- 실제 MySQL8.4.9의 격리 loopback 합성 DB에서 V1~V12 빈 DB, V10→V11→V12 기존 행 보존·재migrate0/validate·FK/UNIQUE/CHECK·동시 Worker/rollback을 확인했다. 운영 DB에는 접근하지 않았다.
+- Mock HTTP 통합과 실제 HTTP를 구분한다. 실제 BE HTTP 서버↔Uvicorn FastAPI에서 AI의 모델 독립 구성·Registry/Schema·분석 처리 경로를 실행했으며 **Embedding/LLM만 합성 Mock**이다. HTTP 산출물10개를 `be/src/test/python/validate_http_evidence.py`로 Schema/hash/구성/페이지 pairing/상태 hash 재검증했다.
+- 기존 AI pytest220건 통과(경고1). 실제 모델 `smoke_v2.py` preflight는 SKIPPED: 런타임 의존성/로컬 Qwen 모델 없음, modelLoaded=false/inferenceExecuted=false. 다운로드·실제 모델 로드·추론·품질 평가는 하지 않았다.
+- 실제 Spring 재시작은 같은 H2 파일 DB를 다시 여는 검증이다. OS kill/MySQL 프로세스 재시작·다중 서버·고부하·GPU hang·원격 캐시 회수/실제 삭제·실제 FE 표시 race는 미검증이다.
+
+정확히 test 프로필+storage flag와 별도 dispatch flag(둘 다 기본false)를 유지한다. v2 HTTP130초/Lease180초/여유15초·Worker2/큐0·구성3claims/1초·2초 backoff는 합성 개발 한도이며 운영 승인값이 아니다. 분석 자동 재호출/v1 fallback은 없다. P1~P6 PROPOSED/P2·P6 BLOCKED, 운영·실사용자 처리 금지, 전체 삭제/PURGED 미구현을 유지한다.
+
 ## #87 AI v2 실제 구현·검증
 
 공식 main `37706428`에서 모델 독립 구성 API와 실제 페이지 LLM 생성 호출을 사용하는 v2 분석 경로를 구현했다. v1 5방문/확률 응답·모델·학습 산출물은 보존한다. 공통 Schema/Fixture 기대값과 BE·FE 제품 코드는 변경하지 않았다. 상세 파일·명령·제약·후속 작업은 [AI v2 구현 검증 보고](ai-v2-window-analysis-validation.md)를 따른다.

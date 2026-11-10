@@ -44,7 +44,7 @@ public class AnalysisExecutor {
 	public AnalysisExecutor(AnalysisResultRepository analysisResultRepository,
 		AnalysisWindowRepository analysisWindowRepository, AiAnalysisClient aiAnalysisClient,
 		TransactionTemplate transactionTemplate, PlatformTransactionManager transactionManager,
-		TaskExecutor analysisTaskExecutor, AlertTaskProcessor alertTaskProcessor) {
+		@org.springframework.beans.factory.annotation.Qualifier("analysisTaskExecutor") TaskExecutor analysisTaskExecutor, AlertTaskProcessor alertTaskProcessor) {
 		this.analysisResultRepository = analysisResultRepository;
 		this.analysisWindowRepository = analysisWindowRepository;
 		this.aiAnalysisClient = aiAnalysisClient;

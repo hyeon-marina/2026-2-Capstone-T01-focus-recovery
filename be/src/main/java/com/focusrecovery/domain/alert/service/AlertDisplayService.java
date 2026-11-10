@@ -63,7 +63,6 @@ public class AlertDisplayService {
 		requireMillis(shownAt, "shownAt");
 		WorkSession session = workSessionRepository.findForUpdateBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
 		v2Gate.checkAccess(session);
-		if (session.isV2()) throw new ConflictException("V2_ALERT_DISABLED", "v2 알림은 비활성 상태입니다.");
 		Notification alert = lockAlert(sessionId, alertId);
 		if (alert.getShownAt() != null) {
 			if (!alert.getShownAt().equals(shownAt)) {
@@ -84,7 +83,6 @@ public class AlertDisplayService {
 		requireMillis(request.shownAt(), "shownAt");
 		WorkSession session = workSessionRepository.findForUpdateBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
 		v2Gate.checkAccess(session);
-		if (session.isV2()) throw new ConflictException("V2_ALERT_DISABLED", "v2 알림은 비활성 상태입니다.");
 		Notification alert = lockAlert(sessionId, alertId);
 		if (alert.getShownAt() != null && request.shownAt() != null && !alert.getShownAt().equals(request.shownAt())) {
 			throw shownAtConflict();
@@ -130,8 +128,9 @@ public class AlertDisplayService {
 		boolean beforeCreated = shownAt.isBefore(alert.getCreatedAt().minus(tolerance));
 		boolean future = shownAt.isAfter(clock.instant().plus(tolerance));
 		boolean afterEnded = session.getStatus() == WorkSessionStatus.ENDED
-			&& shownAt.isAfter(session.getEndedAt().plus(tolerance));
-		if (beforeCreated || future || afterEnded) {
+			&& shownAt.isAfter(session.isV2() ? session.getEndedAt() : session.getEndedAt().plus(tolerance));
+		boolean afterInvalidated = session.isV2() && alert.getInvalidatedAt() != null && !shownAt.isBefore(alert.getInvalidatedAt());
+		if (beforeCreated || future || afterEnded || afterInvalidated) {
 			throw new ConflictException("ALERT_NOT_DISPLAYABLE", "해당 시각에 표시될 수 없는 알림입니다.");
 		}
 	}

@@ -62,6 +62,15 @@ public class AnalysisWindow implements Persistable<UUID> {
 	private long lastStateVersion;
 	@Column(name = "invalidated", nullable = false)
 	private boolean invalidated;
+	@Column(name = "decision_dirty", nullable = false)
+	private boolean decisionDirty;
+	@Column(name = "decision_error_code", length = 100)
+	private String decisionErrorCode;
+	public boolean isDecisionDirty() { return decisionDirty; }
+	public String getDecisionErrorCode() { return decisionErrorCode; }
+	public void markDecisionDirty() { decisionDirty = true; decisionErrorCode = null; }
+	public void decisionCompleted() { decisionDirty = false; decisionErrorCode = null; }
+	public void decisionFailed(String code) { decisionDirty = false; decisionErrorCode = code; }
 	public int getApiContractVersion() { return apiContractVersion; }
 	public boolean isInvalidated() { return invalidated; }
 	public void invalidate() { invalidated = true; }
@@ -70,7 +79,7 @@ public class AnalysisWindow implements Persistable<UUID> {
 		return ++lastStateVersion;
 	}
 	public static AnalysisWindow v2(UUID sessionId, int index, List<UUID> ids, Instant now) {
-		AnalysisWindow window = of(sessionId, index, ids, now); window.apiContractVersion = 2; return window;
+		AnalysisWindow window = of(sessionId, index, ids, now); window.apiContractVersion = 2; window.decisionDirty = true; return window;
 	}
 
 	// 서버가 ID를 발급하므로 save()가 merge(조회 후 INSERT)하지 않도록 항상 INSERT 하게 한다

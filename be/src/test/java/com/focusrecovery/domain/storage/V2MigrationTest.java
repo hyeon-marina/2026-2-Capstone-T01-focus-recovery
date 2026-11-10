@@ -40,7 +40,7 @@ class V2MigrationTest {
 		jdbc.update("insert into notification_response(feedback_id,alert_id,action,selected_at) values (?,?,'RETURN_TO_GOAL',CURRENT_TIMESTAMP)",UUID.randomUUID().toString(),alert.toString());
 		Map<String,List<Map<String,Object>>> before=new LinkedHashMap<>();
 		for(String table:List.of("work_session","page_visit","analysis_window","window_visit","analysis_result","notification","alert_candidate_task","notification_response"))before.put(table,normalize(jdbc.queryForList("select * from "+table)));
-		var flyway=Flyway.configure().dataSource(ds).load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+		var flyway=Flyway.configure().dataSource(ds).target("11").load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
 		before.forEach((table,rows) -> {
 			String columns=String.join(",",rows.getFirst().keySet());
 			assertThat(normalize(jdbc.queryForList("select "+columns+" from "+table))).containsExactlyInAnyOrderElementsOf(rows);

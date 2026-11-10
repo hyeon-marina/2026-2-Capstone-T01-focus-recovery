@@ -3,7 +3,7 @@ package com.focusrecovery.domain.composition.dto;
 import java.util.List;
 import java.util.UUID;
 
-// 내부 저장 경계 DTO. Controller나 AI HTTP client는 이번 Issue에서 공개하지 않는다.
+// AI identity-stream wire DTO와 BE 영속 Receipt. 외부 구성 Controller는 제공하지 않는다.
 public final class Composition {
 	private Composition() {}
 	public record Visit(UUID visitId, int sequence) {}

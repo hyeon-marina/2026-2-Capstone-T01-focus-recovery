@@ -29,10 +29,11 @@ public class WorkSessionService {
 	private final V2StorageGate v2Gate;
 	private final PageVisitService pageVisitService;
 	private final AnalysisRequestService analysisRequestService;
+	private final com.focusrecovery.domain.alert.service.V2AlertService v2Alerts;
 
 	public WorkSessionService(WorkSessionRepository workSessionRepository, PageVisitService pageVisitService,
-		AnalysisRequestService analysisRequestService, V2StorageGate v2Gate) {
-		this.v2Gate = v2Gate;
+		AnalysisRequestService analysisRequestService, V2StorageGate v2Gate, com.focusrecovery.domain.alert.service.V2AlertService v2Alerts) {
+		this.v2Alerts = v2Alerts; this.v2Gate = v2Gate;
 		this.workSessionRepository = workSessionRepository;
 		this.pageVisitService = pageVisitService;
 		this.analysisRequestService = analysisRequestService;
@@ -86,6 +87,7 @@ public class WorkSessionService {
 			pageVisitService.applyFinalBehaviors(sessionId, finalBehaviors, now);
 		}
 		session.end(now);
+		if (session.isV2()) v2Alerts.invalidateSessionPending(sessionId, now);
 		// 세션 종료로 모든 방문의 행동 정보가 확정되므로 아직 분석을 요청하지 않은 구간을 요청한다(수집 명세 8항)
 		if (!session.isV2()) analysisRequestService.requestAllWindows(sessionId, now);
 		return WorkSessionResponse.from(session);

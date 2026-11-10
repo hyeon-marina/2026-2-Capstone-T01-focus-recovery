@@ -39,11 +39,12 @@ public class PrivacyRetractionService {
 	private final V2StorageGate gate;
 	private final CanonicalJson json;
 	private final Clock clock;
+	private final com.focusrecovery.domain.alert.service.V2AlertService alerts;
 	public PrivacyRetractionService(WorkSessionRepository sessions, PageVisitRepository visits,
 		AnalysisWindowRepository windows, AnalysisResultRepository analyses, AnalysisOutboxRepository outbox,
 		ComposeRequestRepository compose, PrivacyRetractionRepository retractions, VisitTombstoneRepository tombstones,
-		RetractionTargetRepository targets, V2StorageGate gate, CanonicalJson json, Clock clock) {
-		this.sessions = sessions; this.visits = visits; this.windows = windows; this.analyses = analyses;
+		RetractionTargetRepository targets, V2StorageGate gate, CanonicalJson json, Clock clock, com.focusrecovery.domain.alert.service.V2AlertService alerts) {
+		this.alerts = alerts; this.sessions = sessions; this.visits = visits; this.windows = windows; this.analyses = analyses;
 		this.outbox = outbox; this.compose = compose; this.retractions = retractions; this.tombstones = tombstones;
 		this.targets = targets; this.gate = gate; this.json = json; this.clock = clock;
 	}
@@ -99,6 +100,7 @@ public class PrivacyRetractionService {
 		// 수신자/외부 저장소 증거가 미확보다. 삭제 완료로 집계할 수 없는 명시적 선결 항목이다.
 		for (String type : List.of("CLIENT_LOCAL_COPIES", "AI_CACHE_AND_MEMORY", "LOG_COPIES", "EXPORT_COPIES", "TRAINED_ARTIFACTS", "BACKUPS", "SESSION_PAYLOAD"))
 			target(job, type, sessionId.toString());
+		alerts.invalidateSessionPending(sessionId, now);
 		targets.flush();
 		return receipt(job);
 	}

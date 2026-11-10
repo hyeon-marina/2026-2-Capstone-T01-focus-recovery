@@ -77,6 +77,12 @@ public class GlobalExceptionHandler {
 		return ErrorResponse.of("ALERT_NOT_FOUND", e.getMessage());
 	}
 
+	@ExceptionHandler(com.focusrecovery.domain.window.exception.WindowNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponse handleWindowNotFound(com.focusrecovery.domain.window.exception.WindowNotFoundException e) {
+		return ErrorResponse.of("WINDOW_NOT_FOUND", e.getMessage());
+	}
+
 	@ExceptionHandler(AnalysisNotFoundException.class)
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ErrorResponse handleAnalysisNotFound(AnalysisNotFoundException e) {

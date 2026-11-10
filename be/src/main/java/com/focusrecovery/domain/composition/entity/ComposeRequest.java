@@ -54,6 +54,9 @@ public class ComposeRequest implements Persistable<UUID> {
 	private int attempts;
 	@Column(name = "error_code", columnDefinition = "VARCHAR(100)", nullable = true, updatable = true)
 	private String errorCode;
+	@Column(name = "next_attempt_at", columnDefinition = "DATETIME(3)")
+	private Instant nextAttemptAt;
+	public Instant getNextAttemptAt() { return nextAttemptAt; }
 	@Transient private boolean isNew = true;
 	protected ComposeRequest() {}
 	@PostLoad @PostPersist void markNotNew() { isNew = false; }
@@ -84,11 +87,11 @@ public class ComposeRequest implements Persistable<UUID> {
 		job.composeRequestId = id; job.sessionId = sessionId; job.activeSessionId = sessionId;
 		job.afterSequence = after; job.composedThroughSequence = through; job.privacyRevision = revision;
 		job.inputFingerprint = fingerprint; job.inputSnapshot = snapshot;
-		job.processingStatus = "PENDING"; job.requestedAt = now;
+		job.processingStatus = "PENDING"; job.requestedAt = now; job.nextAttemptAt = now;
 		return job;
 	}
-	public UUID claim(Instant now) {
-		processingStatus = "RUNNING"; startedAt = now; leaseUntil = now.plusSeconds(60);
+	public UUID claim(Instant now, java.time.Duration lease) {
+		processingStatus = "RUNNING"; startedAt = now; leaseUntil = now.plus(lease);
 		claimToken = UUID.randomUUID(); attempts++; return claimToken;
 	}
 	public void complete(String response, String receipt, Instant now) {
@@ -99,6 +102,7 @@ public class ComposeRequest implements Persistable<UUID> {
 		activeSessionId = null; claimToken = null; leaseUntil = null;
 	}
 	public void recover(Instant now) { retry(now, "COMPOSE_INTERRUPTED"); }
+	public void deferUntil(Instant time) { nextAttemptAt = time; }
 	public void retry(Instant now, String error) {
 		claimToken = null; leaseUntil = null;
 		if (attempts >= 3) terminal("FAILED", error, now);

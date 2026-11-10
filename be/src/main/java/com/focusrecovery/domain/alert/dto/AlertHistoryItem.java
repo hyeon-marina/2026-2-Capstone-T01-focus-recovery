@@ -25,13 +25,17 @@ public record AlertHistoryItem(
 	@Schema(description = "실제 표시 시각 (UTC). 미표시 후보는 null", types = {"string", "null"}, format = "date-time")
 	@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC") Instant shownAt,
 	@Schema(description = "사용자 선택(NotificationResponse). 선택이 없으면 null", nullable = true)
-	NotificationResponseResponse response
+	NotificationResponseResponse response,
+	@JsonInclude(JsonInclude.Include.NON_NULL) UUID windowId,
+	@JsonInclude(JsonInclude.Include.NON_NULL) Long stateVersion,
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC") Instant invalidatedAt
 ) {
 
 	public static AlertHistoryItem of(AlertHistoryRow row, String goalText) {
 		NotificationResponseResponse response = row.feedbackId() == null ? null
 			: new NotificationResponseResponse(row.feedbackId(), row.alertId(), row.action(), row.selectedAt());
 		return new AlertHistoryItem(row.alertId(), row.sessionId(), row.alertType(), row.analysisId(), row.windowIndex(),
-			goalText, row.message(), row.createdAt(), row.shownAt(), response);
+			goalText, row.message(), row.createdAt(), row.shownAt(), response, row.windowId(), row.stateVersion(), row.invalidatedAt());
 	}
 }

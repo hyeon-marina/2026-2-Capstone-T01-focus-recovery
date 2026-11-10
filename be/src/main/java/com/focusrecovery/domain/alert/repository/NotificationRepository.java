@@ -18,6 +18,10 @@ import jakarta.persistence.LockModeType;
 
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
 
+	java.util.List<Notification> findByWindowIdAndShownAtIsNull(UUID windowId);
+	java.util.List<Notification> findBySessionIdAndShownAtIsNull(UUID sessionId);
+	Optional<Notification> findByWindowIdAndStateVersion(UUID windowId, long stateVersion);
+
 	Optional<Notification> findByAnalysisId(UUID analysisId);
 
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -27,10 +31,10 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 	// 정렬·페이지는 DB에서 한다. 분석은 구간 순서를 얻으려고 조인만 하며 JSON 컬럼은 읽지 않는다
 	@Query(value = """
 		select new com.focusrecovery.domain.alert.dto.AlertHistoryRow(
-			n.alertId, n.sessionId, n.alertType, n.analysisId, w.windowIndex, n.message, n.createdAt, n.shownAt,
-			r.feedbackId, r.action, r.selectedAt)
+			n.alertId, n.sessionId, n.alertType, coalesce(n.analysisId, n.stateAnalysisId), w.windowIndex, n.message, n.createdAt, n.shownAt,
+			r.feedbackId, r.action, r.selectedAt, n.windowId, n.stateVersion, n.invalidatedAt)
 		from Notification n
-		left join AnalysisResult a on a.analysisId = n.analysisId
+		left join AnalysisResult a on a.analysisId = coalesce(n.analysisId, n.stateAnalysisId)
 		left join AnalysisWindow w on w.windowId = a.windowId
 		left join NotificationResponse r on r.alertId = n.alertId
 		where n.sessionId = :sessionId
@@ -48,7 +52,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 	// 실제 표시된 AI 알림 중 가장 뒤 구간의 windowIndex (shownAt이 없는 후보는 표시된 것으로 보지 않는다)
 	@Query("""
 		select max(w.windowIndex) from Notification n
-		join AnalysisResult r on r.analysisId = n.analysisId
+		join AnalysisResult r on r.analysisId = coalesce(n.analysisId, n.stateAnalysisId)
 		join AnalysisWindow w on w.windowId = r.windowId
 		where n.sessionId = :sessionId and n.alertType = com.focusrecovery.domain.alert.entity.AlertType.AI
 			and n.shownAt is not null""")
