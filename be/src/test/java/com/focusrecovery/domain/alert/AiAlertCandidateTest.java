@@ -62,6 +62,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 // AI 모드(기본) 알림 후보 규칙. 규칙 검증은 분석 행을 직접 만들고 후보 생성을 호출하며,
 // 분석 완료→후보 생성 흐름과 종료 경합은 HTTP 모의 AI 서버(실제 AI 서버 아님)로 검증한다
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -119,7 +120,7 @@ class AiAlertCandidateTest {
 		when(clock.instant()).thenAnswer(invocation -> now.get());
 		AI.reset(request -> MockAiServer.ok(aiResponse(request, "DRIFT")));
 		cleanUp();
-		sessionId = workSessionRepository.save(WorkSession.start(GOAL, null)).getSessionId();
+		sessionId = workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start(GOAL, null)).getSessionId();
 	}
 
 	@AfterEach
@@ -349,7 +350,7 @@ class AiAlertCandidateTest {
 	void 종료와_새_구간_저장과_후보_생성이_동시에_와도_오류_없이_정책에_맞게_끝난다() throws Exception {
 		for (int round = 0; round < 5; round++) {
 			cleanUp();
-			sessionId = workSessionRepository.save(WorkSession.start(GOAL, null)).getSessionId();
+			sessionId = workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start(GOAL, null)).getSessionId();
 			UUID analysisId = completed(createWindows(5).getFirst(), "DRIFT");
 			int round0 = round;
 			CountDownLatch ready = new CountDownLatch(1);

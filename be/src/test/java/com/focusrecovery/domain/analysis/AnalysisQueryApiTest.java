@@ -52,6 +52,7 @@ import com.focusrecovery.domain.visit.repository.PageVisitRepository;
 import com.focusrecovery.domain.window.entity.AnalysisWindow;
 import com.focusrecovery.domain.window.repository.AnalysisWindowRepository;
 
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -590,7 +591,7 @@ class AnalysisQueryApiTest {
 	}
 
 	private UUID newSession() {
-		return workSessionRepository.save(WorkSession.start(GOAL, null)).getSessionId();
+		return workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start(GOAL, null)).getSessionId();
 	}
 
 	// 실제 요청 경로로 만든 분석은 비동기로 끝나므로(테스트 AI 주소는 연결 거부) PENDING·RUNNING이 없어질 때까지 기다린다.

@@ -50,6 +50,7 @@ import com.focusrecovery.domain.visit.repository.PageVisitRepository;
 import com.focusrecovery.domain.window.repository.AnalysisWindowRepository;
 import com.focusrecovery.domain.window.service.AnalysisWindowService;
 
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -428,7 +429,7 @@ class AnalysisWindowTest {
 	}
 
 	private UUID newSession() {
-		return workSessionRepository.save(WorkSession.start("구간 구성 테스트", null)).getSessionId();
+		return workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start("구간 구성 테스트", null)).getSessionId();
 	}
 
 	private ResultActions saveVisit(UUID sessionId, int sequence) throws Exception {

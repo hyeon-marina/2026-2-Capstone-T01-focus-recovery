@@ -14,6 +14,8 @@ export interface Candidate {
 export interface V2State {
   format: 2; collectionSpecVersion: '2.0'; revision: number; nextSequence: number;
   lifecycle: 'IDLE' | 'START_PENDING' | 'ACTIVE' | 'END_PENDING' | 'ENDED';
+  owner?: { participantId: string; consentId: string | null };
+  withdrawal?: { requestId: string; phase: 'pending' | 'sending' | 'acknowledged'; attempts: number; ack?: import('./access').WithdrawalReceipt };
   start?: { idempotencyKey: string; goalText: string; collectionSpecVersion: '2.0'; apiBaseUrl: string };
   session?: V2Session;
   foreground: number | null; lastTab: number | null; lastVisit?: string;

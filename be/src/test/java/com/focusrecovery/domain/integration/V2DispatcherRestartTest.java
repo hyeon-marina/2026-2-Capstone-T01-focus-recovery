@@ -24,10 +24,13 @@ import com.focusrecovery.support.MockV2AiServer;
 class V2DispatcherRestartTest {
 	@TempDir Path directory;
 	ConfigurableApplicationContext open(String ai) {
-		return new SpringApplicationBuilder(FocusRecoveryApplication.class).profiles("test").web(WebApplicationType.NONE).run(
+		var app = new SpringApplicationBuilder(FocusRecoveryApplication.class).profiles("test").web(WebApplicationType.NONE).run(
 			"--spring.datasource.url=jdbc:h2:file:" + directory.resolve("dispatch89") + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE",
 			"--focus-recovery.ai.base-url=" + ai, "--focus-recovery.v2.storage.enabled=true", "--focus-recovery.v2.dispatch.enabled=true",
 			"--focus-recovery.v2.dispatch.interval=1h", "--focus-recovery.v2.storage.recovery-interval=1h", "--spring.main.banner-mode=off", "--logging.level.root=ERROR");
+        com.focusrecovery.support.SyntheticIdentities.seed(app.getBean(org.springframework.jdbc.core.JdbcTemplate.class));
+        com.focusrecovery.support.SyntheticIdentities.bind();
+        return app;
 	}
 	@Test void restartDiscoversPendingAnalysisThenDirtyDecisionAndPreservesPrivacy() throws Exception {
 		try (var ai = new MockV2AiServer()) {

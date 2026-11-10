@@ -59,6 +59,7 @@ import com.focusrecovery.domain.window.repository.AnalysisWindowRepository;
 import com.jayway.jsonpath.JsonPath;
 
 // FIXED_INTERVAL 모드(서버 설정) 고정 주기 후보. 예정 시각 startedAt + 10분(잠정) × n의 경계는 Clock을 고정해 검증한다
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -110,7 +111,7 @@ class FixedIntervalAlertTest {
 	@BeforeEach
 	void setUp() {
 		cleanUp();
-		WorkSession session = workSessionRepository.save(WorkSession.start(GOAL, null));
+		WorkSession session = workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start(GOAL, null));
 		sessionId = session.getSessionId();
 		startedAt = session.getStartedAt();
 		now.set(startedAt);

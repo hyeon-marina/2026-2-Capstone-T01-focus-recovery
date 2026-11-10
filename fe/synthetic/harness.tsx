@@ -1,3 +1,5 @@
+import { AuthConsentPanel } from '../src/v2/AuthConsentPanel';
+import type { CollectionAccess } from '../src/v2/access';
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { V2Alert } from '../src/v2/status';
@@ -5,6 +7,7 @@ const send = (type: string, extra = {}) => chrome.runtime.sendMessage({ type: `v
 Object.assign(globalThis, { v2: send });
 function Harness() {
   const [alert, setAlert] = useState<V2Alert | null>(null);
+  const [access, setAccess] = useState<CollectionAccess>();
   const [error, setError] = useState('');
   useEffect(() => {
     const timer = setInterval(() => {
@@ -22,7 +25,8 @@ function Harness() {
     catch { setError('Synthetic harness blocked'); }
   }
   return <main><h1>v2 synthetic harness</h1><p>Catalog only. P2/P6 BLOCKED.</p>
-    <button onClick={() => void command('start')}>Start synthetic session</button>
+    <AuthConsentPanel command={send} onAccess={value => { setAccess(value); if (!value || value.withdrawn) setAlert(null); }} />
+    <button disabled={!access?.consentValid || !access.collectionEnabled || access.withdrawn} onClick={() => void command('start')}>Start synthetic session</button>
     <button onClick={() => void command('stop')}>End session</button>
     <button onClick={() => void command('retry')}>Retry</button><p role="status">{error}</p>
     {alert && <aside role="alert"><p>{alert.goalText}</p>{(['RETURN_TO_GOAL', 'CONTINUE_BROWSING'] as const).map(action =>

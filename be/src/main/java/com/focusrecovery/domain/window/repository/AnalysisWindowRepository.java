@@ -26,4 +26,8 @@ public interface AnalysisWindowRepository extends JpaRepository<AnalysisWindow, 
 		select w from AnalysisWindow w where w.sessionId = :sessionId
 		and not exists (select 1 from AnalysisResult r where r.windowId = w.windowId)""")
 	List<AnalysisWindow> findUnrequestedBySessionId(UUID sessionId);
+    // Current read under the session lock: a withdrawal may already have an older MySQL snapshot.
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    java.util.List<AnalysisWindow> findForUpdateBySessionIdOrderByWindowIndex(UUID sessionId);
+
 }

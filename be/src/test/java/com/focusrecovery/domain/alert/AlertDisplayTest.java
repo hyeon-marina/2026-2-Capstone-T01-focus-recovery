@@ -73,6 +73,7 @@ import jakarta.persistence.PersistenceContext;
 
 // 실제 알림 표시 확인(PATCH shown)과 사용자 선택 저장(POST responses). 서버 현재 시각은 Clock으로 고정하고,
 // 시계 오차 허용치(잠정 5초) 경계를 1ms 단위로 확인한다
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -669,7 +670,7 @@ class AlertDisplayTest {
 	}
 
 	private UUID newSession() {
-		return workSessionRepository.save(WorkSession.start("알림 표시 테스트 목표", null)).getSessionId();
+		return workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start("알림 표시 테스트 목표", null)).getSessionId();
 	}
 
 	// 세션에 구간 1(최신)의 COMPLETED·DRIFT 분석과 AI 후보를 만든다

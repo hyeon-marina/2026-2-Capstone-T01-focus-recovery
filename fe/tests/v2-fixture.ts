@@ -14,3 +14,8 @@ export function activeState() {
   return { ...initialState(API_BASE_URL), lifecycle: 'ACTIVE' as const, session,
     start: { goalText: session.goalText, collectionSpecVersion: '2.0' as const, idempotencyKey: '20000000-0000-4000-8000-000000000001', apiBaseUrl: API_BASE_URL } };
 }
+
+export const syntheticAccess: import('../src/v2/access').CollectionAccess = {
+  participantId: '95000000-0000-4000-8000-000000000001', consentId: '95000000-0000-4000-8000-000000000003',
+  expiresAt: '2099-01-01T00:00:00.000Z', consentValid: true, collectionEnabled: true, withdrawn: false, policy: null,
+};

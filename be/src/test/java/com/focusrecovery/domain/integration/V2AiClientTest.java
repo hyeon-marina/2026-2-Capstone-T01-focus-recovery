@@ -18,7 +18,7 @@ class V2AiClientTest {
 	MockV2AiServer ai;
 	V2AiClient client(String url, Duration timeout) {
 		var settings = new V2DispatchProperties(false, timeout, timeout.plusSeconds(2), Duration.ZERO, Duration.ofMillis(10), 1);
-		return new V2AiClient(new AiProperties(URI.create(url), Duration.ofMillis(100), Duration.ofSeconds(10), 0.001), settings, JsonMapper.builder().findAndAddModules().build());
+		return new V2AiClient(new AiProperties(URI.create(url), Duration.ofMillis(100), Duration.ofSeconds(10), 0.001), settings, JsonMapper.builder().findAndAddModules().build(), "synthetic-internal-service-token-95-0123456789");
 	}
 	Composition.Input input() { return new Composition.Input(2, UUID.randomUUID(), UUID.randomUUID(), 0, "a".repeat(64), List.of(new Composition.Visit(UUID.randomUUID(), 1))); }
 	@BeforeEach void open() { ai = new MockV2AiServer(); }

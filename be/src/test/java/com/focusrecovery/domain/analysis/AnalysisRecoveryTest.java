@@ -55,6 +55,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 // 미완료 분석 복구·예상 밖 예외·실행기 포화를 HTTP 모의 AI 서버로 검증한다(실제 AI 서버 아님).
 // 포화를 재현하려고 실행기를 스레드 1개·큐 3개로 줄이고, 복구는 스케줄 대신 기준 시각을 넘겨 직접 호출한다
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -118,7 +119,7 @@ class AnalysisRecoveryTest {
 	void setUp() {
 		AI.reset(request -> MockAiServer.ok(validBody(request)));
 		cleanUp();
-		sessionId = workSessionRepository.save(WorkSession.start("복구 테스트 목표", null)).getSessionId();
+		sessionId = workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start("복구 테스트 목표", null)).getSessionId();
 	}
 
 	@AfterEach

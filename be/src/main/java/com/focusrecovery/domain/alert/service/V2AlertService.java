@@ -34,11 +34,11 @@ public class V2AlertService {
 	}
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void invalidatePending(UUID windowId, Instant at) {
-		for (var candidate : notifications.findByWindowIdAndShownAtIsNull(windowId)) candidate.invalidate(at.truncatedTo(ChronoUnit.MILLIS));
+		for (var candidate : notifications.findForUpdateByWindowIdAndShownAtIsNull(windowId)) candidate.invalidate(at.truncatedTo(ChronoUnit.MILLIS));
 	}
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void invalidateSessionPending(UUID sessionId, Instant at) {
-		for (var candidate : notifications.findBySessionIdAndShownAtIsNull(sessionId)) {
+		for (var candidate : notifications.findForUpdateBySessionIdAndShownAtIsNull(sessionId)) {
 			if (candidate.getWindowId() != null) candidate.invalidate(at.truncatedTo(ChronoUnit.MILLIS));
 		}
 	}
@@ -52,6 +52,7 @@ public class V2AlertService {
 			state.getAnalysisId(), AlertService.AI_MESSAGE, clock.instant().truncatedTo(ChronoUnit.MILLIS)));
 	}
 	public AlertResponse currentCandidate(WorkSession session) {
+        gate.checkConsent(session);
 		if (!gate.enabled() || session.isQuarantined() || session.getStatus() != WorkSessionStatus.ACTIVE || properties.mode() != AlertType.AI) return null;
 		var window = windows.findFirstBySessionIdOrderByWindowIndexDesc(session.getSessionId()).orElse(null);
 		if (window == null) return null;
@@ -62,6 +63,7 @@ public class V2AlertService {
 			.map(n -> AlertResponse.of(n, window.getWindowIndex(), session.getGoalText())).orElse(null);
 	}
 	private boolean eligible(WorkSession session, AnalysisWindow window, WindowStateHistory state) {
+        gate.checkConsent(session);
 		if (!gate.enabled() || !session.isV2() || session.isQuarantined() || session.getStatus() != WorkSessionStatus.ACTIVE
 			|| properties.mode() != AlertType.AI || window.isInvalidated() || window.isDecisionDirty() || window.getDecisionErrorCode() != null
 			|| !"DRIFT".equals(state.getFinalState())) return false;

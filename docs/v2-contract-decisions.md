@@ -1,5 +1,11 @@
 # Issue #81 / #83 — v2 정책 결정안과 구현 검토
 
+## #95 인증·동의·소유권 통합 — 운영 BLOCKED
+
+인증 검증 및 서버 소유권·동의 기반, 전체 철회의 합성 구현을 추가했다. 기관/정책 승인, 운영 Credential 발급, 실제 동의와 보존기간은 여전히 미충족이다. 기술 구현이나 PR이 정책 결정을 승인하지 않는다.
+
+상세 구현·테스트·미충족 조건은 [#95 통합 검증 보고](v2-auth-consent-integration-validation.md), 새 DTO는 [인증·동의 API](contracts/auth-consent-api.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED, 전체 삭제 증거 없는 PURGED 금지 유지.** 아래 선행 작업의 미구현 설명은 해당 작업 당시 기록이다.
+
 ## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
 
 P2 회수의 합성 구현은 FE 영속 큐, 기본 거절 API, Tombstone/Revision, 대상별 Claim·Lease·Retry·증거, 합성 Payload 제거 및 AI 영속 격리 ACK까지 연결했다. 기관 승인·동의·보존·운영 인증·외부 사본 및 모델 영향 증거는 미충족이다. 기술 검증이 정책 승인이나 전체 개인정보 삭제 완료를 뜻하지 않는다.

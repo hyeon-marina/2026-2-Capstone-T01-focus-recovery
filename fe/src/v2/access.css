@@ -1,0 +1,16 @@
+.access-panel { color: #25372d; background: #f4f5ee; border: 1px solid #b8c4b6; border-top: 4px solid #526b44; padding: 24px; max-width: 680px; margin: 20px 0; font: 15px/1.6 Georgia, 'Noto Serif KR', serif; }
+.access-panel h2 { font-size: 26px; line-height: 1.2; margin: 8px 0 20px; }
+.access-panel .access-label { font: bold 12px/1.4 monospace; letter-spacing: .06em; color: #6a4c18; }
+.access-panel label { display: block; margin: 12px 0; }
+.access-panel input[type=password] { display: block; width: min(100%, 420px); box-sizing: border-box; padding: 10px; margin: 6px 0; }
+.access-panel button { padding: 9px 14px; border: 1px solid #526b44; background: #fff; color: #25372d; cursor: pointer; }
+.access-panel button:disabled { opacity: .5; cursor: default; }
+.access-panel button:focus-visible, .access-panel input:focus-visible, .access-panel summary:focus-visible { outline: 3px solid #926824; outline-offset: 3px; }
+.access-panel .access-actions { display: flex; gap: 8px; margin: 12px 0; }
+.access-panel details { border-block: 1px solid #b8c4b6; padding: 12px 0; }
+.access-panel summary { cursor: pointer; }
+.access-panel dt { font-weight: bold; margin-top: 10px; }
+.access-panel dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.access-panel .access-check { display: flex; gap: 10px; align-items: flex-start; }
+.access-panel .access-withdraw { border-color: #8b4a32; color: #773620; }
+.access-panel [role=alert] { color: #773620; }

@@ -23,7 +23,7 @@ abstract class V2RetractionContract extends V2IntegrationContract {
     @Autowired PrivacyRetractionRepository retractionRows;
     @Autowired RetractionTargetRepository targetRows;
     @Autowired VisitTombstoneRepository tombstoneRows;
-    static final String AUTH = "Basic " + Base64.getEncoder().encodeToString("alice:synthetic-test-only".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    static final String AUTH = "Bearer " + com.focusrecovery.support.SyntheticIdentities.TOKEN;
     @BeforeEach void owner() {
         jdbc.execute("CREATE TABLE IF NOT EXISTS synthetic_retraction_owner (session_id CHAR(36) PRIMARY KEY, subject VARCHAR(30) NOT NULL)");
         jdbc.update("INSERT INTO synthetic_retraction_owner VALUES (?, 'alice')", session.toString());
@@ -69,9 +69,9 @@ abstract class V2RetractionContract extends V2IntegrationContract {
     }
     @Test void authenticationAndOwnershipCannotBeReplacedByIds() throws Exception {
         var body = retractBody(UUID.randomUUID());
-        mvc.perform(post(path()).contentType(MediaType.APPLICATION_JSON).content(body.toString())).andExpect(status().isUnauthorized());
-        String bob = "Basic " + Base64.getEncoder().encodeToString("bob:synthetic-test-only".getBytes());
-        mvc.perform(post(path()).header("Authorization", bob).contentType(MediaType.APPLICATION_JSON).content(body.toString())).andExpect(status().isForbidden());
+        mvc.perform(post(path()).header("Authorization", "").contentType(MediaType.APPLICATION_JSON).content(body.toString())).andExpect(status().isUnauthorized());
+        String bob = "Bearer " + com.focusrecovery.support.SyntheticIdentities.BOB_TOKEN;
+        mvc.perform(post(path()).header("Authorization", bob).contentType(MediaType.APPLICATION_JSON).content(body.toString())).andExpect(status().isNotFound());
         assertThat(tombstoneRows.existsById(UUID.fromString(body.path("visitId").asString()))).isFalse();
     }
     @Test void otherSessionVisitRejectedWithoutQuarantiningEither() throws Exception {

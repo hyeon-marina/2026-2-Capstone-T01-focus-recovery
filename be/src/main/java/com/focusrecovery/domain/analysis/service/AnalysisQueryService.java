@@ -64,7 +64,7 @@ public class AnalysisQueryService {
 	public Object status(UUID sessionId) {
 		WorkSession session = workSessionRepository.findForShareBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
 		if (session.isV2()) {
-			v2Gate.requireEnabled();
+			v2Gate.requireEnabled(); v2Gate.checkConsent(session);
 			var latest = session.isQuarantined() ? null : first(analysisResultRepository.findSummariesBySessionId(sessionId, FIRST).getContent());
 			var completed = session.isQuarantined() ? null : first(analysisResultRepository.findSummariesBySessionIdAndStatus(sessionId, AnalysisStatus.COMPLETED, FIRST));
 			return new com.focusrecovery.domain.analysis.dto.V2AnalysisStatusResponse(2, sessionId, session.getStatus(),

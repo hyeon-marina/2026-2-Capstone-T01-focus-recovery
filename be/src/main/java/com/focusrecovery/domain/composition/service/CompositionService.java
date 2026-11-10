@@ -93,7 +93,7 @@ public class CompositionService {
 
 	@Transactional
 	public Composition.Claim claim(UUID sessionId, UUID requestId) {
-		session(sessionId);
+		requireActive(session(sessionId));
 		ComposeRequest job = job(sessionId, requestId);
 		if (!job.getProcessingStatus().equals("PENDING") || (job.getNextAttemptAt() != null && job.getNextAttemptAt().isAfter(now()))) return null;
 		return new Composition.Claim(job.claim(now(), dispatch.lease()), input(job));
@@ -109,7 +109,8 @@ public class CompositionService {
 				throw conflict("COMPOSE_ID_CONFLICT");
 			return mapper.readValue(job.getReceipt(), Composition.Receipt.class);
 		}
-		owned(job, token);
+		requireActive(session);
+        owned(job, token);
 		if (job.getPrivacyRevision() != session.getPrivacyRevision()) throw conflict("COMPOSE_INPUT_MISMATCH");
 		if (job.getAfterSequence() != session.getComposedThroughSequence()) throw conflict("COMPOSE_CURSOR_CONFLICT");
 		Composition.Input input = input(job);
@@ -216,6 +217,9 @@ public class CompositionService {
 		items.addAll(visits.findBySessionIdAndSequenceGreaterThanOrderBySequence(sessionId, after, PageRequest.of(0, 256 - items.size())));
 		return items.stream().map(v -> new Composition.Visit(v.getVisitId(), v.getSequence())).toList();
 	}
+    private void requireActive(WorkSession session) {
+        if (session.getStatus() != com.focusrecovery.domain.session.entity.WorkSessionStatus.ACTIVE) throw conflict("SESSION_ENDED");
+    }
 	private WorkSession session(UUID id) {
 		gate.requireEnabled();
 		WorkSession session = sessions.findForUpdateBySessionId(id).orElseThrow(SessionNotFoundException::new);

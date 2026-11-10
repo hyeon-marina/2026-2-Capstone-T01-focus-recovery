@@ -35,7 +35,7 @@ def verify():
         assert targets['AI_CACHE_AND_MEMORY']['evidence'] == 'AI_DURABLE_QUARANTINE_ACK_ONLY'
         for name in ('CLIENT_LOCAL_COPIES', 'EXPORT_COPIES', 'TRAINED_ARTIFACTS', 'BACKUPS'):
             assert targets[name]['status'] == 'BLOCKED'
-    browser = load('/private/tmp/focus91-mock-evidence/retractions.json')
+    browser = load(sys.argv[1] if len(sys.argv) > 1 else '/private/tmp/focus91-mock-evidence/retractions.json')
     assert browser['quarantine']['status'] == 'RETRACTION_REQUIRED'
     assert browser['frozen'] == [e['request'] for e in browser['entries']]
     for entry in browser['entries']:

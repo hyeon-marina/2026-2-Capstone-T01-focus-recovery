@@ -20,6 +20,7 @@ import com.focusrecovery.domain.composition.dto.Composition;
 import com.focusrecovery.global.util.CanonicalJson;
 import tools.jackson.databind.json.JsonMapper;
 
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT, properties={
     "focus-recovery.v2.storage.enabled=true", "focus-recovery.v2.dispatch.enabled=true", "focus-recovery.v2.dispatch.interval=50ms",
     "focus-recovery.v2.retraction.interval=50ms", "focus-recovery.v2.storage.recovery-interval=1h",
@@ -64,7 +65,7 @@ class RetractionLiveHttpTest {
         String fingerprint = canonical.fingerprint(Map.of("apiContractVersion", 2, "composeRequestId", compose, "sessionId", session.sessionId(), "afterSequence", 0, "visits", visits));
         var input = new Composition.Input(2, compose, session.sessionId(), 0, fingerprint, visits);
         var denied = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create(System.getenv("FOCUS93_AI_URL") + "/api/ai/window-compositions"))
-            .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(input))).build(), HttpResponse.BodyHandlers.ofString());
+            .header("Content-Type", "application/json").header("Authorization", "Bearer synthetic-internal-service-token-95-0123456789").POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(input))).build(), HttpResponse.BodyHandlers.ofString());
         assertThat(denied.statusCode()).isEqualTo(409); assertThat(mapper.readTree(denied.body()).path("code").asString()).isEqualTo("PRIVACY_RETRACTED");
         Files.writeString(Path.of("/private/tmp/focus93-http-evidence/be-targets.json"), mapper.writeValueAsString(jobs.findAll().stream().filter(j -> j.getSessionId().equals(session.sessionId())).map(j -> Map.of("retractionId", j.getRetractionId(), "status", j.getProcessingStatus(), "targets", targets.findByIdRetractionId(j.getRetractionId()).stream().map(t -> Map.of("type", t.getId().targetType(), "status", t.getProcessingStatus(), "evidence", Objects.toString(t.getEvidenceCode(), ""))).toList())).toList()));
     }

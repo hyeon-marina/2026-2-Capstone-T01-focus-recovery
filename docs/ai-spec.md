@@ -1,5 +1,11 @@
 # AI 기능명세서
 
+## #95 인증·동의·소유권 통합 — 운영 BLOCKED
+
+v2 구성·분석 HTTP에 사용자 인증과 분리된 서비스 Bearer 검증을 추가했다. 사용자/동의 주체는 BE에서 검증하며 AI Wire에 복제하지 않는다. 기존 SQLite Journal·generation·진행 중/캐시 무효화를 재사용한다. 실제 Embedding/LLM은 실행하지 않았고 테스트 내부 회수 Route의 운영 비공개 제한을 유지한다.
+
+상세 구현·테스트·미충족 조건은 [#95 통합 검증 보고](v2-auth-consent-integration-validation.md), 새 DTO는 [인증·동의 API](contracts/auth-consent-api.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED, 전체 삭제 증거 없는 PURGED 금지 유지.** 아래 선행 작업의 미구현 설명은 해당 작업 당시 기록이다.
+
 ## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
 
 명시적으로 주입한 RetractionJournal은 요청 ID/세션/방문과 revision만 SQLite에 영속화한다. 같은 파일을 쓰는 Worker는 요청/추론/결과저장 전 재검사하여 Registry replay·늦은 결과를 차단하고 로컬 embedding/Registry를 비운다. 내부 route는 main에 설치되지 않으며 test fixture만 Bearer 서비스 인증으로 설치한다. ACK는 영속 격리와 호출 Worker의 cache 무효화일 뿐 다른 Worker의 즉시 물리 삭제·GPU/모델/학습 Context 캐시 삭제가 아니다. 다중 호스트 저장소/운영 인증은 미구현이다.

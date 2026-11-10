@@ -26,6 +26,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 // This starts a real BE HTTP server. The separately started AI uses real composition,
 // request registry and PageAnalysisModel orchestration, with explicit fake embedding/LLM.
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT, properties={
 	"focus-recovery.v2.storage.enabled=true", "focus-recovery.v2.dispatch.enabled=true", "focus-recovery.v2.dispatch.interval=50ms",
 	"focus-recovery.v2.storage.recovery-interval=1h", "spring.datasource.url=jdbc:h2:mem:live89;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"})
@@ -42,7 +43,7 @@ class V2LiveHttpTest {
 	HttpClient http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
 	@DynamicPropertySource static void ai(DynamicPropertyRegistry properties) { properties.add("focus-recovery.ai.base-url", () -> System.getenv("FOCUS89_AI_URL")); }
 	JsonNode call(String method, String path, Object value) throws Exception {
-		HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path)).timeout(Duration.ofSeconds(10));
+		HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path)).timeout(Duration.ofSeconds(10)).header("Authorization", "Bearer " + com.focusrecovery.support.SyntheticIdentities.TOKEN);
 		if (value instanceof CreatePageVisitRequest) {
 			ObjectNode visit = (ObjectNode) mapper.valueToTree(value); visit.put("visitedAt", "2026-11-10T00:00:00.000Z"); value = visit;
 		}
@@ -85,7 +86,7 @@ class V2LiveHttpTest {
 		// AI's actual HTTP error path: tampered fingerprint must fail, without BE fallback.
 		ObjectNode bad = (ObjectNode) mapper.readTree(analysis.getInputSnapshot()); bad.put("inputFingerprint", "a".repeat(64));
 		var rejected = http.send(HttpRequest.newBuilder(URI.create(System.getenv("FOCUS89_AI_URL") + "/api/ai/analyses"))
-			.header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(bad))).build(), HttpResponse.BodyHandlers.ofString());
+			.header("Content-Type", "application/json").header("Authorization", "Bearer synthetic-internal-service-token-95-0123456789").POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(bad))).build(), HttpResponse.BodyHandlers.ofString());
 		assertThat(rejected.statusCode()).isEqualTo(422); assertThat(mapper.readTree(rejected.body()).get("code").stringValue()).isEqualTo("INVALID_REQUEST");
 	}
 	static void await(BooleanSupplier check) throws InterruptedException {

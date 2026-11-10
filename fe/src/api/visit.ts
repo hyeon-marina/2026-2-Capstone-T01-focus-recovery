@@ -1,3 +1,4 @@
+import { authenticatedFetch, AccessError } from './auth-fetch';
 import { API_BASE_URL, ApiError, REQUEST_TIMEOUT_MS } from './client';
 import type { CreatePageVisitRequest, PageVisitResponse } from './types';
 import type { PageVisit } from '../shared/types';
@@ -39,7 +40,7 @@ export async function savePageVisit(visit: PageVisit): Promise<PageVisitResponse
   });
   try {
     return await Promise.race([timeout, (async () => {
-      const response = await fetch(`${API_BASE_URL}/api/sessions/${encodeURIComponent(visit.sessionId)}/visits`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/sessions/${encodeURIComponent(visit.sessionId)}/visits`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(visitRequest(visit)),
         signal: controller.signal, credentials: 'omit', redirect: 'error', cache: 'no-store',
       });
@@ -65,6 +66,7 @@ export async function savePageVisit(visit: PageVisit): Promise<PageVisitResponse
       return value;
     })()]);
   } catch (error) {
+    if (error instanceof AccessError && error.kind !== 'network') throw error;
     if (error instanceof VisitApiError) throw error;
     throw new VisitApiError('network', '방문 저장 서버에 연결할 수 없습니다.', true);
   } finally { clearTimeout(timer!); }

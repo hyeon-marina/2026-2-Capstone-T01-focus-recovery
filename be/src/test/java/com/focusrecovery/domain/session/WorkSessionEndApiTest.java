@@ -44,6 +44,7 @@ import com.focusrecovery.domain.visit.repository.PageVisitRepository;
 import com.focusrecovery.domain.window.repository.AnalysisWindowRepository;
 import com.jayway.jsonpath.JsonPath;
 
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -123,7 +124,7 @@ class WorkSessionEndApiTest {
 		assertThat(saved.getEndedAt()).isEqualTo(endedAt);
 		assertThat(saved.getStartedAt()).isEqualTo(Instant.parse(startedAt));
 		assertThat(saved.getGoalText()).isEqualTo("세션 종료 테스트");
-		assertThat(saved.getIdempotencyKey()).isEqualTo("end-key");
+		assertThat(saved.getIdempotencyKey()).isEqualTo(com.focusrecovery.domain.identity.AuthenticationService.digest(com.focusrecovery.support.SyntheticIdentities.ALICE + ":end-key"));
 		assertThat(pageVisitRepository.existsById(UUID.fromString(visitId))).isTrue();
 
 		String found = mockMvc.perform(get("/api/sessions/{sessionId}", sessionId))
@@ -138,7 +139,7 @@ class WorkSessionEndApiTest {
 	@Test
 	void 종료시각의_밀리초가_000이어도_밀리초_형식으로_응답한다() throws Exception {
 		Instant endedAt = Instant.parse("2026-10-14T01:02:03.000Z");
-		WorkSession session = WorkSession.start("밀리초 0 테스트", null);
+		WorkSession session = com.focusrecovery.support.SyntheticIdentities.start("밀리초 0 테스트", null);
 		session.end(endedAt);
 		UUID sessionId = workSessionRepository.save(session).getSessionId();
 
@@ -464,7 +465,7 @@ class WorkSessionEndApiTest {
 	}
 
 	private UUID newSession() {
-		return workSessionRepository.save(WorkSession.start("세션 종료 테스트", null)).getSessionId();
+		return workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start("세션 종료 테스트", null)).getSessionId();
 	}
 
 	private ResultActions endSession(UUID sessionId) throws Exception {

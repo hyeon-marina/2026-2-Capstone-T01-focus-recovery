@@ -1,5 +1,11 @@
 # BE 기능명세서
 
+## #95 인증·동의·소유권 통합 — 운영 BLOCKED
+
+불투명 Credential 해시 검증·만료/폐기·HTTPS, 모든 제품 API 인증, DB 세션 소유권, 정책/동의 이력, 참여자 전체 철회와 #93 연계를 구현했다. V14는 additive이고 기존 세션은 NULL 소유자로 보존한다. 수집·Claim·Commit·조회·알림에 서버 동의를 적용한다.
+
+상세 구현·테스트·미충족 조건은 [#95 통합 검증 보고](v2-auth-consent-integration-validation.md), 새 DTO는 [인증·동의 API](contracts/auth-consent-api.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED, 전체 삭제 증거 없는 PURGED 금지 유지.** 아래 선행 작업의 미구현 설명은 해당 작업 당시 기록이다.
+
 ## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
 
 회수 API의 기본 RetractionAuthorization은 항상 거절한다. 운영 사용자/소유자 모델이 없어 인증 완료를 주장하지 않는다. test 소스에서만 인증 주체와 DB의 session 소유권을 대조한다. 기존 세션잠금·Tombstone·Revision·전체 세션 무효화를 재사용하고 V13은 대상별 책임역할·증거·claim token/lease/retry 시각만 추가한다. 기본 삭제 정책은 거절하며 합성 test 정책에서만 민감 Payload를 FK skeleton과 분리해 비운 뒤 DB 잔존 검사를 한다. HTTP는 트랜잭션 밖에서 실행한다.

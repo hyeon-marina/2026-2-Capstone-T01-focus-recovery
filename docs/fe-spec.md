@@ -1,5 +1,11 @@
 # FE 기능명세서
 
+## #95 인증·동의·소유권 통합 — 운영 BLOCKED
+
+합성 Extension에 인증·정책 확인·명시적 동의·전체 철회 UI를 구현했다. Token은 trusted-context session storage만 사용하고 서버 재검증·로컬 owner/consent 바인딩·계정 전환 Queue 차단·철회 원본 보존을 적용한다. production v1 Popup에는 운영 등록이 준비되지 않았다는 안내를 추가했다. 실제 참여자 로그인/동의 확보를 완료한 것은 아니다.
+
+상세 구현·테스트·미충족 조건은 [#95 통합 검증 보고](v2-auth-consent-integration-validation.md), 새 DTO는 [인증·동의 API](contracts/auth-consent-api.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED, 전체 삭제 증거 없는 PURGED 금지 유지.** 아래 선행 작업의 미구현 설명은 해당 작업 당시 기록이다.
+
 ## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
 
 v2 RetractionEntry는 request 원본·phase·attempts·retry 시각·ACK를 기존 v2 aggregate에 additive 저장한다. 일반 Queue/ACK와 별도이며 보내기 전 sending Commit, 응답 후 ACK Commit, 같은 ID 재전송·재시작 복구를 한다. compacted 방문 ID도 포함하며 새 세션에는 이전 ID를 넘기지 않는다. QUARANTINED/PURGED 응답 어느 쪽도 로컬 hold·수집·END drain을 해제하지 않는다. production v1 진입점과 IndexedDB v1 값은 유지한다.

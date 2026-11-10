@@ -70,4 +70,7 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
 		where r.processingStatus = com.focusrecovery.domain.analysis.entity.AnalysisStatus.RUNNING
 			and r.apiContractVersion = 1 and (r.startedAt < :cutoff or (r.startedAt is null and r.requestedAt < :legacyCutoff))""")
 	int failRunningStartedBefore(Instant cutoff, Instant legacyCutoff, String errorCode, Instant now);
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    Optional<AnalysisResult> findForUpdateByWindowId(UUID windowId);
+
 }

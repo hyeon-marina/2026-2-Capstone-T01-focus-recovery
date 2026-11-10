@@ -22,11 +22,14 @@ import com.focusrecovery.domain.privacy.dto.Retraction;
 class RetractionRestartTest {
     @TempDir Path directory;
     ConfigurableApplicationContext open() {
-        return new SpringApplicationBuilder(FocusRecoveryApplication.class, SyntheticRetractionConfiguration.class)
+        var app = new SpringApplicationBuilder(FocusRecoveryApplication.class, SyntheticRetractionConfiguration.class)
             .profiles("test").web(WebApplicationType.NONE).run(
             "--spring.datasource.url=jdbc:h2:file:" + directory.resolve("privacy93") + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE",
             "--focus-recovery.v2.storage.enabled=true", "--focus-recovery.v2.retraction.interval=1h", "--focus-recovery.v2.storage.recovery-interval=1h",
             "--spring.main.banner-mode=off", "--logging.level.root=ERROR");
+        com.focusrecovery.support.SyntheticIdentities.seed(app.getBean(JdbcTemplate.class));
+        com.focusrecovery.support.SyntheticIdentities.bind();
+        return app;
     }
     @Test void restartRecoversClaimAndUnconfirmedDeliveryAndKeepsTombstone() {
         UUID session, visit = UUID.randomUUID(), job = UUID.randomUUID();

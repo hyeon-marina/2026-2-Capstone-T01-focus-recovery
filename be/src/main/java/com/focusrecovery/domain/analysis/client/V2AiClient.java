@@ -19,6 +19,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 public class V2AiClient {
 	private final AiProperties ai;
+    private final String serviceToken;
 	private final V2DispatchProperties dispatch;
 	private final JsonMapper mapper;
 	private final JsonMapper strict;
@@ -26,7 +27,8 @@ public class V2AiClient {
 	private static final Set<String> ERRORS = Set.of("INVALID_REQUEST", "COMPOSE_ID_CONFLICT", "COMPOSE_IN_PROGRESS",
 		"ANALYSIS_ID_CONFLICT", "ANALYSIS_IN_PROGRESS", "AI_COMPOSITION_FAILED", "AI_ANALYSIS_FAILED", "AI_NOT_READY", "PRIVACY_RETRACTED");
 	private static final Set<String> TRANSIENT = Set.of("AI_TIMEOUT", "AI_UNAVAILABLE", "AI_NOT_READY", "COMPOSE_IN_PROGRESS", "AI_COMPOSITION_FAILED");
-	public V2AiClient(AiProperties ai, V2DispatchProperties dispatch, JsonMapper mapper) {
+	public V2AiClient(AiProperties ai, V2DispatchProperties dispatch, JsonMapper mapper, @org.springframework.beans.factory.annotation.Value("${focus-recovery.v2.dispatch.service-token:}") String serviceToken) {
+        this.serviceToken = serviceToken;
 		this.ai = ai; this.dispatch = dispatch; this.mapper = mapper;
 		this.strict = mapper.rebuild().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
 		this.http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(ai.connectTimeout()).build();
@@ -77,8 +79,11 @@ public class V2AiClient {
 		} catch (RuntimeException e) { throw invalid(); }
 	}
 	private JsonNode post(String path, String payload) {
-		HttpRequest request = HttpRequest.newBuilder(ai.baseUrl().resolve(path)).timeout(dispatch.responseTimeout())
-			.header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(payload)).build();
+		var target = ai.baseUrl().resolve(path);
+        if (serviceToken.length() < 32 || !("https".equals(target.getScheme()) || "http".equals(target.getScheme()) && Set.of("localhost","127.0.0.1").contains(target.getHost())))
+            throw new V2AiException("AI_NOT_READY", true);
+        HttpRequest request = HttpRequest.newBuilder(ai.baseUrl().resolve(path)).timeout(dispatch.responseTimeout())
+			.header("Content-Type", "application/json").header("Authorization", "Bearer " + serviceToken).POST(HttpRequest.BodyPublishers.ofString(payload)).build();
 		CompletableFuture<HttpResponse<String>> pending = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
 		try {
 			// 본문 수신까지 포함하는 hard BE deadline. AI soft timeout에 의존하지 않는다.

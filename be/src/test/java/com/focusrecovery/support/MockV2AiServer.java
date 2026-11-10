@@ -26,7 +26,10 @@ public class MockV2AiServer implements AutoCloseable {
 			server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
 			server.setExecutor(executor);
 			server.createContext("/api/ai/", exchange -> {
-				String path = exchange.getRequestURI().getPath();
+				if (!"Bearer synthetic-internal-service-token-95-0123456789".equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
+                    exchange.sendResponseHeaders(401, -1); exchange.close(); return;
+                }
+                String path = exchange.getRequestURI().getPath();
 				ObjectNode request = (ObjectNode) mapper.readTree(exchange.getRequestBody().readAllBytes());
 				if (path.endsWith("window-compositions")) { compositionCalls.incrementAndGet(); lastComposition = request; }
 				else { analysisCalls.incrementAndGet(); lastAnalysis = request; }

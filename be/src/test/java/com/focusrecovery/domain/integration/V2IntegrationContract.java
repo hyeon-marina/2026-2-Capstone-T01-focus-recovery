@@ -40,6 +40,7 @@ import com.focusrecovery.support.MockV2AiServer;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.*;
 
+@com.focusrecovery.support.SyntheticAuthenticated
 abstract class V2IntegrationContract {
 	static class AdjustableClock extends Clock {
 		private Instant fixed;
@@ -347,4 +348,68 @@ abstract class V2IntegrationContract {
 			var a = pool.submit(call); var b = pool.submit(call); start.countDown(); a.get(10, TimeUnit.SECONDS); b.get(10, TimeUnit.SECONDS);
 		}
 	}
+    @Autowired com.focusrecovery.domain.identity.AuthenticationService authentication95;
+    @Autowired com.focusrecovery.domain.consent.ConsentService consent95;
+    @Autowired com.focusrecovery.domain.consent.WithdrawalService withdrawal95;
+    record Actor95(UUID id, String token) {}
+    Actor95 actor95() {
+        UUID id = UUID.randomUUID(); byte[] bytes = new byte[32]; new java.security.SecureRandom().nextBytes(bytes);
+        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        jdbc.update("INSERT INTO participant(participant_id,identity_reference_hash,status,created_at) VALUES(?,?,'ACTIVE',?)",id.toString(),com.focusrecovery.domain.identity.AuthenticationService.digest(UUID.randomUUID().toString()),java.sql.Timestamp.from(clock.instant()));
+        jdbc.update("INSERT INTO access_credential(token_hash,participant_id,expires_at) VALUES(?,?,?)",com.focusrecovery.domain.identity.AuthenticationService.digest(token),id.toString(),java.sql.Timestamp.from(Instant.parse("2099-01-01T00:00:00Z")));
+        var actor = new Actor95(id,token); as95(actor);
+        var policy = consent95.policy(); consent95.accept(new com.focusrecovery.domain.consent.ConsentService.Accept(UUID.randomUUID(),policy.policyId(),policy.policyVersion(),true));
+        return actor;
+    }
+    void as95(Actor95 actor) { com.focusrecovery.domain.identity.AuthenticatedParticipant.bind(authentication95.authenticate("Bearer " + actor.token())); }
+    @Test void realAlertVisitWindowAndAnalysisIdsRemainOwnerScopedAfterAccountSwitch() throws Exception {
+        var alice = actor95(); session = sessions.create("합성 인증 소유권 비교 목표",null,"2.0").sessionId();
+        var window = oneWindow(); patch(window.getEndVisitId(),300000,2); analyzeNow(window); var alert = snapshotStatus().alert(); assertThat(alert).isNotNull();
+        var bob = actor95(); UUID own = sessions.create("다른 합성 참여자 목표",null,"2.0").sessionId();
+        String bearer = "Bearer " + bob.token(), base = "/api/sessions/"+session;
+        for (String suffix : List.of("", "/analysis-status", "/windows/"+window.getWindowId()+"/states", "/analyses/"+analysis(window).getAnalysisId()))
+            mvc.perform(get(base+suffix).header("Authorization",bearer)).andExpect(status().isNotFound());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(base+"/alerts/"+alert.alertId()+"/shown").header("Authorization",bearer).contentType(MediaType.APPLICATION_JSON).content("{\"shownAt\":\"2026-11-10T00:00:00.000Z\"}")).andExpect(status().isNotFound());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/sessions/"+own+"/alerts/"+alert.alertId()+"/shown").header("Authorization",bearer).contentType(MediaType.APPLICATION_JSON).content("{\"shownAt\":\"2026-11-10T00:00:00.000Z\"}")).andExpect(status().isNotFound());
+        assertThatThrownBy(() -> visits.save(own,request(window.getEndVisitId(),1,5000))).isInstanceOf(com.focusrecovery.domain.visit.exception.VisitNotFoundException.class);
+        assertThatThrownBy(() -> visits.updateBehavior(session,window.getEndVisitId(),new UpdateVisitBehaviorRequest(400000L,0,3L))).isInstanceOf(com.focusrecovery.domain.session.exception.SessionNotFoundException.class);
+        as95(alice); assertThat(snapshotStatus().alert().alertId()).isEqualTo(alert.alertId());
+    }
+    @Test void participantWithdrawalDuringAiHttpRejectsLateCommitAndInvalidatesClaims() {
+        var actor = actor95(); session = sessions.create("합성 진행 중 분석 철회 목표",null,"2.0").sessionId(); var window = oneWindow();
+        AI.handler = (path,body) -> {
+            if (path.endsWith("analyses")) { as95(actor); try { withdrawal95.accept(UUID.randomUUID()); } finally { com.focusrecovery.domain.identity.AuthenticatedParticipant.clear(); } }
+            return AI.normal(path,body);
+        };
+        dispatcher.runAnalysis(session,analysis(window).getAnalysisId());
+        assertThat(analysis(window).getProcessingStatus()).isEqualTo(AnalysisStatus.INVALIDATED);
+        assertThat(analysis(window).getPageResults()).isNull();
+        code(() -> decisions.process(session,window.getWindowId()),"PRIVACY_RETRACTED");
+        assertThat(states.findByIdWindowIdOrderByIdStateVersionDesc(window.getWindowId())).isEmpty();
+    }
+    @org.junit.jupiter.api.RepeatedTest(5) void withdrawalAndShownAckSerializeWithoutReleasingQuarantine() throws Exception {
+        var actor = actor95(); session = sessions.create("합성 표시 경합 철회 목표",null,"2.0").sessionId(); var window=oneWindow();patch(window.getEndVisitId(),300000,2);analyzeNow(window);var alert=snapshotStatus().alert();
+        var latch = new java.util.concurrent.CountDownLatch(1);
+        try (var pool = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var shown = pool.submit(() -> { as95(actor); try { latch.await(); display.markShown(session,alert.alertId(),clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)); return true; }
+                catch(com.focusrecovery.global.exception.ConflictException e) { assertThat(e.getCode()).isEqualTo("PRIVACY_RETRACTED");return false; }
+                finally {com.focusrecovery.domain.identity.AuthenticatedParticipant.clear();} });
+            var withdrawn = pool.submit(() -> {as95(actor);try {latch.await();return withdrawal95.accept(UUID.randomUUID());}finally {com.focusrecovery.domain.identity.AuthenticatedParticipant.clear();}});
+            latch.countDown();boolean stored=shown.get(10,java.util.concurrent.TimeUnit.SECONDS);var receipt=withdrawn.get(10,java.util.concurrent.TimeUnit.SECONDS);
+            assertThat(receipt.status()).isEqualTo("QUARANTINED");assertThat(sessionRows.findById(session).orElseThrow().isQuarantined()).isTrue();
+            assertThat(notifications.findById(alert.alertId()).orElseThrow().getShownAt()!=null).isEqualTo(stored);
+            code(() -> display.markShown(session,alert.alertId(),clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)),"PRIVACY_RETRACTED");
+        }
+    }
+    @Test void withdrawalInventoryFailurePersistsAndRetryPreservesQuarantine() {
+        var actor=actor95();session=sessions.create("합성 철회 실패 복구 목표",null,"2.0").sessionId();UUID visit=append(1),id=withdrawal95.accept(UUID.randomUUID()).withdrawalId();
+        jdbc.update("UPDATE page_visit SET visit_id='synthetic-corrupt-id' WHERE visit_id=?",visit.toString());
+        assertThatThrownBy(() -> withdrawal95.inventory(id,session)).isInstanceOf(IllegalArgumentException.class);withdrawal95.failed(id,session);
+        assertThat(withdrawal95.status(id).sessions().getFirst().errorCode()).isEqualTo("INVENTORY_FAILED");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM withdrawal_retraction WHERE withdrawal_id=?",Integer.class,id.toString())).isZero();
+        jdbc.update("UPDATE page_visit SET visit_id=? WHERE visit_id='synthetic-corrupt-id' AND session_id=?",visit.toString(),session.toString());
+        withdrawal95.inventory(id,session);assertThat(withdrawal95.status(id).sessions().getFirst().status()).isEqualTo("INVENTORIED");
+        assertThat(withdrawal95.status(id).status()).isEqualTo("QUARANTINED");assertThat(sessionRows.findById(session).orElseThrow().isQuarantined()).isTrue();
+    }
+
 }

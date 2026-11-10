@@ -1,3 +1,4 @@
+import { authenticatedFetch } from '../api/auth-fetch';
 import { API_BASE_URL, REQUEST_TIMEOUT_MS } from '../api/client';
 import { validTime } from '../api/visit';
 import { UUID4 } from './contract';
@@ -32,7 +33,7 @@ export function validRetractionAck(value: unknown, r: RetractionRequest): value 
 }
 export async function sendRetraction(sessionId: string, request: RetractionRequest): Promise<unknown> {
   // Production has no v2 entry point or ownership credentials. The BE default denies this request.
-  const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/visit-retractions`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/sessions/${sessionId}/visit-retractions`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), credentials: 'omit', redirect: 'error', cache: 'no-store',
   });
