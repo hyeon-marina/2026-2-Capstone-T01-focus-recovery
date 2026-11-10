@@ -1,5 +1,17 @@
 # 데이터 수집·분석 계약 검증 — Issue #83
 
+## #87 AI v2 실제 구현·검증
+
+공식 main `37706428`에서 모델 독립 구성 API와 실제 페이지 LLM 생성 호출을 사용하는 v2 분석 경로를 구현했다. v1 5방문/확률 응답·모델·학습 산출물은 보존한다. 공통 Schema/Fixture 기대값과 BE·FE 제품 코드는 변경하지 않았다. 상세 파일·명령·제약·후속 작업은 [AI v2 구현 검증 보고](ai-v2-window-analysis-validation.md)를 따른다.
+
+- 수정 전 AI pytest 수집 결과는 테스트0건(exit5)이었다. 수정 전 reference validator는 Schema80·시나리오139·규칙216·κ4 통과였다.
+- `/private/tmp/focus87-ai/bin/python -m pytest ai/tests -q --tb=short --junitxml=/private/tmp/focus87-ai-results.xml`: **220 passed**, 실패0, Starlette의 httpx 사용 deprecation 경고1건. 공통 Schema80건·요청 reference17건과 API/모델 Mock/캐시/오류·v1 회귀123건을 구분한다. 실제 모델 정확도 평가는 아니다.
+- `cd be && ./gradlew test --tests '*AnalysisIntegrationTest' --tests '*V2GateAndFingerprintTest'`: **46건, 실패0/오류0/skip0**. 기존 BE v1 모의 HTTP 통합38건과 기존 v2 gate/Java-Python fingerprint8건이며 이번에 변경하지 않은 테스트다. 새 Python 서버와 BE를 함께 띄운 E2E 검증은 아니다.
+- `/private/tmp/focus87-ai/bin/python ai/smoke_v2.py`: **SKIPPED**. torch/transformers/sentence-transformers 및 Qwen 로컬 모델 파일 부재. 다운로드·학습·실제 모델 로드·추론은 수행하지 않았다. 장치 선택·메모리/응답시간·품질 수치는 없다.
+- Python 별도 프로세스 두 번 실행으로 Registry ID 기억 소실을 확인했다. 실행 중 캐시 invalidation과 늦은 결과의 generation barrier는 Mock/가짜 encoder로 검사했다. 영속 멱등·분산 회수·실제 보안 삭제는 검증하지 않았다.
+
+P1~P6 PROPOSED/P2·P6 BLOCKED 유지. AI v2는 기본 비활성이고 합성 전용 profile+flag만 허용한다. API 구현/PR은 정책 승인·운영 준비·개인정보 회수 완료가 아니다. 아래 #85/#83/#81 기록의 미실행 설명은 각 당시 범위이며 이번 실행 결과와 분리한다.
+
 ## #85 Backend 실제 구현·검증
 
 공식 main `4a71171`에서 Backend 저장 기반과 V11을 구현했다. 수정 전 기존 Gradle362건, 구현 후 기존362+신규74=436건이 H2/격리 MySQL 8.4를 포함해 실패0·skip0으로 통과했다. 추가 DB PK/FK/UNIQUE 검사 후 V2MigrationTest도 H2/MySQL에서 통과했다. [#85 상세 보고](be-v2-storage-foundation-validation.md)에 명령, 재시작·롤백·동시성 검증 및 미구현/미검증 한계를 구분한다.

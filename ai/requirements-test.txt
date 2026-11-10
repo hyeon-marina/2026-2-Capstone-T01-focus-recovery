@@ -1,0 +1,6 @@
+# Mock-only API tests; no model runtime or GPU installation required.
+fastapi
+uvicorn
+jsonschema[format]==4.26.0
+pytest>=8,<10
+httpx>=0.27,<1

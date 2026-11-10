@@ -1,12 +1,22 @@
 # v2 계약 패키지 — 2.0-proposed.2
 
-**PROPOSED / Backend 저장 기반만 합성 테스트 구현 / 운영 활성화 승인 아님.** 정책별 근거·대안·담당은 [결정안](../../v2-contract-decisions.md), 현행 API·호환성은 [공통 계약](../../data-analysis-contract.md) 참조. `.invalid` Schema ID는 식별자이며 다운로드 주소가 아니다. 네트워크 없는 local `$ref`만 사용한다.
+**PROPOSED / Backend 저장 기반과 AI API를 합성 테스트 구현 / 운영 활성화 승인 아님.** 정책별 근거·대안·담당은 [결정안](../../v2-contract-decisions.md), 현행 API·호환성은 [공통 계약](../../data-analysis-contract.md) 참조. `.invalid` Schema ID는 식별자이며 다운로드 주소가 아니다. 네트워크 없는 local `$ref`만 사용한다.
 
 ## #85 제품 저장 경계와 계약 패키지의 구분
 
 V11·세션 버전·방문 watermark·compose job/Receipt·분석 Outbox·상태 이력·내부 개인정보 격리 저장 경계를 구현했다. [검증 보고](../../be-v2-storage-foundation-validation.md)에 실제 Java/H2/MySQL 테스트를 별도로 기록한다. `validate.py`는 계속 문서 reference 검증이며 DB/제품 테스트를 대체하지 않는다. Schema/Fixture의 정책 기대값은 변경하지 않았다.
 
-v2는 기본 비활성, 정확히 test 프로필+명시 flag에서만 허용한다. 아래 endpoint 표 중 AI API·상태 조회 projection·진단·개인정보 공개 API는 구현/공개되지 않았다. v2 legacy 분석 조회·알림도 거절한다. 내부 결과 DTO는 합성 결과 저장용이며 실제 AI HTTP 변환은 후속이다. 외부 회수·실제 삭제·PURGED 집계와 운영 활성화는 계속 차단된다. 기존 v1 API는 유지한다.
+BE v2는 기본 비활성, 정확히 test 프로필+명시 flag에서만 허용한다. #87에서 아래 AI API를 합성 테스트 전용으로 구현했으며 BE의 실제 AI HTTP 변환/dispatcher는 후속이다. 상태 조회 projection·진단·개인정보 공개 API는 아직 구현/공개되지 않았다. v2 legacy 분석 조회·알림도 거절한다. 외부 회수·실제 삭제·PURGED 집계와 운영 활성화는 계속 차단된다. 기존 v1 API는 유지한다.
+
+## #87 AI 런타임 적용
+
+`ai/v2/contracts.py`는 이 Schema의 CompositionRequest/Response·AnalysisRequest/Response·FailureResponse를 직접 사용한다. 복사본·Schema/Fixture 정책 변경은 없다. Schema 밖 fingerprint/position/ID/순서/커서 관계도 검증한다. Python 정규식 `$`가 끝 개행을 허용하는 점을 보완하여 timestamp는 전체 문자열과 실제 날짜를 검사한다. 정수값 `1.0`은 Schema 의미에 따라 수락하되 fingerprint에서는 `1`로 직렬화한다.
+
+AI v2는 `AI_V2_PROFILE=synthetic-test`와 `AI_V2_ENABLED=1`을 함께 지정한 개발 실행에서만 동작한다. Schema 파일은 저장소 경로를 직접 읽거나 `AI_V2_SCHEMA_PATH`로 지정한다. Docker Compose는 공통 파일을 `/app/v2.schema.json`에 read-only mount한다. standalone AI 이미지에서 v2를 시험하려면 같은 파일을 제공해야 하며 누락 시 503이다. v1은 이 파일 없이도 동작한다.
+
+AI는 구성 목록 안의 순서·중복·tail 최대2·커서와 신규 방문 경계를 확인한다. 저장 prefix의 실제 누락이나 진짜 tail ID는 요청 밖 사실이므로 BE가 검사한다. `omitted-visit`/`missing-tail` reference의 COMPOSE_INPUT_MISMATCH는 BE 검증 책임이며 AI가 DB를 조회하는 코드로 구현하지 않는다.
+
+모델 독립 구성, 실제 LLM 생성 호출 경로, Mock/캐시/오류 검증, 재시작 한계 및 BE 후속 작업은 [AI v2 구현 검증](../../ai-v2-window-analysis-validation.md)에 기록한다. 실제 모델 파일/의존성이 없어 스모크 추론은 미실행이며 품질 승인은 아니다. P1~P6 PROPOSED/P2·P6 BLOCKED 유지.
 
 ## 실행과 자산
 
@@ -16,7 +26,7 @@ python3 -m venv /tmp/focus81-validator
 /tmp/focus81-validator/bin/python docs/contracts/v2/validate.py
 ```
 
-제품 의존성에는 추가하지 않는다. Draft 2020-12, `jsonschema` 4.26.0과 FormatChecker(특히 uuid/date-time)를 사용한다. 기본 validator는 format을 annotation으로 취급할 수 있으므로 FormatChecker를 생략하지 않는다. `python -O`는 assertion 검사를 끄므로 사용하지 않는다.
+문서 검증만 수행할 때 제품 의존성은 필요 없다. #87 AI 런타임은 같은 Schema를 직접 검증하므로 AI requirements에도 `jsonschema[format]==4.26.0`을 명시한다. Draft 2020-12와 FormatChecker(특히 uuid/date-time)를 사용한다. 기본 validator는 format을 annotation으로 취급할 수 있으므로 FormatChecker를 생략하지 않는다. `python -O`는 assertion 검사를 끄므로 사용하지 않는다.
 
 - [v2.schema.json](v2.schema.json): 30개 `$defs`, 아래 entry point별 검증. 루트 oneOf는 wire 본문 종류 분류용이다. 특정 API 검증은 해당 `$defs`를 선택한다.
 - [schema-cases.json](fixtures/schema-cases.json): 각 `contract`, **실행 입력 input**, **예상 expected.valid/keyword**를 분리. invalid 사례는 실패가 기대 결과이며 정상 데이터로 보내지 않는다. Schema 통과는 관계·상태 통과와 다르다.

@@ -14,6 +14,14 @@
 
 ## 1. 기준·근거·변경 상태
 
+### #87 AI 구현 적용 범위
+
+공식 main `37706428`에서 `POST /api/ai/window-compositions`와 기존 analyses의 v2 분기를 합성 테스트 전용으로 구현했다. 공통 Schema/Fixture는 변경하지 않았다. [AI v2 검증 보고](ai-v2-window-analysis-validation.md)에 파일·모델 경로·명령·미검증 품질·BE 후속 작업을 기록한다. v1의 5방문/확률 DTO·학습 산출물은 유지한다.
+
+AI는 Schema로 DTO를 검증하고 canonical SHA256을 재계산한다. ordered stream에서 인접3개를 직접 선택한다. BE의 Composition DTO·V2AnalysisInput/Completion과 필드가 일치하며, 실제 HTTP Client/dispatcher·소유권/회수 전파·최종 상태 계산은 후속이다. AI의 요청 내부 tail 개수/커서/순서 검사와 BE의 DB prefix 누락/진짜 tail 검사를 구분한다.
+
+v2는 기본 비활성이다. `AI_V2_PROFILE=synthetic-test`와 `AI_V2_ENABLED=1` 조합만 허용하며 운영 활성화 옵션이 아니다. P1~P6 PROPOSED와 개인정보 BLOCKED는 그대로다. 내부 캐시 무효화 hook은 전체 회수/삭제 완료가 아니다. Registry와 격리 집합은 프로세스 메모리이며 재시작 후 BE의 영속 격리 검사가 필요하다.
+
 - #79 당시 분석 이력(현재 작업 Git 상태와 구분): 2026-11-10 KST, 공식 main `d0d40f892a8ed54253a12884fb6f64a149272f27`. 시작 worktree는 detached `5e49cb3`, 변경/미추적 파일 없음. origin=개인 Fork(hyeon-marina), upstream=공식 저장소. 같은 이름의 로컬/원격 브랜치 없음 확인 후 `docs/79/data-collection-analysis-contract` 생성.
 - #79 당시 Issue 실제 본문·댓글 0건 확인. 당시 관련 open Issue는 #79만, open PR은 없음. #81 현재 상태·Git 준비는 [결정안 §1](v2-contract-decisions.md#1-상태와-검토-기준) 참조. 아래 PR은 main 병합 로그로 확인했다. 별도 AGENTS.md/CONTRIBUTING/Git 가이드는 발견되지 않았다. project-plan의 develop 통합 방침과 달리 이번 제출은 사용자의 명시적 공식 main 대상 PR 지시를 따른다. main 직접 commit/push/merge는 하지 않는다.
 - [수집 규격](data-collection-spec.md)은 이번 작업에서 유지할 설계 요구의 기준이다. 명시적 팀 승인은 별도 대장을 따른다. 이 문서의 **P1~P6 및 v2 API/DB 명칭은 구현 검토 제안**이다. 문서 PR 승인과 별개로 후속 Issue에 선택 결과를 기록해야 한다. 구현 완료·팀 합의·실제 배포로 읽지 않는다.
@@ -139,7 +147,7 @@ sessionId는 방문 POST의 path에 있으며 body에 중복 필수가 아니다
 
 기존 analysis_result NOT NULL Window FK 때문에 Window 전 분석행 저장은 불가능하다. 별도 compose job에는 session FK만 두고 Window 저장 후 분석행을 만든다. 기존 UNIQUE(window_id)는 유지하고 체류변경은 분석 재요청 대신 P5 판단만 수행한다. AI 메모리 registry는 eviction/재시작으로 사라지므로 BE DB가 영속 멱등의 진실이다. 기존 BE 분석 자동재시도 없음/FAILED확정 뒤 지연응답 무시를 유지한다.
 
-모델 출력 실패를 NORMAL/UNRELATED로 채우지 않는다. 같은 방문도 Window 맥락별 예측은 (analysisId,visitId)에 보존한다. 현행 main의 searchQuery→모델 전달 누락·기존5개 학습분류기의 페이지라벨 비호환은 후속AI 구현사항이다. API 오류코드/nullable/조회 projection은 [계약 패키지](contracts/v2/README.md)에 통일했다.
+모델 출력 실패를 NORMAL/UNRELATED로 채우지 않는다. 같은 방문도 Window 맥락별 예측은 (analysisId,visitId)에 보존한다. #87에서 v2 searchQuery→임베딩/페이지 LLM 전달을 구현했으며 기존5개 학습분류기를 페이지라벨로 사용하지 않는다. v1 검색어 처리와 모델은 유지한다. API 오류코드/nullable/조회 projection은 [계약 패키지](contracts/v2/README.md)에 통일했다.
 
 ## 7. P5: 상태 이력·동시성·알림
 
