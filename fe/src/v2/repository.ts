@@ -1,3 +1,4 @@
+import { validWithdrawal } from './access';
 import { validRetraction } from './retractions';
 import { validNotification } from './notifications';
 import { DB_NAME, DB_VERSION, StorageFailure, canonical } from '../background/durable-state';
@@ -21,6 +22,10 @@ export function validateV2(s: V2State, api: string) {
     || !Number.isSafeInteger(s.discardedCandidates) || s.discardedCandidates < 0 || !s.posts || !s.behaviors
     || !Number.isSafeInteger(s.compactedCount) || s.compactedCount < 0 || !Number.isInteger(s.compactedThrough)
     || s.compactedThrough < 0 || s.compactedThrough >= s.nextSequence) fail();
+  if (s.owner && (!UUID4.test(s.owner.participantId) || s.owner.consentId !== null && !UUID4.test(s.owner.consentId))) fail();
+  if (s.withdrawal && (!s.owner || !UUID4.test(s.withdrawal.requestId) || !['pending','sending','acknowledged'].includes(s.withdrawal.phase)
+    || !Number.isSafeInteger(s.withdrawal.attempts) || s.withdrawal.attempts < 0
+    || s.withdrawal.phase === 'acknowledged' && !validWithdrawal(s.withdrawal.ack, s.withdrawal.requestId))) fail();
   if (s.posts.apiBaseUrl !== api || s.behaviors.apiBaseUrl !== api || s.start && s.start.apiBaseUrl !== api) throw new StorageFailure('server-changed');
   if (s.start && (!UUID4.test(s.start.idempotencyKey) || s.start.collectionSpecVersion !== '2.0'
     || !validGoal(s.start.goalText) || normalizeGoal(s.start.goalText) !== s.start.goalText)) fail();
@@ -135,7 +140,10 @@ export class V2Repository {
       if ((previous?.revision ?? 0) !== expectedRevision) { tx.abort(); return; }
       const newSession = previous?.lifecycle === 'ENDED' && saved.lifecycle === 'START_PENDING' && !previous.quarantine;
       // CAS also guards immutable originals and irreversible sequence/lifecycle progress.
-      if (previous && !newSession && (saved.nextSequence < previous.nextSequence
+      if (previous && !newSession && (previous.owner && canonical(saved.owner) !== canonical(previous.owner)
+        || previous.withdrawal && (!saved.withdrawal || previous.withdrawal.requestId !== saved.withdrawal.requestId
+          || previous.withdrawal.ack && canonical(previous.withdrawal.ack) !== canonical(saved.withdrawal.ack))
+        || saved.nextSequence < previous.nextSequence
         || previous.session && canonical(saved.session) !== canonical(previous.session)
         || ['END_PENDING', 'ENDED'].includes(previous.lifecycle) && !['END_PENDING', 'ENDED'].includes(saved.lifecycle)
         || previous.quarantine && canonical(saved.quarantine) !== canonical(previous.quarantine)

@@ -1,5 +1,11 @@
 # 데이터 수집·분석 공통 연동 계약 — Issue #79 / #81 / #83
 
+## #95 인증·동의·소유권 통합 — 운영 BLOCKED
+
+인증·동의는 별도 DTO/API로 추가했다. 기존 수집·구성·분석 Schema/Fixture 원문은 보존한다. v2 Claim/결과 Commit은 소유자·현재 동의·개인정보 Revision/Token·ACTIVE를 확인한다. 최종 상태 판단은 BE, 페이지 관련성은 AI이며 size3/stride1을 유지한다.
+
+상세 구현·테스트·미충족 조건은 [#95 통합 검증 보고](v2-auth-consent-integration-validation.md), 새 DTO는 [인증·동의 API](contracts/auth-consent-api.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED, 전체 삭제 증거 없는 PURGED 금지 유지.** 아래 선행 작업의 미구현 설명은 해당 작업 당시 기록이다.
+
 ## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
 
 기존 PrivacyRetraction/RetractionAck 필드·Enum·공통 Schema/Fixture는 그대로다. 회수 API는 최초202, 같은 원본 replay200, ID 상충409를 구현했다. 기본 인증 경계는401로 거절하며 생산용 소유권 모델은 미구현이다. test 소스의 인증·DB 소유권 매핑에서만 합성 HTTP를 검증한다. QUARANTINED와 PURGED를 구분하고 PURGED 집계는 항상 fail-closed다.

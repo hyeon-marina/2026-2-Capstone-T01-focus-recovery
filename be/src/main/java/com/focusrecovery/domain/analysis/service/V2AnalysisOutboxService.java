@@ -54,6 +54,7 @@ public class V2AnalysisOutboxService {
 	@Transactional
 	public Claim claim(UUID sessionId, UUID analysisId) {
 		WorkSession session = session(sessionId); AnalysisOutbox task = task(sessionId, analysisId);
+        requireActive(session);
 		if (!task.getProcessingStatus().equals("PENDING")) return null;
 		AnalysisResult analysis = analysis(analysisId); valid(session, task, analysis);
 		if (analysis.getProcessingStatus() != AnalysisStatus.PENDING) return null;
@@ -69,7 +70,8 @@ public class V2AnalysisOutboxService {
 				throw conflict("ANALYSIS_ID_CONFLICT");
 			return;
 		}
-		owned(task, token);
+		requireActive(session);
+        owned(task, token);
 		var window = windows.findById(analysis.getWindowId()).orElseThrow();
 		if (result == null || result.apiContractVersion() != 2 || !analysisId.equals(result.analysisId())
 			|| !sessionId.equals(result.sessionId()) || !window.getWindowId().equals(result.windowId())
@@ -113,6 +115,9 @@ public class V2AnalysisOutboxService {
 			task.terminal("FAILED", "ANALYSIS_INTERRUPTED", now());
 		}
 	}
+    private void requireActive(WorkSession session) {
+        if (session.getStatus() != com.focusrecovery.domain.session.entity.WorkSessionStatus.ACTIVE) throw conflict("SESSION_ENDED");
+    }
 	private WorkSession session(UUID id) {
 		gate.requireEnabled(); WorkSession session = sessions.findForUpdateBySessionId(id).orElseThrow(SessionNotFoundException::new);
 		gate.requireV2(session); gate.checkPrivacy(session); return session;

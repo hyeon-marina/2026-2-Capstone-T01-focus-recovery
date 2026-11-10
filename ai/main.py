@@ -29,6 +29,7 @@ from starlette.concurrency import run_in_threadpool
 
 from v2.contracts import V2Error, strict_json, validator as contract_validator
 from v2.service import V2Service
+from v2.authorization import require_service
 
 if TYPE_CHECKING:
     from pipeline import FocusRecoveryPipeline
@@ -348,6 +349,7 @@ async def handle_v2_error(request: Request, exc: V2Error):
 
 @app.post("/api/ai/window-compositions")
 async def window_compositions(request: Request):
+    require_service(request)
     return await run_in_threadpool(execute_v2, "compose", await read_body(request, composition=True))
 
 
@@ -358,6 +360,7 @@ async def versioned_analysis(request: Request):
         if type(body["apiContractVersion"]) in (int, float) and body["apiContractVersion"] == 1:
             pass
         else:
+            require_service(request)
             return await run_in_threadpool(execute_v2, "analysis", body)
     try:
         legacy = AnalysisRequest.model_validate(body)

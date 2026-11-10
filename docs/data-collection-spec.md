@@ -1,5 +1,11 @@
 # 데이터 수집 규격
 
+## #95 인증·동의·소유권 통합 — 운영 BLOCKED
+
+세션·POST·PATCH에 인증된 소유자와 서버의 현재 정책/동의를 확인한다. 전체 철회는 모든 소유 ACTIVE/ENDED 세션을 먼저 격리하고 별도 영속 작업으로 회수한다. FE의 오래된 동의 캐시는 서버 철회를 덮어쓰지 않는다. 5초·4초 미만·최초300000ms/이탈·종료 경계는 변경하지 않았다.
+
+상세 구현·테스트·미충족 조건은 [#95 통합 검증 보고](v2-auth-consent-integration-validation.md), 새 DTO는 [인증·동의 API](contracts/auth-consent-api.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED, 전체 삭제 증거 없는 PURGED 금지 유지.** 아래 선행 작업의 미구현 설명은 해당 작업 당시 기록이다.
+
 ## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
 
 FE 민감 판정은 일반 POST/PATCH/END·알림을 즉시 차단하고 별도 회수 요청을 IndexedDB에 동결한다. ACK가 없는 방문과 compacted 영수증 ID도 회수하며, QUARANTINED 수신 후 수집을 재개하지 않는다. 미확인 원문을 삭제하지 않고 미완료 격리로 남긴다. 이 보존 hold는 승인된 보존기간이나 무기한 운영 보존정책이 아니며, 실제 수집은 계속 차단한다.

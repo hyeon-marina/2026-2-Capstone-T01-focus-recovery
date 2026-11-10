@@ -48,6 +48,7 @@ import com.focusrecovery.domain.visit.repository.PageVisitRepository;
 import com.focusrecovery.domain.window.repository.AnalysisWindowRepository;
 import com.jayway.jsonpath.JsonPath;
 
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -291,13 +292,13 @@ class PageVisitApiTest {
 	}
 
 	@Test
-	void 같은_방문ID를_다른_세션에_보내면_409이다() throws Exception {
+	void 같은_방문ID를_다른_세션에_보내면_404이다() throws Exception {
 		String visitId = UUID.randomUUID().toString();
 		saveVisit(sessionId, visitId, 1, "제목").andExpect(status().isCreated());
 
 		saveVisit(newSession(), visitId, 1, "제목")
-			.andExpect(status().isConflict())
-			.andExpect(jsonPath("$.code").value("VISIT_ID_CONFLICT"));
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("VISIT_NOT_FOUND"));
 	}
 
 	@Test
@@ -753,7 +754,7 @@ class PageVisitApiTest {
 	}
 
 	private UUID newSession() {
-		return workSessionRepository.save(WorkSession.start("방문 기록 테스트", null)).getSessionId();
+		return workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start("방문 기록 테스트", null)).getSessionId();
 	}
 
 	private void endSession(UUID id) throws Exception {

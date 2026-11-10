@@ -34,6 +34,7 @@ import com.focusrecovery.domain.session.entity.WorkSessionStatus;
 import com.focusrecovery.domain.session.repository.WorkSessionRepository;
 import com.jayway.jsonpath.JsonPath;
 
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

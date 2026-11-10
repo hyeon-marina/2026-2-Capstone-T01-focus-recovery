@@ -26,10 +26,13 @@ import com.focusrecovery.domain.privacy.repository.VisitTombstoneRepository;
 class V2RestartTest {
 	@TempDir Path directory;
 	ConfigurableApplicationContext open() {
-		return new SpringApplicationBuilder(FocusRecoveryApplication.class).profiles("test").web(WebApplicationType.NONE)
+		var app = new SpringApplicationBuilder(FocusRecoveryApplication.class).profiles("test").web(WebApplicationType.NONE)
 			.run("--spring.datasource.url=jdbc:h2:file:"+directory.resolve("restart")+";MODE=MySQL;DATABASE_TO_LOWER=TRUE",
 				"--focus-recovery.v2.storage.enabled=true","--focus-recovery.v2.storage.recovery-interval=1h",
 				"--spring.main.banner-mode=off","--logging.level.root=ERROR");
+        com.focusrecovery.support.SyntheticIdentities.seed(app.getBean(JdbcTemplate.class));
+        com.focusrecovery.support.SyntheticIdentities.bind();
+        return app;
 	}
 	@Test void newApplicationContextRecoversDurableReceiptsClaimsOutboxAndTombstone() {
 		UUID session,interruptedSession,privateSession,privateVisit=UUID.randomUUID();

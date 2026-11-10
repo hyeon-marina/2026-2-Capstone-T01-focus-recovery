@@ -17,6 +17,7 @@ import com.focusrecovery.domain.analysis.dto.V2AnalysisStatusResponse;
 import com.focusrecovery.domain.analysis.service.AnalysisQueryService;
 import com.focusrecovery.domain.session.service.WorkSessionService;
 
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest(properties={"focus-recovery.v2.storage.enabled=true", "focus-recovery.alert.mode=FIXED_INTERVAL",
 	"spring.datasource.url=jdbc:h2:mem:fixed89;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"})
 @AutoConfigureMockMvc @ActiveProfiles("test") @Import(V2IntegrationContract.TimeConfiguration.class)

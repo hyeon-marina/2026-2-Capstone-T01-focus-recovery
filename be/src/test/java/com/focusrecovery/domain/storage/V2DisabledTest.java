@@ -8,6 +8,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest(properties="spring.datasource.url=jdbc:h2:mem:v2_disabled;MODE=MySQL;DATABASE_TO_LOWER=TRUE")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

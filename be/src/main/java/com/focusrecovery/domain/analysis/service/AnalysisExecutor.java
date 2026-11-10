@@ -34,6 +34,8 @@ public class AnalysisExecutor {
 	private static final Logger log = LoggerFactory.getLogger(AnalysisExecutor.class);
 
 	private final AnalysisResultRepository analysisResultRepository;
+    private final com.focusrecovery.domain.session.repository.WorkSessionRepository sessions;
+    private final com.focusrecovery.global.config.V2StorageGate gate;
 	private final AnalysisWindowRepository analysisWindowRepository;
 	private final AiAnalysisClient aiAnalysisClient;
 	private final TransactionTemplate transactionTemplate;
@@ -44,7 +46,9 @@ public class AnalysisExecutor {
 	public AnalysisExecutor(AnalysisResultRepository analysisResultRepository,
 		AnalysisWindowRepository analysisWindowRepository, AiAnalysisClient aiAnalysisClient,
 		TransactionTemplate transactionTemplate, PlatformTransactionManager transactionManager,
-		@org.springframework.beans.factory.annotation.Qualifier("analysisTaskExecutor") TaskExecutor analysisTaskExecutor, AlertTaskProcessor alertTaskProcessor) {
+		@org.springframework.beans.factory.annotation.Qualifier("analysisTaskExecutor") TaskExecutor analysisTaskExecutor, AlertTaskProcessor alertTaskProcessor,
+        com.focusrecovery.domain.session.repository.WorkSessionRepository sessions, com.focusrecovery.global.config.V2StorageGate gate) {
+        this.sessions = sessions; this.gate = gate;
 		this.analysisResultRepository = analysisResultRepository;
 		this.analysisWindowRepository = analysisWindowRepository;
 		this.aiAnalysisClient = aiAnalysisClient;
@@ -73,14 +77,19 @@ public class AnalysisExecutor {
 	// 완료·실패를 기록할 때도 RUNNING인지 확인하므로 끝난 결과(복구로 확정된 FAILED 포함)를 덮어쓰지 않는다. BE 자동 재시도는 없다(잠정)
 	public void run(UUID analysisId) {
 		try {
-			Claim claim = transactionTemplate.execute(status -> analysisResultRepository.findForUpdateByAnalysisId(analysisId)
+			Claim claim = transactionTemplate.execute(status -> {
+                var snapshot = analysisResultRepository.findById(analysisId).orElse(null);
+                if (snapshot == null || snapshot.getApiContractVersion() != 1) return null;
+                var window = analysisWindowRepository.findById(snapshot.getWindowId()).orElseThrow();
+                gate.checkAccess(sessions.findForShareBySessionId(window.getSessionId()).orElseThrow());
+                return analysisResultRepository.findForUpdateByAnalysisId(analysisId)
 				.filter(analysis -> analysis.getApiContractVersion() == 1 && analysis.getProcessingStatus() == AnalysisStatus.PENDING)
 				.map(analysis -> {
 					analysis.start(now());
 					UUID sessionId = analysisWindowRepository.findById(analysis.getWindowId()).orElseThrow().getSessionId();
 					return new Claim(analysis.getInputSnapshot(), sessionId, analysis.getWindowId());
 				})
-				.orElse(null));
+				.orElse(null); });
 			if (claim == null) {
 				return;
 			}
@@ -103,8 +112,9 @@ public class AnalysisExecutor {
 	// RUNNING을 완료·실패로 바꿨으면 true. DRIFT로 완료하면 같은 트랜잭션에서 알림 후보 작업을 등록해,
 	// 결과 저장 직후 서버가 멈춰도 후보 처리가 누락되지 않게 한다(작업은 AlertTaskProcessor가 다시 찾는다)
 	private boolean finish(UUID analysisId, UUID sessionId, AiAnalysisOutcome outcome) {
-		return Boolean.TRUE.equals(transactionTemplate.execute(status -> analysisResultRepository
-			.findForUpdateByAnalysisId(analysisId)
+		return Boolean.TRUE.equals(transactionTemplate.execute(status -> {
+            gate.checkAccess(sessions.findForShareBySessionId(sessionId).orElseThrow());
+            return analysisResultRepository.findForUpdateByAnalysisId(analysisId)
 			.filter(analysis -> analysis.getProcessingStatus() == AnalysisStatus.RUNNING)
 			.map(analysis -> {
 				analysis.finish(outcome, now());
@@ -113,7 +123,7 @@ public class AnalysisExecutor {
 				}
 				return true;
 			})
-			.orElse(false)));
+			.orElse(false); }));
 	}
 
 	private static boolean isDrift(AiAnalysisOutcome outcome) {

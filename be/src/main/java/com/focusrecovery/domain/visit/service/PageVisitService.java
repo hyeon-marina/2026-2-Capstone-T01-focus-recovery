@@ -123,6 +123,7 @@ public class PageVisitService {
 	private Optional<SaveResult> replayOrConflict(PageVisit candidate) {
 		Optional<PageVisit> existing = pageVisitRepository.findById(candidate.getVisitId());
 		if (existing.isPresent()) {
+            if (!existing.get().getSessionId().equals(candidate.getSessionId())) throw new VisitNotFoundException();
 			if (!existing.get().hasSameOriginal(candidate)) {
 				throw new ConflictException("VISIT_ID_CONFLICT", "같은 방문 ID로 다른 방문 정보가 전달되었습니다.");
 			}

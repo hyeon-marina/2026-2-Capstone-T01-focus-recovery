@@ -1,3 +1,4 @@
+import { authenticatedFetch, AccessError } from './auth-fetch';
 import { API_BASE_URL, ApiError, REQUEST_TIMEOUT_MS } from './client';
 import { isWorkSession, UUID } from './session';
 import { validBehavior } from './behavior';
@@ -36,7 +37,7 @@ async function requestSession(session: WorkSessionResponse, body?: EndWorkSessio
   });
   try {
     return await Promise.race([timeout, (async () => {
-      const response = await fetch(`${API_BASE_URL}/api/sessions/${encodeURIComponent(expected.sessionId)}${body === undefined ? '' : '/end'}`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/sessions/${encodeURIComponent(expected.sessionId)}${body === undefined ? '' : '/end'}`, {
         method: body === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json' }, body: snapshot,
         signal: controller.signal, credentials: 'omit', redirect: 'error', cache: 'no-store',
       });
@@ -56,6 +57,7 @@ async function requestSession(session: WorkSessionResponse, body?: EndWorkSessio
       return value;
     })()]);
   } catch (error) {
+    if (error instanceof AccessError && error.kind !== 'network') throw error;
     if (error instanceof SessionEndError) throw error;
     throw new SessionEndError('network', '서버 종료 확인 서버에 연결할 수 없습니다.', true);
   } finally { clearTimeout(timer!); }

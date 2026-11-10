@@ -60,7 +60,7 @@ public class PrivacyRetractionService {
 	public Retraction.Receipt quarantine(UUID sessionId, Retraction.Request request) {
 		gate.requireEnabled();
 		var session = sessions.findForUpdateBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
-		gate.requireV2(session);
+		gate.requireV2(session); gate.checkOwnership(session);
 		if (request == null || request.retractionId() == null || (request.retractionId().version() != 4 || request.retractionId().variant() != 2)
 			|| request.visitId() == null || (request.visitId().version() != 4 || request.visitId().variant() != 2) || request.observedAt() == null
 			|| !request.observedAt().equals(request.observedAt().truncatedTo(ChronoUnit.MILLIS))
@@ -89,10 +89,10 @@ public class PrivacyRetractionService {
 		target(job, "BE_PAYLOADS", sessionId.toString());
 		target(job, "PAGE_VISIT", request.visitId().toString());
 		// 전체 세션의 분석을 격리한다. 직접 영향 Window는 별도 대상 목록으로 식별한다.
-		for (var window : windows.findBySessionIdOrderByWindowIndex(sessionId)) {
+		for (var window : windows.findForUpdateBySessionIdOrderByWindowIndex(sessionId)) {
 			window.invalidate();
 			if (window.getVisitIds().contains(request.visitId())) target(job, "WINDOW", window.getWindowId().toString());
-			analyses.findByWindowId(window.getWindowId()).ifPresent(analysis -> {
+			analyses.findForUpdateByWindowId(window.getWindowId()).ifPresent(analysis -> {
 				analysis.invalidate(now);
 				target(job, "ANALYSIS_PAYLOAD", analysis.getAnalysisId().toString());
 				target(job, "WINDOW_STATE_HISTORY", window.getWindowId().toString());
@@ -100,10 +100,10 @@ public class PrivacyRetractionService {
 				target(job, "ALERT_TASK", analysis.getAnalysisId().toString());
 			});
 		}
-		for (var task : outbox.findBySessionId(sessionId)) {
+		for (var task : outbox.findForUpdateBySessionId(sessionId)) {
 			task.terminal("INVALIDATED", "PRIVACY_RETRACTED", now); target(job, "ANALYSIS_OUTBOX", task.getAnalysisId().toString());
 		}
-		for (var task : compose.findBySessionId(sessionId)) {
+		for (var task : compose.findForUpdateBySessionId(sessionId)) {
 			task.terminal("INVALIDATED", "PRIVACY_RETRACTED", now); target(job, "COMPOSE_SNAPSHOT_RECEIPT", task.getComposeRequestId().toString());
 		}
 		// 수신자/외부 저장소 증거가 미확보다. 삭제 완료로 집계할 수 없는 명시적 선결 항목이다.
@@ -113,6 +113,21 @@ public class PrivacyRetractionService {
 		targets.flush();
 		return receipt(job);
 	}
+    /** Also handles zero-visit and legacy sessions without inventing a visit/tombstone. */
+    @Transactional
+    public void quarantineOwnedSession(UUID sessionId) {
+        var session = sessions.findForUpdateBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
+        if (!session.isQuarantined()) session.quarantine();
+        var now = clock.instant().truncatedTo(ChronoUnit.MILLIS);
+        for (var window : windows.findForUpdateBySessionIdOrderByWindowIndex(sessionId)) {
+            window.invalidate();
+            analyses.findForUpdateByWindowId(window.getWindowId()).ifPresent(a -> a.invalidate(now));
+        }
+        for (var task : outbox.findForUpdateBySessionId(sessionId)) task.terminal("INVALIDATED", "PRIVACY_RETRACTED", now);
+        for (var task : compose.findForUpdateBySessionId(sessionId)) task.terminal("INVALIDATED", "PRIVACY_RETRACTED", now);
+        alerts.invalidateSessionPending(sessionId, now);
+    }
+
 	@Transactional
 	public void recordFailure(UUID sessionId, RetractionTargetId id, String code) {
 		gate.requireEnabled();

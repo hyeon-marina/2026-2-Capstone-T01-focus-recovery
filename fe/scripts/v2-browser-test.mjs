@@ -17,6 +17,10 @@ const fixture = createServer((req, res) => {
   if (!['a', 'b', 'c', 'd'].includes(id)) { res.writeHead(404); res.end(); return; }
   res.setHeader('Content-Type', 'text/html'); res.end(`<!doctype html><html data-focus-synthetic="catalog-v1"><title>Synthetic fixture ${id}</title><body><article>${body(id)}</article></body></html>`);
 });
+const syntheticToken = process.env.FE95_SYNTHETIC_TOKEN || 'synthetic-only-alice-credential-95-01234567890123456789';
+const participantId = '95000000-0000-4000-8000-000000000001', consentId = '95000000-0000-4000-8000-000000000003';
+const policy = { policyId: 'SYNTHETIC-CHROME-95', policyVersion: '1', scope: 'SESSION_COLLECTION', purpose: 'Synthetic Chrome catalog tests only', collectionItems: 'Closed catalog pages and behavior fixtures', useScope: 'Synthetic tests; no participant data', retentionPolicyRef: null, approvalRef: null, status: 'SYNTHETIC', effectiveAt: '1970-01-01T00:00:00.000Z' };
+let consentValid = false, withdrawn = false, withdrawal;
 const records = new Map(), sessions = new Map(), retractions = new Map();
 let blockedRetractionId, allowRetractionAck = false;
 const alertId = randomUUID(), windowId = randomUUID(), analysisId = randomUUID(); let shownAt = null, allowAlert = false; let calls = 0, dropFirst = true;
@@ -26,7 +30,7 @@ const mock = createServer(async (req, res) => {
   const request = raw ? JSON.parse(raw) : null;
   const send = (status, value) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(value)); };
   if (real) {
-    const response = await fetch(`${real}${req.url}`, { method: req.method, headers: { 'Content-Type': 'application/json', ...(req.headers['idempotency-key'] ? { 'Idempotency-Key': req.headers['idempotency-key'] } : {}) }, body: raw || undefined });
+    const response = await fetch(`${real}${req.url}`, { method: req.method, headers: { 'Content-Type': 'application/json', ...(req.headers.authorization ? { Authorization: req.headers.authorization } : {}), ...(req.headers['idempotency-key'] ? { 'Idempotency-Key': req.headers['idempotency-key'] } : {}) }, body: raw || undefined });
     const value = await response.json();
     const name = /\/behavior$/.test(req.url) ? 'patch' : /\/visits$/.test(req.url) && req.method === 'POST' ? 'post' : null;
     if (name) {
@@ -35,7 +39,20 @@ const mock = createServer(async (req, res) => {
     }
     send(response.status, value); return;
   }
+  if (req.headers.authorization !== `Bearer ${syntheticToken}`) { send(401, { code: 'INVALID_REQUEST' }); return; }
+  if (req.url === '/api/auth/me') { send(200, { participantId, expiresAt: '2099-01-01T00:00:00.000Z' }); return; }
+  if (req.url === '/api/consent') {
+    if (req.method === 'POST') { assert.equal(request.accepted, true); assert.equal(request.policyId, policy.policyId); assert.ok(!withdrawn); consentValid = true; }
+    send(200, { participantId, policy, consentId: consentValid && !withdrawn ? consentId : null, consentValid: consentValid && !withdrawn, collectionEnabled: consentValid && !withdrawn, withdrawn }); return;
+  }
+  if (req.url === '/api/consent/withdrawals') {
+    withdrawn = true; withdrawal ??= { requestId: request.requestId, withdrawalId: request.requestId, status: 'QUARANTINED', sessions: [...sessions.values()].map(s => ({ sessionId: s.sessionId, status: 'INVENTORIED' })), targets: [], unmet: ['EXTERNAL_EVIDENCE_MISSING'] };
+    send(202, withdrawal); return;
+  }
+  if (req.url.startsWith('/api/consent/withdrawals/')) { send(200, withdrawal); return; }
+  if (req.url === '/api/auth/logout') { send(204, {}); return; }
   if (req.url === '/api/sessions') {
+    assert.ok(consentValid && !withdrawn);
     assert.equal(request.collectionSpecVersion, '2.0'); const key = req.headers['idempotency-key']; assert.ok(key);
     if (!sessions.has(key)) sessions.set(key, { ...request, sessionId: randomUUID(), startedAt: new Date().toISOString(), endedAt: null, status: 'ACTIVE' });
     send(201, sessions.get(key)); return;
@@ -105,6 +122,18 @@ try {
     const s = await read();
     throw new Error(`${label}: ${JSON.stringify({ lifecycle: s.lifecycle, failed: s.storageFailed, candidates: s.candidates?.map(c => ({ duration: c.behavior.activeDurationMs, post: !!c.post, closed: c.closed })), phases: s.posts?.entries.map(e => e.phase), quarantine: s.quarantine, retractions: s.retractions, foreground: s.foreground })}`);
   }
+  assert.equal((await command('start')).error, 'V2_BLOCKED', 'authentication and consent must precede start');
+  async function login() {
+    await harness.getByLabel('합성 테스트 자격정보').fill(syntheticToken);
+    await harness.getByRole('button', { name: '인증 / 계정 전환', exact: true }).click();
+    await harness.getByText(/인증됨/).waitFor({ timeout: 10000 });
+  }
+  await login();
+  assert.equal((await command('start')).error, 'V2_BLOCKED', 'server consent must precede start');
+  await harness.getByRole('checkbox').check();
+  await harness.getByRole('button', { name: '합성 동의 기록 저장', exact: true }).click();
+  await harness.getByText(/서버 동의 유효/).waitFor({ timeout: 10000 });
+  await harness.screenshot({ path: join(evidence, 'consent.png'), fullPage: true });
   await command('start');
   const page = await context.newPage(); await page.goto('http://127.0.0.1:8911/__focus_synthetic__/a'); await page.bringToFront();
   const first = await waitFor(s => s.posts?.entries.some(e => e.phase === 'acked'), '5s POST + retry');
@@ -116,6 +145,8 @@ try {
   await context.close(); context = await launch();
   worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
   harness = await context.newPage(); await harness.goto(`chrome-extension://${id}/synthetic/harness.html`);
+  assert.equal((await read()).collectionAllowed, false, 'browser restart requires fresh credential verification');
+  await login();
   const recovered = await read();
   if (!recovered.posts.entries.some(e => e.visitId === firstId && e.phase === 'acked')) {
     const receipt = await harness.evaluate(async key => {
@@ -145,6 +176,16 @@ try {
     await harness.getByRole('button', { name: 'RETURN_TO_GOAL', exact: true }).click();
     await waitFor(s => s.notifications.some(r => r.shownAck && r.selectionAck), 'actual rendered reminder + shown/selection ACK');
   }
+  if (real) {
+    const local = await read(), current = local.session.sessionId, expectedWindowIndex = local.nextSequence - 3;
+    let completed = false;
+    for (let i = 0; i < 100; i++) {
+      const r = await fetch(`${real}/api/sessions/${current}/analysis-status`, { headers: { Authorization: `Bearer ${syntheticToken}` } });
+      const state = await r.json(); if (state.currentDecision?.windowIndex === expectedWindowIndex && state.currentDecision.decisionStatus === 'COMPLETED') { completed = true; break; }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    assert.ok(completed, 'actual Chrome visits reach completed FastAPI analysis and BE decision');
+  }
   assert.equal((await command('stop')).ok, true);
   const ended = await waitFor(s => s.lifecycle === 'ENDED', 'POST/PATCH drain and END'); assert.equal(ended.end.ack.status, 'ENDED');
   const raw = await harness.evaluate(async () => {
@@ -156,8 +197,17 @@ try {
   if (real) {
     const base = `${real}/api/sessions/${ended.session.sessionId}`;
     for (const [path, name] of [['visits', 'visits'], ['analysis-status', 'status']]) {
-      const r = await fetch(`${base}/${path}`); assert.equal(r.status, 200);
-      const value = await r.json(); await writeFile(join(evidence, `${name}.json`), JSON.stringify(value));
+      const r = await fetch(`${base}/${path}`, { headers: { Authorization: `Bearer ${syntheticToken}` } }); assert.equal(r.status, 200);
+      let value = await r.json();
+      if (name === 'status') {
+        for (let i = 0; i < 100 && value.currentDecision?.decisionStatus !== 'COMPLETED'; i++) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          const fresh = await fetch(`${base}/${path}`, { headers: { Authorization: `Bearer ${syntheticToken}` } });
+          assert.equal(fresh.status, 200); value = await fresh.json();
+        }
+        assert.equal(value.currentDecision?.decisionStatus, 'COMPLETED', 'final behavior decision completes after END');
+      }
+      await writeFile(join(evidence, `${name}.json`), JSON.stringify(value));
       if (name === 'status') { assert.equal(value.sessionStatus, 'ENDED'); assert.equal(value.alert, null); }
     }
     await writeFile(join(evidence, 'local-ended.json'), JSON.stringify(raw));
@@ -172,12 +222,21 @@ try {
     worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
     harness = await context.newPage(); await harness.goto(`chrome-extension://${id}/synthetic/harness.html`);
     assert.deepEqual((await read()).retractions.map(e => e.request), frozen);
+    await login();
     allowRetractionAck = true; await command('retry');
     const recovered = await waitFor(s => s.retractions.every(e => e.phase === 'acknowledged'), 'retraction browser recovery and same-ID replay');
     assert.equal(recovered.quarantine.status, 'RETRACTION_REQUIRED'); assert.equal(recovered.alertsSuppressed, true);
     await writeFile(join(evidence, 'retractions.json'), JSON.stringify({ frozen, entries: recovered.retractions, quarantine: recovered.quarantine }));
   }
-  console.log(JSON.stringify({ retractionBrowserRecovery: !real, result: 'PASS', mode: real ? 'actual-BE-HTTP' : 'mock-HTTP', sequence: ended.nextSequence - 1,
+  {
+    await harness.getByRole('button', { name: '전체 동의 철회 · 수집 즉시 중지', exact: true }).click();
+    const whole = await waitFor(s => s.withdrawal?.phase === 'acknowledged', 'whole consent withdrawal via actual rendered UI');
+    assert.equal(whole.withdrawal.ack.status, 'QUARANTINED'); assert.equal(whole.collectionAllowed, false);
+    assert.equal((await command('access')).access.withdrawn, true);
+    await harness.screenshot({ path: join(evidence, 'withdrawal.png'), fullPage: true });
+    await writeFile(join(evidence, 'auth-consent.json'), JSON.stringify({ authenticationRequired: true, explicitConsentUI: true, workerReverified: true, browserReauthentication: true, wholeWithdrawal: whole.withdrawal, owner: whole.owner, noProductionCollection: true }));
+  }
+  console.log(JSON.stringify({ authenticationAndConsentUI: true, browserReauthentication: true, retractionBrowserRecovery: !real, result: 'PASS', mode: real ? 'actual-BE-HTTP' : 'mock-HTTP', sequence: ended.nextSequence - 1,
     lifecycle: raw.lifecycle, restart: true, reload: true, spaDelayedContent: true, sameUrlContentChange: true, serviceWorkerRestart: true, realIndexedDB: true, httpCalls: calls, notificationUI: !real }));
 } finally {
   await context?.close(); await new Promise(r => fixture.close(r)); if (mock) await new Promise(r => mock.close(r)); await rm(root, { recursive: true, force: true });

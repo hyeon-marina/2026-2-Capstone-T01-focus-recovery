@@ -84,6 +84,7 @@ public class AlertService {
 	@Transactional(propagation = Propagation.MANDATORY)
 	public AiDecision decideAiCandidate(UUID sessionId, UUID analysisId) {
 		WorkSession session = workSessionRepository.findForShareBySessionId(sessionId).orElse(null);
+		if (session != null) v2Gate.checkAccess(session);
 		if (session != null && session.isV2()) return AiDecision.skipped("V2_ALERT_DISABLED");
 		AnalysisResult analysis = analysisResultRepository.findForUpdateByAnalysisId(analysisId).orElse(null);
 		// windowIndex는 세션마다 따로 매겨지므로 번호 비교로는 소속을 알 수 없다. 분석 → 구간 → 세션 연결을
@@ -188,6 +189,7 @@ public class AlertService {
 	// 분석 상태 조회용(읽기 전용, 후보를 만들지 않음): ACTIVE 세션에서 현재 활성화된 방식의 미표시 후보만 반환한다.
 	// AI 후보는 실제 최신 구간의 COMPLETED·DRIFT 분석에 연결되고 현재 표시 이력·최소 간격 조건도 통과한 것만 반환한다
 	public AlertResponse currentCandidate(WorkSession session) {
+        v2Gate.checkConsent(session);
 		if (session.isV2()) {
 			if (!v2Gate.enabled() || session.isQuarantined()) return null;
 			if (properties.mode() == AlertType.AI) return v2Alerts.currentCandidate(session);

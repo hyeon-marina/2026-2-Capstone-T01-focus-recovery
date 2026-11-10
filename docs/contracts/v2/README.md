@@ -1,5 +1,9 @@
 # v2 계약 패키지 — 2.0-proposed.2
 
+## #95 인증·동의 경계 — 공통 Wire 불변
+
+기존 `v2.schema.json`·Fixture는 변경하지 않았다. 인증·정책·동의·전체 철회는 [별도 API/DTO](../auth-consent-api.md)를 추가하고 기존 제품 API에도 인증·소유권·동의 Gate를 적용한다. 기술 구현/DB·Chrome·HTTP 검증은 [#95 보고](../../v2-auth-consent-integration-validation.md)에서 확인한다. 실제 참여자 등록·기관/동의/보존 승인·운영 수집은 미완료이며 **P1~P6 PROPOSED/P2·P6 BLOCKED**다. 아래 선행 설명은 각 작업 당시 상태다.
+
 ## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
 
 공통 Schema/Fixture 원문은 변경하지 않았다. PrivacyRetraction/RetractionAck의 정확한 필드와 lower-case UUID v4·UTC 밀리초·실제 날짜·Enum·중복 없는 Window ID를 구현에서 검사한다. 새 내부 합성 AI 경계의 durable ACK는 공개 RetractionAck와 별개이며 전체 삭제 완료를 뜻하지 않는다. 기본 BE401/403의 code는 기존 Enum INVALID_REQUEST, 추가 원문/인증정보는 반환하지 않는다.

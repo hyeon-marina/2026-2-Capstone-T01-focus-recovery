@@ -17,6 +17,8 @@ class HealthControllerTest {
 
 	@Autowired
 	private MockMvc mockMvc;
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.focusrecovery.domain.identity.AuthenticationService authentication;
 
 	@Test
 	void 상태_확인은_200과_JSON_status_UP만_반환한다() throws Exception {

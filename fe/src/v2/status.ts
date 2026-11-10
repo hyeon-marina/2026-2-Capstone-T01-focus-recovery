@@ -1,3 +1,4 @@
+import { authenticatedFetch } from '../api/auth-fetch';
 import { API_BASE_URL } from '../api/client';
 import { validTime } from '../api/visit';
 import { UUID4 } from './contract';
@@ -42,13 +43,13 @@ export class V2StatusClient {
   private windowIndex = 0;
   private version = 0;
   constructor(private state: () => V2State, private read = async (sessionId: string): Promise<unknown> => {
-    const r = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/analysis-status`, { credentials: 'omit', redirect: 'error', cache: 'no-store' });
+    const r = await authenticatedFetch(`${API_BASE_URL}/api/sessions/${sessionId}/analysis-status`, { credentials: 'omit', redirect: 'error', cache: 'no-store' });
     if (!r.ok) throw new Error('V2_STATUS_UNAVAILABLE');
     return r.json();
   }) {}
   async candidate() {
     const id = ++this.request, sessionId = this.state().session?.sessionId;
-    if (!sessionId || this.state().lifecycle !== 'ACTIVE' || this.state().quarantine) return null;
+    if ((this.state() as V2State & { alertsSuppressed?: boolean }).alertsSuppressed || !sessionId || this.state().lifecycle !== 'ACTIVE' || this.state().quarantine) return null;
     const status = await this.read(sessionId) as V2Status;
     if (id !== this.request || this.state().session?.sessionId !== sessionId) return null;
     const d = status.currentDecision;

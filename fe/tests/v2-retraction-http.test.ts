@@ -1,3 +1,4 @@
+import { syntheticAccess } from './v2-fixture';
 import { it, expect, vi } from 'vitest';
 import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import { V2Runtime, type V2Transport } from '../src/v2/runtime';
@@ -10,7 +11,7 @@ it.skipIf(!process.env.FOCUS93_BE_URL)('FE durable queue â†’ authenticated BE â†
   vi.stubGlobal('indexedDB', new IDBFactory()); vi.stubGlobal('IDBKeyRange', IDBKeyRange);
   const base = process.env.FOCUS93_BE_URL!, session = JSON.parse(process.env.FOCUS93_SESSION!);
   if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(base)) throw new Error('SYNTHETIC_LOOPBACK_ONLY');
-  const auth = 'Basic ' + btoa('alice:synthetic-test-only');
+  const auth = 'Bearer synthetic-only-alice-credential-95-01234567890123456789';
   const receipts: unknown[] = [];
   async function call(path: string, body?: unknown, method = 'POST') {
     const response = await fetch(base + path, { method: body === undefined ? 'GET' : method,
@@ -21,6 +22,7 @@ it.skipIf(!process.env.FOCUS93_BE_URL)('FE durable queue â†’ authenticated BE â†
   const path = `/api/sessions/${session.sessionId}`;
   let loseFirstAck = true;
   const t: V2Transport = {
+    access: async () => syntheticAccess,
     start: async () => call(path),
     post: async v => { const { sessionId: _s, ...wire } = v; return call(path + '/visits', wire); },
     patch: async (_s, visitId, b) => call(path + `/visits/${visitId}/behavior`, b, 'PATCH'),
@@ -56,7 +58,7 @@ it.skipIf(!process.env.FOCUS93_BE_URL)('FE durable queue â†’ authenticated BE â†
   expect(restarted.collecting()).toBe(false);
   const status = await call(path + '/analysis-status');
   expect(status.currentDecision.decisionStatus).toBe('INVALIDATED'); expect(status.lastSuccessfulState).toBeNull(); expect(status.alert).toBeNull();
-  const replay = await fetch(base + path + '/visits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify((({ sessionId: _s, ...rest }) => rest)(originals[0])) });
+  const replay = await fetch(base + path + '/visits', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: auth }, body: JSON.stringify((({ sessionId: _s, ...rest }) => rest)(originals[0])) });
   expect(replay.status).toBe(409);
   const fs = await import('node:fs/promises');
   await fs.mkdir('/private/tmp/focus93-http-evidence', { recursive: true });

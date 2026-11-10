@@ -69,6 +69,7 @@ function App() {
   }
   return <main>
     <h1>Focus Recovery 개발용 수집기</h1>
+    <p>서버 인증·동의가 필요한 개발용 화면입니다. 운영 참여자 등록과 실제 사용자 수집은 비활성 상태입니다.</p>
     <p>작업 목표와 허용한 사이트의 확정된 방문·본문·누적 행동 정보를 설정된 API 서버에 전송합니다.</p>
     <p>작업 종료 시 수집을 중단하고 마지막 방문·행동 정보의 서버 저장을 확인한 뒤 서버 세션을 종료합니다.</p>
     <button disabled={busy} onClick={() => void allowSite()}>현재 사이트 수집 허용</button>

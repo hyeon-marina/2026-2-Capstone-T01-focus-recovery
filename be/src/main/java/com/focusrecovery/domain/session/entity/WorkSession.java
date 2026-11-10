@@ -52,6 +52,19 @@ public class WorkSession {
 	@Column(name = "composition_dirty", nullable = false)
 	private boolean compositionDirty;
 
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "owner_participant_id", columnDefinition = "CHAR(36)", updatable = false)
+    private UUID ownerParticipantId;
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "consent_id", columnDefinition = "CHAR(36)", updatable = false)
+    private UUID consentId;
+    public UUID getOwnerParticipantId() { return ownerParticipantId; }
+    public UUID getConsentId() { return consentId; }
+    public void assignOwner(UUID owner, UUID consent) {
+        if (ownerParticipantId != null || owner == null || consent == null) throw new IllegalStateException();
+        ownerParticipantId = owner; consentId = consent;
+    }
+
 	public static WorkSession start(String goalText, String key, String version) {
 		WorkSession session = start(goalText, key);
 		session.collectionSpecVersion = version;

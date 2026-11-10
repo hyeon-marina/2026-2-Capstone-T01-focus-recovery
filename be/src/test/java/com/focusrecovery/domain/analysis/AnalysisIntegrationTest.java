@@ -62,6 +62,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 // 실제 AI 서버가 아닌 JDK HttpServer 모의 서버로 AI-API-01(잠정 계약) 연동을 검증한다.
 // 요청별 트랜잭션의 커밋·롤백과 비동기 호출을 그대로 확인하려고 테스트에는 트랜잭션을 걸지 않는다
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -116,7 +117,7 @@ class AnalysisIntegrationTest {
 	void setUp() {
 		AI.reset(this::validResponse);
 		cleanUp();
-		sessionId = workSessionRepository.save(WorkSession.start(GOAL, null)).getSessionId();
+		sessionId = workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start(GOAL, null)).getSessionId();
 	}
 
 	@AfterEach
@@ -343,7 +344,7 @@ class AnalysisIntegrationTest {
 		assertThat(analyzeOneWindow().getErrorCode()).isEqualTo("AI_ANALYSIS_FAILED");
 
 		cleanUp();
-		sessionId = workSessionRepository.save(WorkSession.start(GOAL, null)).getSessionId();
+		sessionId = workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start(GOAL, null)).getSessionId();
 		AI.reset(request -> new MockAiServer.Response(500, "<html>error</html>", 0));
 		AnalysisResult analysis = analyzeOneWindow();
 		assertThat(analysis.getErrorCode()).isEqualTo("AI_INVALID_RESPONSE");

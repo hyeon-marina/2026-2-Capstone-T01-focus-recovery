@@ -1,3 +1,5 @@
+import { setCredential, AccessError } from '../src/api/auth-fetch';
+import { readCollectionAccess, accessRequest } from '../src/v2/access';
 import { V2StatusClient } from '../src/v2/status';
 import { API_BASE_URL } from '../src/api/client';
 import { V2Runtime, v2HttpTransport } from '../src/v2/runtime';
@@ -43,6 +45,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return;
   const t = stamp();
   const arrivedRevision = sender.tab?.id === undefined ? undefined : navigationRevision.get(sender.tab.id);
+  if (sender.url === chrome.runtime.getURL('synthetic/harness.html') && ['v2-login','v2-logout','v2-withdraw'].includes(m?.type)) runtime.suspendAccess();
   // Termination/privacy intents enter the runtime synchronously, before waiting on browser queries.
   if (sender.url === chrome.runtime.getURL('synthetic/harness.html') && m?.type === 'v2-stop') {
     void ready.then(() => runtime.stop(t)).then(() => reply({ ok: true })).catch(() => reply({ ok: false }));
@@ -51,6 +54,20 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
   void serial(async () => {
     await ready;
     if (sender.url === chrome.runtime.getURL('synthetic/harness.html')) {
+      if (['v2-access','v2-login','v2-logout','v2-agree','v2-withdraw'].includes(m?.type)) {
+        try {
+          if (m.type === 'v2-login') await setCredential(m.token);
+          if (m.type === 'v2-logout') { try { await accessRequest('/api/auth/logout', {}); } finally { await setCredential(); } return {}; }
+          if (m.type === 'v2-agree') await accessRequest('/api/consent', { requestId: crypto.randomUUID(), policyId: m.policyId, policyVersion: m.policyVersion, accepted: true });
+          if (m.type === 'v2-withdraw') await runtime.withdrawAll(t.wall);
+          const access = await readCollectionAccess();
+          await runtime.verifyAccess(false, true).catch(() => {});
+          if (m.type === 'v2-login') { await runtime.retry().catch(() => {}); await captureAllowedTabs(); }
+          const id = runtime.snapshot().withdrawal?.ack?.withdrawalId;
+          const withdrawal = id ? await accessRequest(`/api/consent/withdrawals/${id}`) : undefined;
+          return { access, withdrawal };
+        } catch (e) { return { error: e instanceof AccessError ? e.kind : 'network' }; }
+      }
       if (m?.type === 'v2-start') { await runtime.start('Synthetic TypeScript transaction research'); await captureAllowedTabs(); }
       if (m?.type === 'v2-retry') { await runtime.retry(); await runtime.flushNotifications(); }
       if (m?.type === 'v2-alert') return statusClient.candidate();

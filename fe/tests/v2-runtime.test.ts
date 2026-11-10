@@ -1,3 +1,4 @@
+import { syntheticAccess } from './v2-fixture';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IDBFactory, IDBObjectStore, IDBKeyRange } from 'fake-indexeddb';
 import { V2Runtime, type V2Transport } from '../src/v2/runtime';
@@ -12,7 +13,7 @@ import { DB_NAME, DurableRepository } from '../src/background/durable-state';
 
 beforeEach(() => { vi.stubGlobal('indexedDB', new IDBFactory()); vi.stubGlobal('IDBKeyRange', IDBKeyRange); });
 function transport(): V2Transport {
-  return { start: vi.fn(async () => session),
+  return { access: async () => syntheticAccess, start: vi.fn(async () => session),
     post: vi.fn(async v => ({ ...v, updatedAt: null })),
     patch: vi.fn(async (_s, visitId, b) => ({ ...b, visitId, applied: true, updatedAt: '2026-11-10T00:01:00.000Z' })),
     end: vi.fn(async s => ({ ...s, status: 'ENDED', endedAt: '2026-11-10T01:00:00.000Z' })),

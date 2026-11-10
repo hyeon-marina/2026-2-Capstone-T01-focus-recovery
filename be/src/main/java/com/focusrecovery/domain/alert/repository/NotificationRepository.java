@@ -57,4 +57,9 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 		where n.sessionId = :sessionId and n.alertType = com.focusrecovery.domain.alert.entity.AlertType.AI
 			and n.shownAt is not null""")
 	Optional<Integer> findLastShownAiWindowIndex(UUID sessionId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    java.util.List<Notification> findForUpdateByWindowIdAndShownAtIsNull(UUID windowId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    java.util.List<Notification> findForUpdateBySessionIdAndShownAtIsNull(UUID sessionId);
+
 }

@@ -19,6 +19,11 @@ import com.focusrecovery.domain.visit.exception.VisitNotFoundException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(com.focusrecovery.domain.identity.AccessDenied.class)
+    public org.springframework.http.ResponseEntity<ErrorResponse> access(com.focusrecovery.domain.identity.AccessDenied e) {
+        return org.springframework.http.ResponseEntity.status(e.status()).body(ErrorResponse.of("INVALID_REQUEST", "요청을 처리할 수 없습니다."));
+    }
+
 	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
 	private static final String INVALID_REQUEST = "INVALID_REQUEST";
@@ -98,8 +103,8 @@ public class GlobalExceptionHandler {
 	}
 
 	@ExceptionHandler(ConflictException.class)
-	@ResponseStatus(HttpStatus.CONFLICT)
-	public ErrorResponse handleConflict(ConflictException e) {
-		return ErrorResponse.of(e.getCode(), e.getMessage());
+	public org.springframework.http.ResponseEntity<ErrorResponse> handleConflict(ConflictException e) {
+        if (e.getCode().equals("CONSENT_REQUIRED")) return org.springframework.http.ResponseEntity.status(403).body(ErrorResponse.of("INVALID_REQUEST", "현재 유효한 수집 동의가 필요합니다."));
+		return org.springframework.http.ResponseEntity.status(409).body(ErrorResponse.of(e.getCode(), e.getMessage()));
 	}
 }

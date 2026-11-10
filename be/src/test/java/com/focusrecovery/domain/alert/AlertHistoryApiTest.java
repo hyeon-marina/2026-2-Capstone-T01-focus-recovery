@@ -55,6 +55,7 @@ import jakarta.persistence.EntityManagerFactory;
 
 // 알림·사용자 선택 이력 조회. 알림·응답은 저장소로 직접 만들어 생성 시각과 상태를 고정한다.
 // N+1 여부는 이 클래스에서만 켠 Hibernate 통계의 SQL 실행 수로 확인한다
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -343,7 +344,7 @@ class AlertHistoryApiTest {
 	}
 
 	private UUID newSession() {
-		return workSessionRepository.save(WorkSession.start(GOAL, null)).getSessionId();
+		return workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start(GOAL, null)).getSessionId();
 	}
 
 	private void cleanUp() {

@@ -73,6 +73,7 @@ import jakarta.persistence.PersistenceContext;
 
 // AI 알림 후보 처리 작업의 실패·누락·중단 복구. 복구는 스케줄 진입점(recover)을 직접 호출하고 시각은 Clock으로 고정한다.
 // DB 오류는 저장소 스파이로 재현한다(AI는 호출하지 않음: 분석 행은 테스트가 직접 만든다)
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -123,7 +124,7 @@ class AlertTaskRecoveryTest {
 		now.set(Instant.now().truncatedTo(ChronoUnit.MILLIS));
 		when(clock.instant()).thenAnswer(invocation -> now.get());
 		cleanUp();
-		sessionId = workSessionRepository.save(WorkSession.start("작업 복구 테스트 목표", null)).getSessionId();
+		sessionId = workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start("작업 복구 테스트 목표", null)).getSessionId();
 	}
 
 	@AfterEach
@@ -333,7 +334,7 @@ class AlertTaskRecoveryTest {
 	private UUID[] twoSessionsWithSameWindowIndex() throws Exception {
 		UUID sessionA = sessionId;
 		UUID analysisA = driftOnLatestWindow();
-		UUID sessionB = workSessionRepository.save(WorkSession.start("다른 세션 목표", null)).getSessionId();
+		UUID sessionB = workSessionRepository.save(com.focusrecovery.support.SyntheticIdentities.start("다른 세션 목표", null)).getSessionId();
 		sessionId = sessionB;
 		UUID analysisB = driftOnLatestWindow();
 		sessionId = sessionA;

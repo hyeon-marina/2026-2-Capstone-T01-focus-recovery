@@ -1,3 +1,4 @@
+import { authenticatedFetch } from '../api/auth-fetch';
 import { API_BASE_URL } from '../api/client';
 import { UUID4 } from './contract';
 import { validTime } from '../api/visit';
@@ -13,7 +14,7 @@ export function validNotification(r: NotificationReceipt) {
 }
 export async function sendNotification(sessionId: string, receipt: NotificationReceipt): Promise<'shown' | 'selection'> {
   const selected = receipt.selection;
-  const r = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/alerts/${receipt.alertId}/${selected ? 'responses' : 'shown'}`, {
+  const r = await authenticatedFetch(`${API_BASE_URL}/api/sessions/${sessionId}/alerts/${receipt.alertId}/${selected ? 'responses' : 'shown'}`, {
     method: selected ? 'POST' : 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(selected ? { ...selected, shownAt: receipt.shownAt } : { shownAt: receipt.shownAt }),
     signal: AbortSignal.timeout(10000), credentials: 'omit', redirect: 'error', cache: 'no-store',

@@ -40,6 +40,7 @@ import com.focusrecovery.global.util.CanonicalJson;
 import tools.jackson.databind.json.JsonMapper;
 
 // 같은 저장 계약을 H2와 opt-in 실제 MySQL에서 실행한다. 모든 입력은 합성 데이터다.
+@com.focusrecovery.support.SyntheticAuthenticated
 abstract class V2StorageContract {
 	static final Instant TIME = Instant.parse("2026-11-10T00:00:00.000Z");
 	@Autowired WorkSessionService sessions;
@@ -267,7 +268,7 @@ abstract class V2StorageContract {
 	@Test void retractBeforePostAndPublicRetractionFailsClosed() throws Exception {
 		UUID visit=UUID.randomUUID();privacy.quarantine(session,new Retraction.Request(UUID.randomUUID(),visit,"CONSENT_WITHDRAWN",TIME));
 		assertThat(tombstones.existsById(visit)).isTrue();code(() -> visits.save(session,request(visit,1,5000)),"PRIVACY_RETRACTED");
-		mvc.perform(post("/api/sessions/{id}/visit-retractions",session).contentType(MediaType.APPLICATION_JSON).content("{}"))
+		mvc.perform(post("/api/sessions/{id}/visit-retractions",session).header("Authorization", "").contentType(MediaType.APPLICATION_JSON).content("{}"))
 			.andExpect(status().isUnauthorized());
 	}
 	@ParameterizedTest @ValueSource(strings={"missing-extraction","failed-extraction","missing-query","string-sequence","extra-field","long-title","bad-timestamp"})

@@ -78,6 +78,7 @@ class FakeContext:
 
 @pytest.fixture
 def client(monkeypatch):
+    monkeypatch.setenv("AI_V2_SERVICE_TOKEN", "synthetic-internal-service-token-95-0123456789")
     monkeypatch.setenv("AI_V2_ENABLED", "1")
     monkeypatch.setenv("AI_V2_PROFILE", "synthetic-test")
     service = V2Service(main.state.inference_lock)
@@ -87,7 +88,7 @@ def client(monkeypatch):
     monkeypatch.setattr(main.state, "pipeline", None)
     monkeypatch.setattr(main.state, "load_error", None)
     # No lifespan: unit tests never load/download weights or start loader threads.
-    http = TestClient(main.app, raise_server_exceptions=False)
+    http = TestClient(main.app, raise_server_exceptions=False, headers={"Authorization": "Bearer synthetic-internal-service-token-95-0123456789"})
     try:
         yield http, service
     finally:

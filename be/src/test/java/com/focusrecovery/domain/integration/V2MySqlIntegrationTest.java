@@ -5,6 +5,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.*;
 
+@com.focusrecovery.support.SyntheticAuthenticated
 @SpringBootTest(properties={"focus-recovery.v2.storage.enabled=true", "focus-recovery.v2.storage.recovery-interval=1h"})
 @org.springframework.context.annotation.Import(V2IntegrationContract.TimeConfiguration.class)
 @AutoConfigureMockMvc

@@ -1,3 +1,5 @@
+import { AccessError, accessGeneration } from '../api/auth-fetch';
+import { readCollectionAccess, accessRequest, validWithdrawal, type CollectionAccess } from './access';
 import { sendRetraction, validRetractionAck, type RetractionRequest } from './retractions';
 import { sendNotification, type NotificationReceipt } from './notifications';
 import type { V2Alert } from './status';
@@ -16,6 +18,8 @@ import { V2Repository, drained } from './repository';
 import { initialState, type V2State, type Stamp, type CompactReceipt } from './state';
 
 export interface V2Transport {
+  access: () => Promise<CollectionAccess>;
+  withdraw?: (requestId: string) => Promise<unknown>;
   retract?: (sessionId: string, request: RetractionRequest) => Promise<unknown>;
   start: (goalText: string, key: string) => Promise<unknown>;
   post: typeof savePageVisit; patch: typeof updateVisitBehavior;
@@ -23,6 +27,13 @@ export interface V2Transport {
 }
 // No production entry point imports this module. Synthetic entry supplies a loopback-only transport.
 export class V2Runtime {
+  private access?: CollectionAccess;
+  private verifiedIdentity?: { participantId: string; expiresAt: string; credentialEpoch: number };
+  private accessError?: string;
+  private accessEpoch = 0;
+  private credentialEpoch = accessGeneration();
+  private withdrawalRunning = false;
+  private serverWithdrawalSeen = false;
   private state = initialState(API_BASE_URL);
   private committed = structuredClone(this.state);
   private collector = new V2Collector(this.state);
@@ -39,8 +50,9 @@ export class V2Runtime {
   private ending: SessionEndDelivery;
   constructor(private repository: V2Repository, private transport: V2Transport) {
     const protect = async <T>(send: () => Promise<T>) => {
-      try { return await send(); }
-      catch (e) { if (e && typeof e === 'object' && 'code' in e && e.code === 'PRIVACY_RETRACTED') this.held = true; throw e; }
+      try { await this.verifyAccess(); return await send(); }
+      catch (e) { if (e instanceof AccessError) { this.suspendAccess(); this.accessError = e.kind; }
+        if (e && typeof e === 'object' && 'status' in e && e.status === 401) { this.suspendAccess(); this.accessError = 'authentication'; } if (e && typeof e === 'object' && 'code' in e && e.code === 'PRIVACY_RETRACTED') this.held = true; throw e; }
     };
     const mutate = <T>(op: () => T) => this.mutate(op).then(value => { this.kick(); return value; });
     this.posts = new VisitDelivery(mutate, () => this.canSend(), v => protect(() => transport.post(v)));
@@ -48,9 +60,43 @@ export class V2Runtime {
     this.ending = new SessionEndDelivery(mutate, () => this.canSend(), () => drained(this.committed),
       () => [...this.state.posts.entries, ...this.state.behaviors.entries].some(e => e.code === 'SESSION_ENDED'), (s, b) => protect(() => transport.end(s, b)), s => protect(() => transport.query(s)));
   }
-  collecting() { return !this.failed && !this.stopping && !this.held && !this.committed.quarantine && this.committed.lifecycle === 'ACTIVE'; }
-  snapshot() { return { ...structuredClone(this.committed), storageFailed: this.failed, alertsSuppressed: this.failed || this.stopping || this.held || Boolean(this.committed.quarantine) }; }
-  private canSend() { return !this.failed && !this.held && !this.committed.quarantine && !this.posts.blocked && !this.behaviors.blocked; }
+  suspendAccess() { this.accessEpoch++; this.access = undefined; this.accessError = 'AUTHENTICATION_REQUIRED';
+    this.pauseAuthorization();
+  }
+  private pauseAuthorization() {
+    for (const c of this.state.candidates) { c.cursor = undefined; c.closed = true; }
+    this.state.tabs = {}; delete this.state.lastVisit;
+  }
+  private authorized() {
+    return !this.serverWithdrawalSeen && !!this.access && this.credentialEpoch === accessGeneration() && Date.parse(this.access.expiresAt) > Date.now()
+      && !!this.committed.owner && this.access.participantId === this.committed.owner.participantId
+      && this.access.consentId === this.committed.owner.consentId && this.access.consentValid && this.access.collectionEnabled && !this.access.withdrawn;
+  }
+  async verifyAccess(forStart = false, ownershipOnly = false) {
+    const epoch = this.accessEpoch, credential = accessGeneration();
+    try {
+      const access = await this.transport.access();
+      if (epoch !== this.accessEpoch || credential !== accessGeneration()) throw new AccessError('account');
+      if (!Number.isFinite(Date.parse(access.expiresAt)) || Date.parse(access.expiresAt) <= Date.now()) throw new AccessError('authentication');
+      this.verifiedIdentity = { participantId: access.participantId, expiresAt: access.expiresAt, credentialEpoch: credential };
+      const owner = this.committed.owner;
+      const newSession = forStart && this.committed.lifecycle === 'ENDED' && drained(this.committed) && !this.committed.quarantine && !this.committed.withdrawal;
+      if (owner && access.participantId !== owner.participantId && !newSession || !owner && this.committed.lifecycle !== 'IDLE' && !newSession) throw new AccessError('account');
+      if (access.withdrawn && owner) this.serverWithdrawalSeen = true;
+      this.access = access; this.credentialEpoch = credential; this.accessError = undefined;
+      if (Date.parse(access.expiresAt) <= Date.now()) throw new AccessError('authentication');
+      if (!ownershipOnly && (this.serverWithdrawalSeen || !access.consentValid || !access.collectionEnabled || access.withdrawn
+        || owner && access.consentId !== owner.consentId && !newSession)) throw new AccessError('consent');
+      return access;
+    } catch (e) {
+      this.pauseAuthorization();
+      this.access = undefined; this.accessError = e instanceof AccessError ? e.kind : 'network';
+      throw e;
+    }
+  }
+  collecting() { return this.authorized() && !this.failed && !this.stopping && !this.held && !this.committed.quarantine && this.committed.lifecycle === 'ACTIVE'; }
+  snapshot() { return { ...structuredClone(this.committed), accessError: this.accessError, authenticated: !!this.access, collectionAllowed: this.authorized(), storageFailed: this.failed, alertsSuppressed: !this.authorized() || this.failed || this.stopping || this.held || Boolean(this.committed.quarantine) }; }
+  private canSend() { return this.authorized() && !this.failed && !this.held && !this.committed.quarantine && !this.posts.blocked && !this.behaviors.blocked; }
   private install(s: V2State) {
     this.state = s; this.collector = new V2Collector(s);
     this.posts.checkpoint = s.posts; this.behaviors.checkpoint = s.behaviors; this.ending.checkpoint = s.end;
@@ -69,6 +115,9 @@ export class V2Runtime {
         for (const e of s.retractions ?? []) if (e.phase === 'sending') e.phase = 'pending';
         if (s.quarantine) this.queueRetractions();
       });
+      await this.verifyAccess(false, true).catch(() => {});
+      if (this.committed.withdrawal) await this.flushWithdrawal();
+      if (!this.committed.quarantine && !this.committed.withdrawal) await this.verifyAccess().catch(() => {});
       this.kick();
     } catch (error) { this.failed = true; throw error; }
   }
@@ -97,6 +146,7 @@ export class V2Runtime {
   }
   wake() { this.kick(); }
   private kick() {
+    if (this.committed.withdrawal) { void this.flushWithdrawal().catch(() => {}); return; }
     if (this.committed.quarantine) {
       // mutate already preserves the committed state and closes the storage gate on failure.
       void this.flushRetractions().catch(() => {}); return;
@@ -112,6 +162,7 @@ export class V2Runtime {
   }
   private async startOnce(goalText: string) {
     if (!['IDLE', 'START_PENDING', 'ENDED'].includes(this.committed.lifecycle) || this.committed.quarantine || this.stopping && this.committed.lifecycle !== 'ENDED') throw new Error('V2_START_BLOCKED');
+    const access = await this.verifyAccess(true);
     const previousSessionId = this.committed.lifecycle === 'ENDED' ? this.committed.session?.sessionId : undefined;
     const previous = previousSessionId ? undefined : this.committed.start;
     if (previous && (previous.goalText !== goalText || previous.collectionSpecVersion !== '2.0' || previous.apiBaseUrl !== API_BASE_URL)) throw new Error('V2_START_CONFLICT');
@@ -121,10 +172,12 @@ export class V2Runtime {
         this.posts.clear(); this.behaviors.clear(); this.ending.clear(); this.compactedIds = [];
         this.install({ ...initialState(API_BASE_URL), revision });
       }
+      this.state.owner ??= { participantId: access.participantId, consentId: access.consentId };
       this.state.start ??= { goalText, idempotencyKey: crypto.randomUUID(), collectionSpecVersion: '2.0', apiBaseUrl: API_BASE_URL };
       this.state.lifecycle = 'START_PENDING';
     });
     this.stopping = false;
+    await this.verifyAccess();
     const response = await this.transport.start(goalText, this.committed.start!.idempotencyKey);
     if (!isV2Session(response) || response.status !== 'ACTIVE' || response.goalText !== goalText || response.sessionId === previousSessionId) throw new Error('V2_VERSION_OR_SESSION_MISMATCH');
     await this.mutate(() => { this.state.session = response; this.state.lifecycle = 'ACTIVE'; });
@@ -132,6 +185,7 @@ export class V2Runtime {
   }
   async observe(observation: Observation) {
     if (this.stopping || this.held || this.committed.quarantine || this.committed.lifecycle !== 'ACTIVE') return;
+    try { await this.verifyAccess(); } catch { return; }
     if (this.committed.candidates.length >= 200) await this.compact(observation.stamp);
     if (this.stopping || this.held) return;
     if (!observation.safe || !observation.permitted) return this.quarantine('SENSITIVE_CONTENT', observation.stamp.wall);
@@ -144,12 +198,13 @@ export class V2Runtime {
     this.kick();
   }
   async foreground(tab: number | null, stamp: Stamp, switchEvent = false) {
-    if (this.stopping || this.committed.lifecycle !== 'ACTIVE' || this.committed.quarantine) return;
+    if (this.failed) throw new Error('V2_STORAGE_BLOCKED');
+    if (!this.collecting()) return;
     await this.mutate(() => { this.collector.foreground(tab, stamp, switchEvent); this.sync(true); });
     this.kick();
   }
   async leave(tab: number, stamp: Stamp, navigation = false) {
-    if (this.stopping || this.committed.lifecycle !== 'ACTIVE' || this.committed.quarantine) return;
+    if (!this.collecting()) return;
     await this.mutate(() => { navigation ? this.collector.invalidateTarget(tab, stamp) : this.collector.pause(tab, stamp); this.sync(true); });
     this.kick();
   }
@@ -188,6 +243,7 @@ export class V2Runtime {
         const id = saved.request.retractionId;
         await this.mutate(() => { const e = this.state.retractions!.find(e => e.request.retractionId === id)!; e.phase = 'sending'; e.attempts++; });
         try {
+          await this.verifyAccess(false, true);
           const ack = await this.transport.retract(this.committed.session.sessionId, structuredClone(saved.request));
           if (!validRetractionAck(ack, saved.request)) throw new Error('DELIVERY_UNCONFIRMED');
           await this.mutate(() => { const e = this.state.retractions!.find(e => e.request.retractionId === id)!; e.ack = ack; e.phase = 'acknowledged'; delete e.errorCode; });
@@ -206,6 +262,8 @@ export class V2Runtime {
   }
   async retry() {
     if (this.failed) return;
+    if (this.committed.withdrawal) { await this.flushWithdrawal(); return; }
+    await this.verifyAccess(false, Boolean(this.committed.quarantine));
     if (this.committed.quarantine) {
       await this.mutate(() => { for (const e of this.state.retractions ?? []) e.nextAttemptAt = 0; });
       this.kick(); return;
@@ -248,6 +306,7 @@ export class V2Runtime {
     this.compactedIds.push(...receipts.map(r => r.visitId));
   }
   async recordShown(alert: V2Alert, shownAt: string) {
+    await this.verifyAccess();
     if (this.stopping || this.held || this.committed.lifecycle !== 'ACTIVE' || this.committed.quarantine
       || alert.sessionId !== this.committed.session?.sessionId) throw new Error('V2_ALERT_BLOCKED');
     await this.mutate(() => {
@@ -258,6 +317,7 @@ export class V2Runtime {
     await this.flushNotifications();
   }
   async selectAlert(alertId: string, selection: NonNullable<NotificationReceipt['selection']>) {
+    await this.verifyAccess();
     if (this.held || this.committed.quarantine) throw new Error('V2_ALERT_BLOCKED');
     await this.mutate(() => {
       const receipt = this.state.notifications.find(r => r.alertId === alertId);
@@ -274,6 +334,7 @@ export class V2Runtime {
       for (const saved of this.committed.notifications) {
         if (this.held || this.committed.quarantine) break;
         if (saved.selection ? saved.selectionAck : saved.shownAck) continue;
+        await this.verifyAccess();
         const ack = await sendNotification(this.committed.session.sessionId, structuredClone(saved));
         await this.mutate(() => {
           const receipt = this.state.notifications.find(r => r.alertId === saved.alertId)!;
@@ -286,9 +347,42 @@ export class V2Runtime {
       // Failed HTTP/ACK remains durable with the original timestamps for explicit retry.
     } finally { this.notificationRunning = false; }
   }
+  async withdrawAll(wall = Date.now()) {
+    this.suspendAccess(); this.held = true;
+    const identity = this.verifiedIdentity;
+    const current = identity && identity.credentialEpoch === accessGeneration() && Date.parse(identity.expiresAt) > Date.now();
+    if (this.committed.owner && current && identity.participantId !== this.committed.owner.participantId) throw new AccessError('account');
+    if (this.committed.owner && !current) await this.verifyAccess(false, true);
+    if (!this.committed.owner) {
+      const identity = await this.verifyAccess(false, true);
+      await this.mutate(() => { this.state.owner = { participantId: identity.participantId, consentId: identity.consentId }; });
+    }
+    await this.mutate(() => {
+      this.state.withdrawal ??= { requestId: crypto.randomUUID(), phase: 'pending', attempts: 0 };
+      this.quarantineNow('CONSENT_WITHDRAWN', wall);
+    });
+    await this.flushWithdrawal();
+  }
+  async flushWithdrawal() {
+    if (this.withdrawalRunning || this.failed || !this.committed.withdrawal || !this.transport.withdraw) return;
+    const saved = this.committed.withdrawal;
+    if (saved.phase === 'acknowledged') return;
+    this.withdrawalRunning = true;
+    try {
+      await this.verifyAccess(false, true);
+      await this.mutate(() => { this.state.withdrawal!.phase = 'sending'; this.state.withdrawal!.attempts++; });
+      const ack = await this.transport.withdraw(saved.requestId);
+      if (!validWithdrawal(ack, saved.requestId)) throw new Error('WITHDRAWAL_UNCONFIRMED');
+      await this.mutate(() => { this.state.withdrawal!.phase = 'acknowledged'; this.state.withdrawal!.ack = ack; });
+    } catch {
+      if (!this.failed && this.state.withdrawal?.phase === 'sending') await this.mutate(() => { this.state.withdrawal!.phase = 'pending'; });
+    } finally { this.withdrawalRunning = false; }
+  }
   async idle() { await this.enqueue(async () => {}); }
 }
 export const v2HttpTransport: V2Transport = {
+  access: readCollectionAccess,
+  withdraw: requestId => accessRequest('/api/consent/withdrawals', { requestId }),
   start: (goalText, key) => postJson('/api/sessions', { goalText, collectionSpecVersion: '2.0' }, key),
   retract: sendRetraction,
   post: savePageVisit, patch: updateVisitBehavior, end: endSession, query: getSession,

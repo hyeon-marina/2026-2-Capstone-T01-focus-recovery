@@ -1,5 +1,11 @@
 # 데이터 수집·분석 계약 검증 — Issue #83
 
+## #95 인증·동의·소유권 통합 — 운영 BLOCKED
+
+공통 Schema/Fixture와 기존 Migration은 유지한 채 인증·동의 제품 코드와 합성 통합 검증을 추가했다. Mock HTTP, 실제 Chrome, 실제 Spring/FastAPI, H2/MySQL, Mock 모델과 실제 모델 미실행을 별도로 집계한다. 자세한 재현 명령·실패와 수정 근거는 새 보고서를 따른다.
+
+상세 구현·테스트·미충족 조건은 [#95 통합 검증 보고](v2-auth-consent-integration-validation.md), 새 DTO는 [인증·동의 API](contracts/auth-consent-api.md)를 따른다. **P1~P6 PROPOSED, P2/P6 BLOCKED, 전체 삭제 증거 없는 PURGED 금지 유지.** 아래 선행 작업의 미구현 설명은 해당 작업 당시 기록이다.
+
 ## #93 개인정보 회수 구현 — 합성 검증 / 운영 BLOCKED
 
 #93에서 FE/BE/AI 제품 회수·합성 DB 삭제·HTTP 전파·복구 테스트를 추가했다. reference validator 결과와 실제 제품 결과, Fake IDB/Chrome/H2/MySQL/Mock 모델을 별도로 기록한다. V1~V12 및 Schema/Fixture 원문은 보존한다. V12 이관 테스트는 대상 버전을12로 고정하여 과거 검증 범위를 유지한다.

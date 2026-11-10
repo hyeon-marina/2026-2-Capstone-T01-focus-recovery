@@ -11,7 +11,8 @@ import com.focusrecovery.global.exception.InvalidRequestException;
 @Component
 public class V2StorageGate {
 	private final Environment environment;
-	public V2StorageGate(Environment environment) { this.environment = environment; }
+	private final com.focusrecovery.domain.consent.ConsentService consent;
+    public V2StorageGate(Environment environment, com.focusrecovery.domain.consent.ConsentService consent) { this.environment = environment; this.consent = consent; }
 
 	public boolean enabled() {
 		String[] profiles = environment.getActiveProfiles();
@@ -36,10 +37,16 @@ public class V2StorageGate {
 	}
 
 	public void checkAccess(WorkSession session) {
-		if (session.isV2()) { requireEnabled(); checkPrivacy(session); }
+		if (session.isV2()) requireEnabled();
+        checkPrivacy(session);
 	}
+
+	public void checkOwnership(WorkSession session) { consent.requireOwnership(session); }
+
+    public void checkConsent(WorkSession session) { consent.requireSession(session); }
 
 	public void checkPrivacy(WorkSession session) {
 		if (session.isQuarantined()) throw new ConflictException("PRIVACY_RETRACTED", "개인정보 격리 대상입니다.");
+        consent.requireSession(session);
 	}
 }
