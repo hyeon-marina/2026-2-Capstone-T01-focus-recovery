@@ -11,6 +11,13 @@ function advance(c: V2Collector, start: number, end: number) {
   return c.observe(observation(end))!;
 }
 describe('v2 observation boundaries', () => {
+  it('records an initial extraction failure once without a fake Visit or measured duration', () => {
+    const c = new V2Collector(activeState());c.foreground(1,time(0));
+    const failed=c.observe(observation(0,{snapshot:null,extractionFailed:true}))!;
+    expect(failed.excluded).toBe('EXTRACTION_FAILED');expect(failed.behavior.activeDurationMs).toBe(0);expect(failed.post).toBeUndefined();
+    c.expire(time(6000));c.observe(observation(6000,{snapshot:null,extractionFailed:true}));expect(c.state.candidates).toHaveLength(1);expect(c.state.nextSequence).toBe(1);
+    const recovered=c.observe(observation(7000))!;expect(recovered.id).not.toBe(failed.id);expect(recovered.behavior.activeDurationMs).toBe(0);
+  });
   it('keeps 4999 uncommitted, freezes at 5000 without finalization', () => {
     const c = setup(); const v = advance(c, 1000, 4999);
     expect(v.behavior.activeDurationMs).toBe(4999); expect(v.post).toBeUndefined();

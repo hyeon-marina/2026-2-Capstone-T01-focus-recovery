@@ -1,0 +1,100 @@
+{
+  "classification": "SYNTHETIC technical evidence; actual participant collection BLOCKED",
+  "baseMain": "0b0cd7c5c15dbf2e2111789954add59ac588f710",
+  "backend": {
+    "tests": 965,
+    "passed": 845,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 120,
+    "skippedSuites": [
+      {
+        "suite": "RetractionLiveHttpTest",
+        "skipped": 1
+      },
+      {
+        "suite": "V2MigrationTest",
+        "skipped": 1
+      },
+      {
+        "suite": "V14MigrationTest",
+        "skipped": 1
+      },
+      {
+        "suite": "V2MySqlStorageTest",
+        "skipped": 25
+      },
+      {
+        "suite": "V2RetractionMySqlTest",
+        "skipped": 37
+      },
+      {
+        "suite": "V13MigrationTest",
+        "skipped": 1
+      },
+      {
+        "suite": "V2LiveHttpTest",
+        "skipped": 1
+      },
+      {
+        "suite": "V2MySqlIntegrationTest",
+        "skipped": 28
+      },
+      {
+        "suite": "V12MigrationTest",
+        "skipped": 1
+      },
+      {
+        "suite": "AuthConsentLiveHttpTest",
+        "skipped": 2
+      },
+      {
+        "suite": "AuthConsentMySqlTest",
+        "skipped": 22
+      }
+    ]
+  },
+  "frontend": {
+    "passed": 908,
+    "skipped": 2
+  },
+  "ai": {
+    "passed": 244,
+    "models": "MOCK"
+  },
+  "realModel": {
+    "status": "SKIPPED",
+    "strictExit": 2,
+    "modelLoaded": false,
+    "inferenceExecuted": false
+  },
+  "chromeHtml": {
+    "browser": "Chrome for Testing 151.0.7922.34",
+    "visits": 10,
+    "windows": 8,
+    "spa": true,
+    "workerRestart": true,
+    "browserRestart": true,
+    "actualSpring": true,
+    "actualMySQL": true,
+    "actualFastAPI": true,
+    "models": "MOCK",
+    "actualParticipantSessions": 0,
+    "extractionFailureObservedWithoutFakeVisit": true,
+    "policyDeniedThenAuthenticatedWithdrawal": true
+  },
+  "liveGoogleNaver": "NOT_TESTED",
+  "windows": "NOT_TESTED",
+  "publicDeployment": "BLOCKED",
+  "actualParticipants": "BLOCKED",
+  "mysqlDaemonRestart": "PASS dedicated synthetic container only",
+  "restore": {
+    "activeReleases": 0,
+    "withdrawnParticipants": 8,
+    "quarantinedSessions": 12,
+    "tombstones": 80,
+    "purged": false
+  },
+  "v1Chrome": "PASS; native HEADED checks skipped",
+  "v2ChromeMock": "PASS including network/ACK/retraction recovery"
+}

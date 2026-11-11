@@ -48,6 +48,8 @@ public class WorkSessionService {
 		return owned.create(goalText, idempotencyKey, requestedVersion);
 	}
 
+    public WorkSessionResponse createAssigned(String goal, String key, String version) { return owned.createAssigned(goal,key,version); }
+
 	// 세션 행을 배타 잠금으로 조회하므로 방문 저장·갱신(공유 잠금)과 동시 종료 요청이 모두 직렬화된다
 	// 이미 종료된 세션은 재시도로 보고 finalBehaviors를 반영하지 않은 채 기존 결과를 돌려준다
 	@Transactional

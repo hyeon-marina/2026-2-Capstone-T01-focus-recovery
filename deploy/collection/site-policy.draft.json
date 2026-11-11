@@ -1,0 +1,16 @@
+{
+  "status": "DRAFT",
+  "buildId": "REPLACE_AFTER_REVIEW",
+  "policyId": "",
+  "policyVersion": "",
+  "notBefore": "",
+  "expiresAt": "",
+  "approvalRef": "",
+  "contractApprovalRef": "",
+  "retentionRef": "",
+  "institutionRef": "",
+  "modelEvidenceRef": "",
+  "privacyEvidenceRef": "",
+  "startAuthorizationRef": "",
+  "sites": []
+}

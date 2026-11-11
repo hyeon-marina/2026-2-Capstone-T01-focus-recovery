@@ -28,7 +28,7 @@ def run():
         report.update(status="SKIPPED", missingDependencies=missing, missingModelDirectories=missing_files,
                       modelLoaded=False, inferenceExecuted=False)
         print(json.dumps(report, ensure_ascii=False, indent=2))
-        return 0
+        return 2 if "--require-models" in __import__("sys").argv else 0
 
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
@@ -76,6 +76,7 @@ def run():
         check("AnalysisResponse", result)
         report.update(status="PASS", inferenceExecuted=True, structuredOutputValid=True,
                       inferenceSeconds=round(time.monotonic() - inference_started, 3),
+                      windowsPerSecond=round(1 / (time.monotonic() - inference_started), 6),
                       modelVersions=result["modelVersions"],
                       labels=[p["label"] for p in result["pageResults"]])
     except Exception as exc:

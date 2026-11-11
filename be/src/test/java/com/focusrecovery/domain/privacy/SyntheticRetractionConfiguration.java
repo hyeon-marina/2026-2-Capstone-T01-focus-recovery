@@ -13,7 +13,7 @@ import com.focusrecovery.domain.privacy.service.*;
 @TestConfiguration
 public class SyntheticRetractionConfiguration {
     @Bean @Primary RetractionExecutionPolicy syntheticExecution(JdbcTemplate jdbc) {
-        return new RetractionExecutionPolicy() {
+        return new RetractionExecutionPolicy(null,null) {
             @Override public boolean permitsSyntheticExecution(UUID sessionId) {
                 return jdbc.queryForObject("SELECT COUNT(*) FROM synthetic_retraction_owner WHERE session_id=?", Integer.class, sessionId.toString()) == 1;
             }

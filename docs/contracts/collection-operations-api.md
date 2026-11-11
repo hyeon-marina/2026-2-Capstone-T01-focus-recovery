@@ -61,3 +61,8 @@ Delivered는 클라이언트의 종료 ACK 후 전송 영수증이다. 서버 �
 `Quality={validVisits,expectedWindows,validWindows,analysisSuccess,analysisFailure,referencesValid,reasons[]}`이며 최소10 Visit·n−2 Window·ordered size3/stride1·참조·완료 AI·최신 dirty 아닌 상태 이력을 검사한다. 종료+품질+전송 확인+CLEAR+검토 상태로 `IN_PROGRESS/QUALITY_PASSED/FAILED/RECOLLECT_REQUIRED/QUARANTINED`를 판정한다. 개인정보 격리를 최우선한다. 사람 라벨·모델 품질·실제 운영 승인 판정은 아니다.
 
 진행률은 고정 개수의 메타데이터 쿼리로 조회한다. 제목/본문/검색어/URL/rationale/Token을 응답하지 않는다. 관리 API가 다른 사용자에게 통계 권한을 부여하지 않으며 관리자에게 민감 원문을 보여주는 경로도 추가하지 않았다.
+
+
+## #99 실제 사이트 배포
+
+`GET /api/collection/site-policy`: 인증 필요. `{digest,buildId,policyId,policyVersion,status,expiresAt,sites:[{origin,pathPrefix}]}` 또는409 COLLECTION_POLICY_BLOCKED. `POST assignments/{plannedId}/start`의 실수집 경로는 X-Collection-Build를 추가 검증하고 현재 승인 동의·독립 DB release·정책 digest를 session scope에 묶습니다. SYNTHETIC 정책으로 PARTICIPANT 실적을 만들지 않으며 APPROVED 문자열만으로 exact-test를 운영으로 바꾸지 않습니다. `Progress.actualCollectionBlocked`는 배포/서버 구성 상태이며 실제 참여자 동의·파일럿·기관 승인 사실을 대신하지 않습니다. 후보 설명을 병합하는 prepare-plan.py는 CONFIRMED로 바꾸지 않습니다.

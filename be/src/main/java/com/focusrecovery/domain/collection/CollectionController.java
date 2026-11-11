@@ -17,6 +17,8 @@ public class CollectionController {
     private final CollectionProgressService progress;
     private final JdbcTemplate jdbc;
     public CollectionController(CollectionAdministration admin,CollectionPlanService plan,CollectionProgressService progress,JdbcTemplate jdbc){this.admin=admin;this.plan=plan;this.progress=progress;this.jdbc=jdbc;}
+    @GetMapping("/site-policy") public CollectionSitePolicy.Policy sitePolicy() { AuthenticatedParticipant.required();return sitePolicy.require(); }
+    @org.springframework.beans.factory.annotation.Autowired private CollectionSitePolicy sitePolicy;
     @PostMapping("/admin/participants") public Map<String,Object> enroll(@RequestBody CollectionAdministration.Enrollment input){return admin.enroll(input);}
     @PostMapping("/admin/participants/{participant}/credentials") public CollectionAdministration.IssuedCredential issue(@PathVariable UUID participant,@RequestBody CollectionAdministration.Issue input){return admin.issue(participant,input);}
     public record Evidence(String evidenceRef) {}

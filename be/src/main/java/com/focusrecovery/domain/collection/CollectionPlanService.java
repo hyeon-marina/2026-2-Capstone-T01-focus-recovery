@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CollectionPlanService {
     static final List<String> SCENARIOS=List.of("GOAL_MAINTENANCE","JUSTIFIED_DETOUR","GRADUAL_DRIFT","CLEAR_DRIFT");
     private final JdbcTemplate jdbc;
+    @org.springframework.beans.factory.annotation.Autowired private CollectionSitePolicy sites;
     private final CollectionAdministration admin;
     private final ConsentService consent;
     private final WorkSessionService sessions;
@@ -118,10 +119,10 @@ public class CollectionPlanService {
         if(!rows.getFirst().get("status").equals("CONFIRMED"))throw new ConflictException("GOAL_UNCONFIRMED","작업 목표가 미확정입니다.");
         if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_attempt t JOIN work_session s ON s.session_id=t.session_id WHERE t.planned_session_id=? AND (t.review_status='PENDING' OR s.status='ACTIVE')",Integer.class,plannedId)>0)throw new ConflictException("ASSIGNMENT_ALREADY_STARTED","기존 세션을 확인하고 재수집 사유를 등록하세요.");
         var access=consent.state();
-        // There is deliberately no participant source activation: P2/P6 and production gates remain BLOCKED.
-        if(!access.collectionEnabled() || access.policy()==null || !access.policy().status().equals("SYNTHETIC"))throw new ConflictException("PARTICIPANT_COLLECTION_BLOCKED","승인 전 실제 참여자 수집은 차단됩니다.");
-        var result=sessions.create((String)rows.getFirst().get("description"),"assignment:"+plannedId+":"+key,"2.0");
-        jdbc.update("INSERT INTO collection_attempt(attempt_id,planned_session_id,participant_id,session_id,source,request_key,created_at) VALUES(?,?,?,?,'SYNTHETIC',?,?)",UUID.randomUUID().toString(),plannedId,owner.toString(),result.sessionId().toString(),key,Timestamp.from(clock.instant()));
+        // Synthetic policies cannot become participant actuals; real releases must pass all server gates.
+        if(!access.collectionEnabled() || access.policy()==null || !(access.policy().status().equals("SYNTHETIC") || sites.realProfile() && access.policy().status().equals("APPROVED")))throw new ConflictException("PARTICIPANT_COLLECTION_BLOCKED","승인 전 실제 참여자 수집은 차단됩니다.");
+        var result=sessions.createAssigned((String)rows.getFirst().get("description"),"assignment:"+plannedId+":"+key,"2.0");
+        jdbc.update("INSERT INTO collection_attempt(attempt_id,planned_session_id,participant_id,session_id,source,request_key,created_at) VALUES(?,?,?,?,?,?,?)",UUID.randomUUID().toString(),plannedId,owner.toString(),result.sessionId().toString(),access.policy().status().equals("SYNTHETIC")?"SYNTHETIC":"PARTICIPANT",key,Timestamp.from(clock.instant()));
         return result;
     }
     public record Review(String status,String reasonCode,String evidenceRef) {}

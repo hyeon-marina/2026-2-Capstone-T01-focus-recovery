@@ -180,7 +180,7 @@ class AuthConsentTest {
         assertThatThrownBy(()->visits.save(s1,visit(UUID.randomUUID(),3))).hasFieldOrPropertyWithValue("code","PRIVACY_RETRACTED");
         assertThat(statusGet(alice,path(s1)+"/analysis-status")).isEqualTo(403);
         var environment=new org.springframework.mock.env.MockEnvironment().withProperty("focus-recovery.v2.storage.enabled","true"); environment.setActiveProfiles("test");
-        new WithdrawalDispatcher(jdbc,withdrawals,new com.focusrecovery.global.config.V2StorageGate(environment,consent)).dispatch();
+        new WithdrawalDispatcher(jdbc,withdrawals,new com.focusrecovery.global.config.V2StorageGate(environment,consent,new com.focusrecovery.domain.collection.CollectionSitePolicy(environment,jdbc,java.time.Clock.systemUTC(),tools.jackson.databind.json.JsonMapper.builder().build()))).dispatch();
         assertThat(withdrawals.status(id).sessions()).allSatisfy(s->assertThat(s.status()).isEqualTo("INVENTORIED"));
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM withdrawal_retraction WHERE withdrawal_id=?",Integer.class,id.toString())).isEqualTo(2);
         dispatcher.dispatch(); assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM visit_tombstone WHERE session_id=?",Integer.class,s1.toString())).isEqualTo(2);

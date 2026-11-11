@@ -54,7 +54,10 @@ class CollectionOperationsTest {
     }
     @Test void checkedInDraftMatchesExecutablePlan() throws Exception {
         var checked=tools.jackson.databind.json.JsonMapper.builder().build().readValue(java.nio.file.Files.readString(java.nio.file.Path.of("../docs/data-collection/plan.draft.json")),CollectionPlanService.Plan.class);
-        assertThat(checked).isEqualTo(CollectionPlanService.draft());
+        assertThat(checked.assignments()).isEqualTo(CollectionPlanService.draft().assignments());
+        assertThat(checked.slots()).isEqualTo(CollectionPlanService.draft().slots());
+        assertThat(checked.goals()).hasSize(20).allSatisfy(g->{assertThat(g.status()).isEqualTo("DRAFT");assertThat(g.description()).isNotBlank();assertThat(g.evidenceRef()).isNull();});
+        CollectionPlanService.validate(checked);
     }
     @Test void approvedPolicyCannotOpenActualCollection() {
         assigned(true);

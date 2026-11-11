@@ -15,12 +15,12 @@ class V2GateAndFingerprintTest {
 	void enablingPropertyCannotOpenNonTestEnvironment(String profiles) {
 		var env=new MockEnvironment().withProperty("focus-recovery.v2.storage.enabled","true");
 		if (!profiles.isEmpty()) env.setActiveProfiles(profiles.split(","));
-		assertThat(new V2StorageGate(env, null).enabled()).isFalse();
+		assertThat(new V2StorageGate(env, null, new com.focusrecovery.domain.collection.CollectionSitePolicy(env,null,null,null)).enabled()).isFalse();
 	}
 	@Test void testRequiresExplicitFlag() {
 		var env=new MockEnvironment();env.setActiveProfiles("test");
-		assertThat(new V2StorageGate(env, null).enabled()).isFalse();
-		env.setProperty("focus-recovery.v2.storage.enabled","true");assertThat(new V2StorageGate(env, null).enabled()).isTrue();
+		assertThat(new V2StorageGate(env, null, new com.focusrecovery.domain.collection.CollectionSitePolicy(env,null,null,null)).enabled()).isFalse();
+		env.setProperty("focus-recovery.v2.storage.enabled","true");assertThat(new V2StorageGate(env, null, new com.focusrecovery.domain.collection.CollectionSitePolicy(env,null,null,null)).enabled()).isTrue();
 	}
 	@Test void matchesContractPythonGoldenFingerprints() throws Exception {
 		var mapper=JsonMapper.builder().build(); var json=new CanonicalJson(mapper);

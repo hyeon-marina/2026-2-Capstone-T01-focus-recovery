@@ -4,9 +4,11 @@ import { AuthConsentPanel } from '../src/v2/AuthConsentPanel';
 import type { CollectionAccess } from '../src/v2/access';
 import type { V2Alert } from '../src/v2/status';
 import './style.css';
-declare const __COLLECTION_BUILD__: { version: string; sourceCommit: string; dirty: boolean; mode: string; apiOrigin: string };
+import candidates from '../../docs/data-collection/goals.candidates.json';
+declare const __COLLECTION_BUILD__: { version: string; sourceCommit: string; dirty: boolean; mode: string; apiOrigin: string; sites?: { origin: string; pathPrefix: string }[] };
 const build = __COLLECTION_BUILD__;
 const pilot = build.mode === 'collection-pilot';
+const real = ['real-collection','controlled-web'].includes(build.mode);
 const send = (action: string, extra = {}) => chrome.runtime.sendMessage({ type: `v2-${action}`, ...extra });
 type Assignment = { plannedSessionId: string; goalId: string; goalText: string | null; goalStatus: string; scenarioType: string };
 type Local = { lifecycle: string; collectionAllowed: boolean; validVisits: number; pending: number; notificationPending?: number; endPhase?: string; storageFailed: boolean; accessError?: string; quarantined: boolean; withdrawalPhase?: string };
@@ -52,13 +54,16 @@ function Participant() {
     finally { setBusy(false); }
   }
   const assigned = assignments.find(a => a.plannedSessionId === selected);
-  const canStart = pilot && access?.collectionEnabled && access.consentValid && !access.withdrawn && assigned?.goalStatus === 'CONFIRMED' && ['IDLE','START_PENDING','ENDED'].includes(local?.lifecycle ?? '');
+  const candidate = candidates.goals.find(g => g.goalId === assigned?.goalId && g.description === assigned?.goalText);
+  const canStart = (pilot || real) && access?.collectionEnabled && access.consentValid && !access.withdrawn && assigned?.goalStatus === 'CONFIRMED' && ['IDLE','START_PENDING','ENDED'].includes(local?.lifecycle ?? '');
   return <main><header><p className="eyebrow">FOCUS RECOVERY / FIELD COLLECTION</p><h1>탐색을 시작하기 전에.</h1><p>내 배정과 전송 상태를 한곳에서 확인합니다.</p></header>
-    <div className="gate" role="status"><strong>실제 사용자 수집 BLOCKED</strong><span>{pilot ? '통제된 카탈로그 합성 파일럿만 실행할 수 있습니다.' : '인증·배정 확인용 패키지입니다. 웹페이지 접근 권한과 수집 시작 권한이 없습니다.'}</span></div>
-    <div className="layout"><div><AuthConsentPanel command={send} onAccess={onAccess} context={pilot ? 'synthetic' : 'participant'} /></div>
+    <div className="gate" role="status"><strong>{real ? access?.collectionEnabled ? '서버 수집 Gate 유효' : '실제 사용자 수집 BLOCKED' : '실제 사용자 수집 BLOCKED'}</strong><span>{real ? '설치 패키지와 서버 정책의 허용 사이트에서만 수집합니다. 승인·동의·세션 상태를 계속 확인합니다.' : pilot ? '통제된 카탈로그 합성 파일럿만 실행할 수 있습니다.' : '인증·배정 확인용 패키지입니다. 웹페이지 접근 권한과 수집 시작 권한이 없습니다.'}</span></div>
+    {real && <details><summary>이 패키지의 허용 사이트</summary>{build.sites?.length ? <ul>{build.sites.map(s => <li key={s.origin+s.pathPrefix}>{s.origin}{s.pathPrefix}</li>)}</ul> : <p>허용 사이트가 없습니다. 승인된 정책과 새 빌드가 필요합니다.</p>}</details>}
+    <div className="layout"><div><AuthConsentPanel command={send} onAccess={onAccess} context={real ? 'real' : pilot ? 'synthetic' : 'participant'} /></div>
     <section className="work" aria-labelledby="work-title"><p className="eyebrow">MY ASSIGNMENTS</p><h2 id="work-title">오늘의 수집</h2>
       <label>배정 목표<select value={selected} onChange={e => setSelected(e.target.value)} disabled={busy || ['ACTIVE','END_PENDING'].includes(local?.lifecycle ?? '')}><option value="">목표를 선택하세요</option>{assignments.map(a => <option key={a.plannedSessionId} value={a.plannedSessionId}>{a.plannedSessionId} · {a.goalText ?? `${a.goalId} 미확정`}</option>)}</select></label>
-      {assigned && <div className="scenario"><p>{assigned.goalText ?? '관리자의 목표 확정이 필요합니다.'}</p><strong>{scenarios[assigned.scenarioType]}</strong><p>시나리오는 수행 조건입니다. AI 예측이나 사람의 정답 라벨이 아닙니다.</p></div>}
+      {assigned && <div className="scenario"><p>{assigned.goalText ?? '관리자의 목표 확정이 필요합니다.'}</p><strong>{scenarios[assigned.scenarioType]}</strong><p>시나리오는 수행 조건입니다. AI 예측이나 사람의 정답 라벨이 아닙니다.</p>
+        {candidate && <><p>{candidate.scenarioInstructions[assigned.scenarioType as keyof typeof candidate.scenarioInstructions]}</p><p>종료 기준: {candidate.completionCriteria}</p></>}</div>}
       <p>유효 Visit 최소 10개, 권장 12~15개. 활성 탭·창에서 측정한 5초 이상 방문만 포함합니다.</p>
       <div className="actions"><button disabled={!canStart || busy} onClick={() => void command('start')}>세션 시작</button><button disabled={busy || !['ACTIVE','END_PENDING'].includes(local?.lifecycle ?? '')} onClick={() => void command('stop')}>세션 종료 · 수집 중지</button></div>
       <dl className="metrics"><div><dt>세션 상태</dt><dd>{local?.lifecycle ?? '확인 중'}</dd></div><div><dt>서버 수신 Visit</dt><dd>{local?.validVisits ?? 0}</dd></div><div><dt>미완료 POST/PATCH</dt><dd>{local?.pending ?? 0}</dd></div><div><dt>종료 ACK</dt><dd>{local?.endPhase ?? '—'}</dd></div><div><dt>미전송 알림 영수증</dt><dd>{local?.notificationPending ?? 0}</dd></div></dl>

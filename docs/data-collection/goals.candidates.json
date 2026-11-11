@@ -1,0 +1,287 @@
+{
+  "status": "DRAFT",
+  "approvalRequired": true,
+  "instructions": "허용 사이트 안에서만 수행. 로그인·구매·개인정보 입력 금지. 각 시나리오에서도 최소 10개 유효 Visit 및 종료 ACK·품질을 확인. 계획한 이탈은 사람 정답이 아님. 비교 메모는 수집 시스템에 자동 저장되지 않음. 사이트 검토가 끝나지 않으면 수행 금지.",
+  "goals": [
+    {
+      "goalId": "GOAL-001",
+      "area": "개발 도구",
+      "description": "정적 웹사이트의 GitHub Pages 배포 절차와 사용자 지정 도메인 연결 방법을 조사하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "배포 방식 2개와 DNS·HTTPS 확인 항목을 정리하면 종료합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "빌드·배포·도메인 공식 가이드를 확인",
+        "JUSTIFIED_DETOUR": "DNS와 TLS 용어를 확인한 뒤 배포 문서로 복귀",
+        "GRADUAL_DRIFT": "배포 문서에서 개발 도구 소개와 일반 기술 소식으로 이동",
+        "CLEAR_DRIFT": "배포 조사 뒤 공개 문화·취미 자료로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-002",
+      "area": "개발 도구",
+      "description": "웹 접근성에서 키보드 탐색과 이미지 대체 텍스트의 점검 방법을 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "두 항목의 점검 절차와 오류 예시를 각각 하나 이상 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "접근성 표준과 구현 예제를 비교",
+        "JUSTIFIED_DETOUR": "스크린 리더 원리를 조사한 뒤 점검법으로 복귀",
+        "GRADUAL_DRIFT": "점검법에서 디자인 사례와 일반 전시 소개로 이동",
+        "CLEAR_DRIFT": "접근성 자료 뒤 공개 지리·문화 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-003",
+      "area": "개발 도구",
+      "description": "Python 가상환경 생성과 의존성 고정 방법을 조사해 재현 가능한 설치 절차를 작성하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "가상환경 생성·설치·버전 고정·재설치 순서를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "Python·pip 공식 설치 가이드 비교",
+        "JUSTIFIED_DETOUR": "패키지 버전 표기법을 확인하고 설치 절차로 복귀",
+        "GRADUAL_DRIFT": "패키지 소개에서 언어 역사와 일반 컴퓨터 역사로 이동",
+        "CLEAR_DRIFT": "설치 조사 뒤 공개 자연·과학 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-004",
+      "area": "개발 도구",
+      "description": "Git의 merge와 rebase 차이 및 충돌 해결 절차를 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "차이점 두 가지와 안전한 충돌 해결 순서를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "공식 Git 문서의 사례 비교",
+        "JUSTIFIED_DETOUR": "커밋 그래프 기초를 확인한 뒤 충돌 해결로 복귀",
+        "GRADUAL_DRIFT": "Git 도구 소개에서 개발 행사와 지역 문화로 이동",
+        "CLEAR_DRIFT": "Git 조사 뒤 공개 요리·취미 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-005",
+      "area": "개발 도구",
+      "description": "브라우저 HTTP 캐시의 Cache-Control과 ETag 사용 방법을 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "재검증과 만료의 차이 및 헤더 예시 두 개를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "공식 HTTP 문서와 예제 비교",
+        "JUSTIFIED_DETOUR": "상태 코드 304를 확인하고 캐시로 복귀",
+        "GRADUAL_DRIFT": "브라우저 기능에서 인터넷 역사와 일반 기술 소식으로 이동",
+        "CLEAR_DRIFT": "캐시 조사 뒤 공개 문화유산 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-006",
+      "area": "환경·생활 과학",
+      "description": "종이·유리·플라스틱의 재활용 분리배출 원칙을 공개 안내에서 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "세 재질별 원칙과 오염 포장재 처리 예외를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "공개 기관 분리배출 안내 비교",
+        "JUSTIFIED_DETOUR": "재활용 공정을 알아본 뒤 배출 기준으로 복귀",
+        "GRADUAL_DRIFT": "분리배출에서 제품 디자인과 미술 소개로 이동",
+        "CLEAR_DRIFT": "재활용 조사 뒤 공개 천문 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-007",
+      "area": "환경·생활 과학",
+      "description": "태양광과 풍력 발전의 원리 및 설치 환경 제약을 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "각 방식의 원리·장점·환경 제약을 한 개씩 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "공개 과학 자료의 발전 원리 비교",
+        "JUSTIFIED_DETOUR": "전력 계통 용어를 확인하고 발전 방식으로 복귀",
+        "GRADUAL_DRIFT": "에너지 시설에서 건축과 여행지 소개로 이동",
+        "CLEAR_DRIFT": "발전 조사 뒤 공개 문학 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-008",
+      "area": "환경·생활 과학",
+      "description": "도시 열섬의 원인과 녹지·차열 포장의 완화 방법을 조사하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "원인 두 가지와 완화 방법 두 가지의 근거를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "기상·도시 환경 공개 자료 비교",
+        "JUSTIFIED_DETOUR": "지표 온도 측정을 확인하고 완화법으로 복귀",
+        "GRADUAL_DRIFT": "도시 환경에서 공원 디자인과 일반 관광 소개로 이동",
+        "CLEAR_DRIFT": "열섬 조사 뒤 공개 음악사 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-009",
+      "area": "환경·생활 과학",
+      "description": "LED와 형광등의 작동 원리 및 에너지 사용 차이를 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "원리 차이와 에너지 비교 시 확인할 기준 두 개를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "공개 조명 기술 설명 비교",
+        "JUSTIFIED_DETOUR": "광속·효율 단위를 확인하고 비교로 복귀",
+        "GRADUAL_DRIFT": "조명 디자인에서 인테리어 역사와 미술 소개로 이동",
+        "CLEAR_DRIFT": "조명 조사 뒤 공개 지질 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-010",
+      "area": "환경·생활 과학",
+      "description": "음식 보관 용기의 유리·스테인리스·플라스틱 재질 특성을 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "재질별 세척·내열 특성과 제조사 표기 확인점을 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "공개 재질·제품 사용 안내 비교",
+        "JUSTIFIED_DETOUR": "내열 온도 표기를 확인하고 재질 비교로 복귀",
+        "GRADUAL_DRIFT": "용기 디자인에서 식문화 역사와 일반 취미로 이동",
+        "CLEAR_DRIFT": "용기 조사 뒤 공개 우주 탐사 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-011",
+      "area": "문화·교육",
+      "description": "한글의 창제 배경과 자음·모음 구성 원리를 공개 교육 자료에서 조사하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "배경·구성 원리와 공개 자료 출처 세 개를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "박물관·교육기관 설명 비교",
+        "JUSTIFIED_DETOUR": "당시 인쇄 기술을 확인하고 문자 구성으로 복귀",
+        "GRADUAL_DRIFT": "문자에서 서체 디자인과 현대 전시 소개로 이동",
+        "CLEAR_DRIFT": "한글 조사 뒤 공개 해양 생물 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-012",
+      "area": "문화·교육",
+      "description": "인상주의와 후기 인상주의 회화의 특징을 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "각 특징 두 개와 공개 작품 사례를 하나씩 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "미술관 공개 해설 비교",
+        "JUSTIFIED_DETOUR": "색채·광학 원리를 확인하고 작품 비교로 복귀",
+        "GRADUAL_DRIFT": "작품에서 미술관 건축과 일반 도시 소개로 이동",
+        "CLEAR_DRIFT": "회화 조사 뒤 공개 컴퓨터 기초 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-013",
+      "area": "문화·교육",
+      "description": "도서관의 십진분류와 온라인 목록 검색 방법을 공개 안내에서 조사하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "분류 구조·검색 필터·자료 찾기 순서를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "도서관 이용·목록 공개 설명 비교",
+        "JUSTIFIED_DETOUR": "청구기호 뜻을 확인하고 검색법으로 복귀",
+        "GRADUAL_DRIFT": "도서관에서 건축과 지역 문화 소개로 이동",
+        "CLEAR_DRIFT": "목록 조사 뒤 공개 기상 과학 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-014",
+      "area": "문화·교육",
+      "description": "박물관 디지털 아카이브의 공개 이용 조건과 작품 검색 기능을 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "두 아카이브의 검색법과 이용 조건 차이를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "기관 공개 아카이브 안내 비교",
+        "JUSTIFIED_DETOUR": "공개 라이선스 용어를 확인하고 아카이브로 복귀",
+        "GRADUAL_DRIFT": "아카이브에서 전시 디자인과 일반 문화 소식으로 이동",
+        "CLEAR_DRIFT": "아카이브 조사 뒤 공개 식물 과학 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-015",
+      "area": "문화·교육",
+      "description": "오케스트라의 현악·목관·금관·타악기 역할을 공개 교육 자료에서 조사하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "네 악기군의 소리 생성 원리와 역할을 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "공연기관·교육기관 공개 설명 비교",
+        "JUSTIFIED_DETOUR": "음높이·공명 원리를 확인하고 악기군으로 복귀",
+        "GRADUAL_DRIFT": "악기에서 공연장 건축과 일반 문화 소개로 이동",
+        "CLEAR_DRIFT": "악기 조사 뒤 공개 소프트웨어 역사 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-016",
+      "area": "지리·기초 과학",
+      "description": "화산과 지진의 발생 원리 및 판 경계와의 관계를 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "두 현상의 원리와 판 경계 유형별 관계를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "공개 지질·교육 자료 비교",
+        "JUSTIFIED_DETOUR": "판 구조 용어를 확인하고 발생 원리로 복귀",
+        "GRADUAL_DRIFT": "지질 지형에서 공개 경관 사진과 일반 여행 소개로 이동",
+        "CLEAR_DRIFT": "지질 조사 뒤 공개 미술사 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-017",
+      "area": "지리·기초 과학",
+      "description": "태양계의 지구형 행성과 목성형 행성의 특성을 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "구성·크기·위성의 차이와 각 사례 두 개를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "우주기관 공개 행성 자료 비교",
+        "JUSTIFIED_DETOUR": "밀도·대기 용어를 확인하고 행성 비교로 복귀",
+        "GRADUAL_DRIFT": "우주 탐사에서 과학관과 일반 문화 소개로 이동",
+        "CLEAR_DRIFT": "행성 조사 뒤 공개 웹 개발 기초로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-018",
+      "area": "지리·기초 과학",
+      "description": "강수량과 습도의 측정 방식 및 일기예보에서의 의미를 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "측정 단위·도구·예보 해석 차이를 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "공개 기상 교육 자료 비교",
+        "JUSTIFIED_DETOUR": "이슬점 용어를 확인하고 습도 비교로 복귀",
+        "GRADUAL_DRIFT": "기상에서 계절 풍경과 일반 문화 소개로 이동",
+        "CLEAR_DRIFT": "기상 조사 뒤 공개 고대 건축 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-019",
+      "area": "지리·기초 과학",
+      "description": "철도와 버스의 일반적인 운송 특성과 환승 정보 확인 방법을 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "개인 이동 이력 없이 수송 특성·공개 노선 확인법을 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "공개 교통기관 이용 안내 비교",
+        "JUSTIFIED_DETOUR": "노선도 기호를 확인하고 환승 안내로 복귀",
+        "GRADUAL_DRIFT": "교통 수단에서 교통 박물관과 일반 문화 소개로 이동",
+        "CLEAR_DRIFT": "교통 조사 뒤 공개 식물 분류 주제로 전환"
+      }
+    },
+    {
+      "goalId": "GOAL-020",
+      "area": "지리·기초 과학",
+      "description": "식물의 광합성과 호흡의 원리 및 환경 조건 차이를 비교하세요.",
+      "status": "DRAFT",
+      "evidenceRef": null,
+      "completionCriteria": "원료·생성물·빛과 온도의 영향을 비교해 정리합니다.",
+      "scenarioInstructions": {
+        "GOAL_MAINTENANCE": "공개 생물 교육 자료 비교",
+        "JUSTIFIED_DETOUR": "엽록체 구조를 확인하고 광합성으로 복귀",
+        "GRADUAL_DRIFT": "식물에서 식물원 디자인과 일반 전시 소개로 이동",
+        "CLEAR_DRIFT": "식물 조사 뒤 공개 인터넷 역사 주제로 전환"
+      }
+    }
+  ]
+}
