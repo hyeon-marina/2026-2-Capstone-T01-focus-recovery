@@ -1,5 +1,8 @@
 # 팀원용 데이터 수집 실습 매뉴얼 — A/B/C
 
+#105의 현재 로컬 정책은 [공통 정책 권고안](real-collection-policy.md)과 [TEAM_POLICY.json](TEAM_POLICY.json)을 기준으로 한다. **DRAFT/UNRESOLVED·실제 개시 BLOCKED**는 유지한다. [정책 적용 절차](policy-application-guide.md), [목표20개 원문/완료 기준/시나리오](confirmed-goals-proposal.md), [사이트 검토](site-collection-review.md), [이번 실행 결과](issue105-validation.md)를 먼저 확인한다. 원본문장/검색어/제목 대신 행동·불투명 URL 식별자·고정 Topic만 저장한다. 기존 v1/AI 활성 경로의 본문 규격과 구분한다.
+
+
 ## #103 셀프 초기화 사용 경로
 
 최신 설치·25단계 수행 항목과 실제 명령은 [A/B/C 셀프 초기화 매뉴얼](individual-local-setup.md)을 따른다. 각자 `python3 tools/individual-local/local.py setup --slot A`(B/C는 자기 슬롯) → 공통 확정 정책/hash 적용 → `build` → 본인 Chrome 프로필에서 **로컬 Credential 파일 불러오기** → 본인 `participant.json` 선택 → 정책/보존/민감페이지 처리 확인 → 직접 동의 → 배정 선택 → 시작/10 Visit/종료 ACK/RAW_COLLECTED → 암호화 Export 순서다. Windows는 `python`을 사용한다.
@@ -23,7 +26,7 @@
 
 ## 3. 수집하는 데이터
 
-가명 참여자·목표/계획/시도 ID, 허용 URL/도메인, 공개 페이지 제목·최대5000 code points 본문·허용 검색어, Visit ID/순서/시각, 활성 체류시간·탭 전환·행동 버전, 추출/전송/종료 영수증, 동의 정책 참조·개인정보 상태를 저장합니다. 원본 전용 모드의 AI 결과는 **미실행**입니다.
+가명 참여자·목표/계획/시도 ID, 도메인·세션별 HMAC 페이지 식별자, 원제목 대신 고정 Topic, 본문 대신 METADATA_ONLY 표식, 검색어 대신 [NOT_COLLECTED] 표식, Visit ID/순서/시각, 활성 체류시간·탭 전환·행동 버전, 추출/전송/종료 영수증, 동의 정책 참조·개인정보 상태를 저장합니다. 원본 전용 모드의 AI 결과는 **미실행**입니다. RAW_ONLY에서는 rawStatus=RAW_COLLECTED와 END ACK로 원본 성공을 확인합니다. 별도 AI 포함 품질의 RECOLLECT_REQUIRED/미완료는 AI를 실행하지 않은 결과일 수 있으며 원본 실패와 같지 않습니다.
 
 ## 4. 수집하지 않는 정보
 
@@ -35,11 +38,23 @@
 
 ## 6. 프로젝트 파일 준비
 
-같은 가이드의 신규 clone/브랜치/`npm ci`/`bootJar`/`local.py init --slot A`를 실행합니다. B/C는 자기 슬롯입니다. 기존 `.collection/local`이 있으면 init을 반복하지 않습니다. Secret이나 Export를 Git으로 전달하지 않습니다.
+같은 가이드의 신규 clone/브랜치/`npm ci`/`bootJar` 준비 후 본인 슬롯으로 셀프 초기화합니다. B/C는 자기 슬롯입니다. 같은 슬롯 setup은 기존 UUID/데이터를 유지합니다. 공통 확정 정책/hash 적용은 [정책 적용 가이드](policy-application-guide.md)를 따릅니다. Secret이나 Export를 Git으로 전달하지 않습니다.
+
+macOS:
+
+```sh
+python3 tools/individual-local/local.py setup --slot A
+```
+
+Windows PowerShell (**NOT_TESTED**):
+
+```powershell
+py -3 tools/individual-local/local.py setup --slot A
+```
 
 ## 7. Docker/MySQL 실행
 
-Docker Desktop을 켜고 저장소 루트에서 실행합니다.
+setup이 자기 MySQL을 시작합니다. 이후 중지한 자기 환경을 다시 켤 때는 Docker Desktop을 켜고 저장소 루트에서 실행합니다.
 
 ```sh
 python3 tools/individual-local/local.py db
@@ -48,6 +63,8 @@ python3 tools/individual-local/local.py db
 자기 전용 project의 persistent volume이 시작되어야 합니다. 다른 PC의 주소나 MySQL 계정은 필요하지 않습니다.
 
 ## 8. Spring Boot 실행
+
+setup이 자기 HTTPS Backend도 시작합니다. 이후 중지한 자기 환경을 다시 켤 때 실행합니다.
 
 ```sh
 python3 tools/individual-local/local.py start
@@ -81,7 +98,7 @@ python3 tools/individual-local/local.py build
 
 ## 12. Extension 로그인
 
-아이콘을 눌러 수집 화면을 열고 **발급 자격정보**에 담당자가 안전하게 전달한 본인 Credential을 붙여 넣습니다. **인증 / 계정 전환**을 누릅니다. 입력은 로그인 후 비워지며 화면에 `인증됨`이 나와야 합니다. Credential을 촬영하거나 단체 채팅에 보내지 않습니다.
+아이콘을 눌러 수집 화면을 열고 **로컬 Credential 파일 불러오기**에서 setup이 자기 PC에 저장한 `.collection/local/participant.json`을 선택합니다. 화면의 `인증됨`·자기 A/B/C 슬롯·HTTPS 연결·공통 정책 SHA-256을 확인합니다. 파일은 서버로 업로드되지 않으며 Token은 trusted-context session storage에만 연결됩니다. 별도 관리자 발급 없이 진행합니다. Credential 파일/값을 촬영하거나 단체 채팅에 보내지 않습니다.
 
 ![실제 로그인 전 합성 화면](images/team-guide/self103-local-login.png)
 
@@ -111,7 +128,7 @@ python3 tools/individual-local/local.py build
 
 ## 16. 웹 탐색 수행
 
-패키지의 **이 패키지의 허용 사이트**를 확인하고 승인된 공개 페이지에서만 탐색합니다. 실제 활성 탭/창에서 5초 이상 머물고 본문 추출이 성공한 방문만 유효합니다. 같은 URL에 4초 미만 복귀하면 기존 Visit에 누적하고 4초 이상이면 새 Visit가 됩니다. 최초 활성5분에는 Behavior PATCH가 전송됩니다. 시간을 수동으로 늘리거나 수집 코드를 개발자 도구로 조작하지 않습니다.
+패키지의 **이 패키지의 허용 사이트**를 확인하고 승인된 공개 페이지에서만 탐색합니다. 실제 활성 탭/창에서 5초 이상 머물고 메타데이터/개인정보 검사를 통과한 방문만 유효합니다. SUCCESS는 메타데이터 생성 성공이며 본문 수집 성공을 뜻하지 않습니다. 같은 URL에 4초 미만 복귀하면 기존 Visit에 누적하고 4초 이상이면 새 Visit가 됩니다. 최초 활성5분에는 Behavior PATCH가 전송됩니다. 시간을 수동으로 늘리거나 수집 코드를 개발자 도구로 조작하지 않습니다.
 
 합성 E2E는 `http://127.0.0.1:8911/public/page-1`부터 `page-10`까지 직접 탐색했습니다. 이 서버는 테스트 실행 중에만 존재하며 **실제 수집용 사이트가 아닙니다**. 일반 인터넷 사이트에서 시험하려면 사전 승인된 목록과 별도 파일럿이 필요합니다.
 
@@ -218,7 +235,7 @@ Get-FileHash .collection/local/A-001.tar.age -Algorithm SHA256
 | --- | --- |
 | 실제 사용자 수집 BLOCKED / 세션 시작 비활성 | 승인·동의·목표·허용 사이트·빌드 정책·로컬 공통 정책 적용(운영 모드는 독립 Release)를 담당자와 확인. 우회 금지 |
 | 인증정보 만료 | 본인 Credential 갱신·재인증. 계정 전환으로 과거 Queue 전송 금지 |
-| Visit 수가 증가하지 않음 | 허용 공개 페이지·활성 탭/창·실측5초·본문 추출 확인. 화면 전환 중 체류시간은 증가하지 않음 |
+| Visit 수가 증가하지 않음 | 허용 공개 페이지·활성 탭/창·실측5초·메타데이터/민감 DOM 검사 확인. 검색창 등 입력 중에는 수집 중단/격리될 수 있으므로 수집용 페이지에서는 입력하지 않음. 화면 전환 중 체류시간은 증가하지 않음 |
 | 미완료 POST/PATCH / END_PENDING | 서버/TLS·네트워크 확인 → 재전송 / 복구. IndexedDB/Extension 삭제 금지 |
 | 저장 오류로 안전 중지 | 디스크·브라우저 저장소 권한·로그 확인, 현재 원본 보존 후 담당자에게 상태 전달 |
 | 원본 완료, AI NOT_RUN | 원본 전용 모드의 정상 결과. 이론상 Window와 실제 생성/분석 수를 구분 |

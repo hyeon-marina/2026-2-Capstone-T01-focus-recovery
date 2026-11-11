@@ -1,0 +1,327 @@
+{
+  "kind": "SYNTHETIC_105_NOT_ACTUAL_COLLECTION",
+  "actualParticipantSessions": 0,
+  "httpChrome": {
+    "afterWithdrawal": {
+      "privacyExcluded": 1,
+      "rawCompleted": 2,
+      "validVisits": 20
+    },
+    "aiProcess": false,
+    "duplicateImports": 3,
+    "idCollision": "REJECTED",
+    "independentMySql": 3,
+    "initial": {
+      "actualGeneratedWindows": 0,
+      "aiAnalysisCompletedWindows": 0,
+      "participants": {
+        "A": 1,
+        "B": 1,
+        "C": 1
+      },
+      "rawCompleted": 3,
+      "status": "PARTIAL",
+      "theoreticalWindows": 24,
+      "validVisits": 30
+    },
+    "kind": "SYNTHETIC-101",
+    "oldPrivacyReplay": "REJECTED",
+    "os": "darwin",
+    "perSource": [
+      {
+        "analyses": 0,
+        "encryptedSha256": "49c68084583d2397dd2cbd8096e7bec52712e1bfce31e64d5aa64d49335cf6f3",
+        "files": {
+          "assignments.jsonl": {
+            "rows": 160,
+            "sha256": "38e6093fd22e1b6480629d60fa19fa6b221ab52097cea279c292f3ab16ce7703"
+          },
+          "behaviors.jsonl": {
+            "rows": 10,
+            "sha256": "cd787d8f6b5f338437fbe4fb4b8dda1e12248ebb948283c1b1947fc1da1ec8e5"
+          },
+          "collection_attempts.jsonl": {
+            "rows": 1,
+            "sha256": "9271ab67ba2c82840b16100da19d7a14cdac5228e9f0364a11c53112de9e2f17"
+          },
+          "collection_failures.jsonl": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "consent_references.jsonl": {
+            "rows": 1,
+            "sha256": "47219a17ac9658a30f596aac6ae00184f4b37b5a68bef91dc9d189a01666f721"
+          },
+          "goals.jsonl": {
+            "rows": 20,
+            "sha256": "7de78676a3bfbbaf62fa509beaf5e3ea9142ddc48af48e62f0c3a2879b7b3963"
+          },
+          "participants.jsonl": {
+            "rows": 1,
+            "sha256": "8541e04c1e28429b6917a4aef629cd53aa272465a5e42bc0670c9414358a5b64"
+          },
+          "privacy_events.jsonl": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "raw_quality.jsonl": {
+            "rows": 1,
+            "sha256": "94b9b92c1429f86293733ef4cd25110d2d5bd98763c812ecdbc9acb0b129e412"
+          },
+          "sessions.jsonl": {
+            "rows": 1,
+            "sha256": "1aa04bc8efe03746b16fe8369c9ec0db7479cf55fc602e9646afaf298c4fae18"
+          },
+          "visits.jsonl": {
+            "rows": 10,
+            "sha256": "b812c109aeb41eca4f489bcd8e0b538ad2c3f6697c9e6da865e670bb5c9a2969"
+          }
+        },
+        "manifestSha256": "4f5ea26ef82a25d66958353c803c3ed097aea6e9415ed65cea85b1eddaf67c86",
+        "migrations": 18,
+        "slot": "A",
+        "visits": 10,
+        "windows": 0
+      },
+      {
+        "analyses": 0,
+        "encryptedSha256": "2630e9a96d24cb30bec926e29165182391c8c070f722838494e53f29228e1e15",
+        "files": {
+          "assignments.jsonl": {
+            "rows": 160,
+            "sha256": "dcb464390a378004904631a093e57341bab39e0e3d1ed98408ed4c62550f5f96"
+          },
+          "behaviors.jsonl": {
+            "rows": 10,
+            "sha256": "95f9e7156f981a27b09de2c090d3f838600c581969b31ac7ca2cba14f48d8b20"
+          },
+          "collection_attempts.jsonl": {
+            "rows": 1,
+            "sha256": "4c5a9c3caba394fed3007b7254e318b2b3e8cefba91de0927ffec7e60f13368b"
+          },
+          "collection_failures.jsonl": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "consent_references.jsonl": {
+            "rows": 1,
+            "sha256": "dd34eba6cb831314ca2706d7b2c2ef04a1d01e861fcadbb7bbbbaf1c2a6f7d7d"
+          },
+          "goals.jsonl": {
+            "rows": 20,
+            "sha256": "9ac26acde6f48c04e69f14626f483c38394c816990120c3bf66ed0aec2157588"
+          },
+          "participants.jsonl": {
+            "rows": 1,
+            "sha256": "841a6db53875a893baab8e9582ab695876034876861aeaa23cdd509ad3272857"
+          },
+          "privacy_events.jsonl": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "raw_quality.jsonl": {
+            "rows": 1,
+            "sha256": "f100953742642792c4a380601d7a920298a26adebecccf2f3e40f399d6326c08"
+          },
+          "sessions.jsonl": {
+            "rows": 1,
+            "sha256": "767a85f5a947d6039a7bc558b0ae5ff7b51a87008f079c88b7c8e1aba0db453b"
+          },
+          "visits.jsonl": {
+            "rows": 10,
+            "sha256": "78ef0b7c127b16ca4e19c40217ceec649dd80b75bb475b2ae0045d215f31763c"
+          }
+        },
+        "manifestSha256": "8f7de5fd048cd58c105ec239232a63ccf329b5d780667bbd2fe2d507e5a85abc",
+        "migrations": 18,
+        "slot": "B",
+        "visits": 10,
+        "windows": 0
+      },
+      {
+        "analyses": 0,
+        "encryptedSha256": "599c1d2eeaf89ffbfcad6ea86ab81a264bd18ca4fb3ca9e806bb419562e719c3",
+        "files": {
+          "assignments.jsonl": {
+            "rows": 160,
+            "sha256": "d22678a31189f5659977bdffeff72402ccadcd955eeae39a3cb11b5bd4243e41"
+          },
+          "behaviors.jsonl": {
+            "rows": 10,
+            "sha256": "a02145461d2554ff655282983a8a5d9ee3b930262955fe7172dae17a99db33e3"
+          },
+          "collection_attempts.jsonl": {
+            "rows": 1,
+            "sha256": "cda070e4e65267f89531fdfdf997cb234ac894f94b7b1ef48089fa316204590b"
+          },
+          "collection_failures.jsonl": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "consent_references.jsonl": {
+            "rows": 1,
+            "sha256": "66b65537d9f589b31571f2db5acd56b22d5869774a269873918af6f750af9fe6"
+          },
+          "goals.jsonl": {
+            "rows": 20,
+            "sha256": "eaa00b5470a54e8cf03fadaf20c777e032ffc148d3386c684f733eb50628b171"
+          },
+          "participants.jsonl": {
+            "rows": 1,
+            "sha256": "07e5fe2802ea0c3e3865e31004e90c375741baf4e67e7b67d69cd3f2b5436a6d"
+          },
+          "privacy_events.jsonl": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "raw_quality.jsonl": {
+            "rows": 1,
+            "sha256": "b33285b7b866d616acb40db1a7ad952496000bcce5f35b126b0aede47799b9ac"
+          },
+          "sessions.jsonl": {
+            "rows": 1,
+            "sha256": "7c875a902592c656cd0870a87771c39c024521b6fa9f2a170aaa7a8b92204cfb"
+          },
+          "visits.jsonl": {
+            "rows": 10,
+            "sha256": "801c5195ff6a958614a20e94b2e690d5aa09b165f49b6f7dc263ab286eacc167"
+          }
+        },
+        "manifestSha256": "8558e142a8051bc07e3c97b80267cb2c79eb8e9bfd978927bc6674b1d65d3b1e",
+        "migrations": 18,
+        "slot": "C",
+        "visits": 10,
+        "windows": 0
+      }
+    ],
+    "planMismatch": "REJECTED",
+    "result": "PASS",
+    "serverAndMySqlRestart": "PASS",
+    "metadataOnly": true
+  },
+  "httpsApi": {
+    "result": "PASS",
+    "kind": "SYNTHETIC-103-NOT-ACTUAL-COLLECTION",
+    "sources": [
+      {
+        "slot": "A",
+        "assignments": 54,
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "https": true,
+        "restart": true,
+        "rotation": true
+      },
+      {
+        "slot": "B",
+        "assignments": 53,
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "https": true,
+        "restart": true,
+        "rotation": true
+      },
+      {
+        "slot": "C",
+        "assignments": 53,
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "https": true,
+        "restart": true,
+        "rotation": true
+      }
+    ],
+    "chrome": "SEPARATE_TEST",
+    "merge": "PARTIAL",
+    "duplicateImports": 3,
+    "withdrawal": "QUARANTINED",
+    "privacyReplay": "REJECTED",
+    "actualParticipantSessions": 0
+  },
+  "httpsChrome": {
+    "result": "PASS",
+    "kind": "SYNTHETIC-103-NOT-ACTUAL-COLLECTION",
+    "sources": [
+      {
+        "slot": "A",
+        "assignments": 54,
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "https": true,
+        "restart": true,
+        "rotation": true
+      },
+      {
+        "slot": "B",
+        "assignments": 53,
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "https": true,
+        "restart": true,
+        "rotation": true
+      },
+      {
+        "slot": "C",
+        "assignments": 53,
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "https": true,
+        "restart": true,
+        "rotation": true
+      }
+    ],
+    "chrome": "SYNTHETIC_SPKI_PINNED_HTTPS_NOT_OS_TRUST",
+    "merge": "PARTIAL",
+    "duplicateImports": 3,
+    "withdrawal": "QUARANTINED",
+    "privacyReplay": "REJECTED",
+    "actualParticipantSessions": 0
+  },
+  "httpsChromePerSlot": [
+    {
+      "kind": "SYNTHETIC_PINNED_HTTPS_NOT_OS_TRUST",
+      "slot": "A",
+      "sessionId": "2f46fa08-9bca-4635-8a54-023965b0cacd",
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "fileLogin": true,
+      "spa": true,
+      "workerRestart": true,
+      "browserRestart": true,
+      "wrongPinRejected": true
+    },
+    {
+      "kind": "SYNTHETIC_PINNED_HTTPS_NOT_OS_TRUST",
+      "slot": "B",
+      "sessionId": "848c6f5c-6ae3-400c-8ff1-71cad6dcff07",
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "fileLogin": true,
+      "spa": true,
+      "workerRestart": true,
+      "browserRestart": true,
+      "wrongPinRejected": true
+    },
+    {
+      "kind": "SYNTHETIC_PINNED_HTTPS_NOT_OS_TRUST",
+      "slot": "C",
+      "sessionId": "8dd2cb08-c546-48ab-9e80-e293b01e9c41",
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "fileLogin": true,
+      "spa": true,
+      "workerRestart": true,
+      "browserRestart": true,
+      "wrongPinRejected": true
+    }
+  ]
+}

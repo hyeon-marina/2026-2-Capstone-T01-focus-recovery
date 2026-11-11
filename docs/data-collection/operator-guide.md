@@ -1,5 +1,8 @@
 # 수집 관리자 운영 가이드
 
+#105의 현재 로컬 정책은 [공통 정책 권고안](real-collection-policy.md)과 [TEAM_POLICY.json](TEAM_POLICY.json)을 기준으로 한다. **DRAFT/UNRESOLVED·실제 개시 BLOCKED**는 유지한다. [정책 적용 절차](policy-application-guide.md), [목표20개 원문/완료 기준/시나리오](confirmed-goals-proposal.md), [사이트 검토](site-collection-review.md), [이번 실행 결과](issue105-validation.md)를 먼저 확인한다. 원본문장/검색어/제목 대신 행동·불투명 URL 식별자·고정 Topic만 저장한다. 기존 v1/AI 활성 경로의 본문 규격과 구분한다.
+
+
 ## #103 개인 PC 원본 모드 — 관리자 작업 대체
 
 individual-local에서는 각자가 `local.py setup --slot A/B/C`로 최초 소유자·가명 UUID·Credential·자기 배정을 준비한다. collection_operator를 만들지 않고 HTTP 관리 API는 기본 false다. 팀의 확정 공통 `focus-local-policy/1` RAW_ONLY 파일과 별도 신뢰 SHA-256을 setup에 전달하면 동의 정책·정확한 DB Release·Plan revision을 트랜잭션으로 설치한다. 별도 enroll/issue/bootstrap/반복 수동 Release는 개인 PC 절차에서 사용하지 않는다. 기존 real-collection 경로는 아래 역사적 운영 절차대로 유지한다.

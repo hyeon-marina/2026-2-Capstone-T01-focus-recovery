@@ -68,3 +68,12 @@ tasks.register('writeCollectionTestClasspath') {
         layout.buildDirectory.file('collection-test-classpath.txt').get().asFile.text = sourceSets.test.runtimeClasspath.asPath
     }
 }
+
+// No Spring context, database, enrollment or consent writes.
+tasks.register('checkLocalPolicy', JavaExec) {
+    dependsOn classes
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.focusrecovery.domain.collection.LocalPolicyCheck'
+    args providers.gradleProperty('collectionPolicyFile').getOrElse('')
+    if (providers.gradleProperty('collectionPolicySha256').isPresent()) args providers.gradleProperty('collectionPolicySha256').get()
+}

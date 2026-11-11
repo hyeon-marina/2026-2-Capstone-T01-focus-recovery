@@ -175,7 +175,7 @@ def main(argv=None):
     os.umask(0o077)
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--directory', type=Path, default=ROOT / '.collection/local')
-    p.add_argument('command', choices=['check', 'init', 'db', 'start', 'stop', 'status', 'logs', 'verify', 'build', 'bootstrap', 'backup', 'setup', 'policy-checksum'])
+    p.add_argument('command', choices=['check', 'init', 'db', 'start', 'stop', 'status', 'logs', 'verify', 'build', 'bootstrap', 'backup', 'setup', 'policy-checksum', 'policy-validate'])
     p.add_argument('--slot', choices=['A', 'B', 'C'])
     p.add_argument('--db-port', type=int, default=33101)
     p.add_argument('--tls-port', type=int, default=9443)
@@ -189,6 +189,14 @@ def main(argv=None):
     if a.directory.is_symlink():
         raise ValueError('LOCAL_OWNER: symlink directory is not allowed')
     d = a.directory.absolute()
+    if a.command == 'policy-validate':
+        if not a.policy:
+            raise ValueError('--policy FILE required')
+        command = ['gradlew.bat' if os.name == 'nt' else './gradlew', 'checkLocalPolicy', '--console=plain', '-PcollectionPolicyFile=' + str(a.policy.resolve())]
+        if a.policy_sha256:
+            command.append('-PcollectionPolicySha256=' + a.policy_sha256)
+        run(command, cwd=ROOT / 'be')
+        return
     if a.command == 'policy-checksum':
         if not a.policy:
             raise ValueError('--policy FILE required')

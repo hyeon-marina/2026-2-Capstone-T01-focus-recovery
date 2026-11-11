@@ -25,7 +25,7 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',required=True,type=Path);p.add_argument('--chrome',required=True);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',required=True,type=Path);p.add_argument('--chrome',required=True);p.add_argument('--metadata-only',action='store_true');a=p.parse_args()
     os.umask(0o077);root=a.output.resolve();root.mkdir(parents=True,exist_ok=False,mode=0o700)
     java=Path(os.environ['JAVA_HOME'])/'bin/java' if os.environ.get('JAVA_HOME') else 'java'
     gradle='gradlew.bat' if os.name=='nt' else './gradlew'
@@ -38,6 +38,7 @@ def main():
     now=datetime.now(timezone.utc)
     policy={k:'synthetic-only-not-approval' for k in ['approvalRef','contractApprovalRef','retentionRef','institutionRef','modelEvidenceRef','privacyEvidenceRef','startAuthorizationRef']}
     policy.update(status='SYNTHETIC',buildId='controlled-web-101',policyId='SYNTHETIC-101',policyVersion='1',notBefore=(now-timedelta(minutes=1)).isoformat().replace('+00:00','Z'),expiresAt=(now+timedelta(hours=4)).isoformat().replace('+00:00','Z'),sites=[dict(origin='http://127.0.0.1:8911',pathPrefix='/public/')])
+    policy['metadataOnly']=a.metadata_only
     policyfile=root/'site-policy.json';private(policyfile,json.dumps(policy))
     def launch(config,path):
         env=os.environ.copy();env['FOCUS101_FIXTURE_FILE']=str(path)

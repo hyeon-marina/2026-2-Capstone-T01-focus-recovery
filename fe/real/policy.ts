@@ -1,9 +1,10 @@
+import { inspectPublicUrl } from './url';
 import { inspectUrl } from '../src/shared/url';
 export interface Site { origin: string; pathPrefix: string }
 export function contentMatches(s: Site) { return s.pathPrefix.endsWith('/') ? [`${s.origin}${s.pathPrefix}*`] : [`${s.origin}${s.pathPrefix}`,`${s.origin}${s.pathPrefix}?*`,`${s.origin}${s.pathPrefix}/*`]; }
 export interface SitePolicy { digest: string; buildId: string; expiresAt: string; sites: Site[]; status: string }
-export function allowedSite(raw: string, sites: Site[]): boolean {
-  const u = inspectUrl(raw)?.url;
+export function allowedSite(raw: string, sites: Site[], metadataOnly = false): boolean {
+  const u = metadataOnly ? inspectPublicUrl(raw, sites)?.url : inspectUrl(raw)?.url;
   return !!u && sites.some(s => u.origin === s.origin && (s.pathPrefix === '/' || u.pathname === s.pathPrefix || u.pathname.startsWith(s.pathPrefix.endsWith('/') ? s.pathPrefix : s.pathPrefix + '/')));
 }
 export function validPolicy(p: SitePolicy, build: { policyDigest: string; buildId: string; sites: Site[] }, synthetic: boolean): boolean {

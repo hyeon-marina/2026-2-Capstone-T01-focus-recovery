@@ -1,5 +1,8 @@
 # 데이터 통합 관리자 실습 매뉴얼 — Issue #101
 
+#105의 현재 로컬 정책은 [공통 정책 권고안](real-collection-policy.md)과 [TEAM_POLICY.json](TEAM_POLICY.json)을 기준으로 한다. **DRAFT/UNRESOLVED·실제 개시 BLOCKED**는 유지한다. [정책 적용 절차](policy-application-guide.md), [목표20개 원문/완료 기준/시나리오](confirmed-goals-proposal.md), [사이트 검토](site-collection-review.md), [이번 실행 결과](issue105-validation.md)를 먼저 확인한다. 원본문장/검색어/제목 대신 행동·불투명 URL 식별자·고정 Topic만 저장한다. 기존 v1/AI 활성 경로의 본문 규격과 구분한다.
+
+
 #103에서도 `focus-raw-export/1` JSONL/Manifest/SHA-256/age·출처+원래ID 매핑·privacy freshness/rollback·멱등/충돌 검사는 그대로다. 셀프 초기화는 각 DB의 고유 Participant/Source UUID를 만들고 공통 Plan revision/목표/배정 checksum을 유지한다. `dataset.py privacy`에서 --participant를 생략하면 **본인 전용** 최신 상태를 받는다. 별도 로컬 관리자 발급은 필요 없다. [새 설치 명령](individual-local-setup.md)과 [검증 보고](local-self-setup-validation.md)를 참조한다.
 
 
@@ -204,3 +207,27 @@ python3 tools/individual-local/run-synthetic-e2e.py \
 ```
 
 이 runner는 명시적 합성 환경에서만 테스트 계정/정책을 생성하며 제품 JAR에 Seed 코드는 포함되지 않습니다. Windows runner 실행은 NOT_TESTED입니다.
+
+## #105 팀원이 반복할 최소 전달 절차
+
+통합 담당자는 1절의 `age-keygen`을 한 번 실행하고 **age1... 공개키만** A/B/C에게 전달한다. 각 참여자는 다음을 실행하면 즉시 암호화된 Export가 생성된다. 평문을 따로 저장하거나 수동으로 다시 암호화할 필요가 없다. 새 파일 이름을 사용하고 후속 전달/사용 전 최신 privacy를 받는다.
+
+macOS:
+
+```sh
+read -r AGE_RECIPIENT
+python3 tools/individual-local/dataset.py export --server https://localhost:9443 --ca-file .collection/local/tls/localhost.pem --credential-file .collection/local/participant.json --recipient "$AGE_RECIPIENT" --output .collection/local/A-001.tar.age
+python3 tools/individual-local/dataset.py privacy --server https://localhost:9443 --ca-file .collection/local/tls/localhost.pem --credential-file .collection/local/participant.json --output .collection/local/A-privacy-001.json
+```
+
+Windows PowerShell (**NOT_TESTED**):
+
+```powershell
+$ageRecipient = Read-Host '통합 담당자의 age1 공개키'
+py -3 tools/individual-local/dataset.py export --server https://localhost:9443 --ca-file .collection/local/tls/localhost.pem --credential-file .collection/local/participant.json --recipient $ageRecipient --output .collection/local/A-001.tar.age
+py -3 tools/individual-local/dataset.py privacy --server https://localhost:9443 --ca-file .collection/local/tls/localhost.pem --credential-file .collection/local/participant.json --output .collection/local/A-privacy-001.json
+```
+
+B/C는 파일 이름만 자기 슬롯으로 바꾼다. 파일 2개와 출력 SHA-256 2개를 승인된 비공개 경로/별도 인증 경로로 담당자에게 전달한다. 개인 Credential·Owner Key·TLS/age 개인키는 전달하지 않는다. 담당자는 4~8절의 verify/inspect/merge로 **자기 개인키**를 사용해 메모리에서 복호화·Manifest/SHA/Source/Participant/계획/현재 privacy·격리/철회를 검사한다. 실패 파일은 임의 수정하지 않고 보존·격리한다. 동일 Export는 멱등이며 레지스트리를 삭제하지 않는다.
+
+#105의 title/content/searchQuery는 [고정 메타데이터 의미](real-collection-policy.md)를 가진다. 기존 Export 필드/버전은 유지하므로 원문 텍스트를 포함하는 과거 정책과 섞어 모델 학습 입력으로 자동 해석하지 않는다. metadata 표식으로 검색어를 복원하거나 HMAC 주소를 사이트에 요청하지 않는다.

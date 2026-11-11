@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   const dirty = !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim();
   const metadata = { version: '0.3.0', sourceCommit, dirty, mode, apiOrigin: api, actualCollection: 'REQUIRES_SERVER_APPROVAL',
-    buildId: policy.buildId, policyDigest: createHash('sha256').update(bytes).digest('hex'), sites: policy.sites };
+    metadataOnly: policy.schemaVersion === 'focus-local-policy/1' || synthetic && policy.metadataOnly === true, buildId: policy.buildId, policyDigest: createHash('sha256').update(bytes).digest('hex'), sites: policy.sites };
   return { base: './', publicDir: false, define: { __COLLECTION_PILOT__: false, __COLLECTION_REAL__: true, __COLLECTION_BUILD__: JSON.stringify(metadata) },
     plugins: [{ name: 'real-manifest', generateBundle() {
       this.emitFile({type:'asset',fileName:'build-info.json',source:JSON.stringify(metadata,null,2)});
