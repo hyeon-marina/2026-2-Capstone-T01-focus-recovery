@@ -159,7 +159,7 @@ python3 tools/individual-local/run-regression.py --mysql-fixture CHROME_OUTPUT/A
 
 ## 22. 변경 파일·Commit
 
-브랜치 `feat/103/v2-local-self-setup`. 한국어 Commit으로 구현·문서·실제 캡처를 제출하며 구체 SHA/Push/PR URL은 최종 보고와 PR에 기록한다. 아래 변경 목록은 이 보고서가 포함된 Commit의 `git show --stat`와 함께 확인한다.
+브랜치 `feat/103/v2-local-self-setup`. 구현·문서·캡처 Commit은 `cbde24617ec3196060ac3c227b8c5a3cf6113124` (`feat: A/B/C 로컬 셀프 초기화와 공통 원본 수집 정책 적용 구현 (#103)`)다. 이 SHA의 clean tree에서 JAR/로컬 DRAFT real ZIP 재빌드 PASS. ZIP SHA-256은 `ca5b97e57b8a45d95916129a8a7c8225d173ec8b02e8a90ea76ca5076d062942`, sourceCommit 일치/dirty=false/허용 사이트0을 확인했다. 실제 수집 승인 패키지가 아니다. 이 실행 기록 추가만 별도 한국어 문서 Commit에 담으며 최종 문서 SHA/Push/PR URL은 최종 보고와 PR에 기록한다. 아래 변경 목록은 이 보고서가 포함된 Commit의 `git show --stat`와 함께 확인한다.
 
 변경 경로:
 
