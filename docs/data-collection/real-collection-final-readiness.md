@@ -92,3 +92,7 @@ B/C는 자기 슬롯. 생성 명령은 기존 출력 덮어쓰기를 거절한�
 | https://d2.naver.com | /helloworld | COMPATIBLE_SMOKE | BLOCKED: 실제 기록 필요 |
 | https://ko.wikipedia.org | /wiki | COMPATIBLE_SMOKE | BLOCKED: 실제 기록 필요 |
 | https://en.wikipedia.org | /wiki | COMPATIBLE_SMOKE | BLOCKED: 실제 기록 필요 |
+
+## 게시 기록
+
+구현 Commit: `c07e237a83c18e37dd8c200b594c204f22626daf`. 개인 Fork `fix/105/real-collection-ready` Push 성공. [공식 main 대상 PR #107](https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/pull/107). 이 링크 기록만 후속 문서 Commit으로 추가하며 최종 HEAD는 PR Commit 목록을 참조한다. 공식 main 직접 Push/자동 Merge는 하지 않았다.
