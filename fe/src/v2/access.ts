@@ -6,6 +6,7 @@ export interface ConsentPolicy {
   useScope: string; retentionPolicyRef: string | null; approvalRef: string | null; status: 'DRAFT' | 'SYNTHETIC' | 'APPROVED' | 'RETIRED'; effectiveAt: string;
 }
 export interface CollectionAccess {
+  local?: { slot: string; policyDigest: string; blockers: string[]; ready: boolean; details: Record<string, string>; planRevision?: number; planChecksum?: string; goalChecksum?: string; assignmentChecksum?: string };
   participantId: string; expiresAt: string; consentId: string | null; consentValid: boolean; collectionEnabled: boolean; withdrawn: boolean; policy: ConsentPolicy | null;
 }
 export async function accessRequest(path: string, body?: unknown) {
@@ -29,7 +30,9 @@ export async function readCollectionAccess(): Promise<CollectionAccess> {
   if (p !== null && (!p || ['policyId','policyVersion','scope','purpose','collectionItems','useScope','status','effectiveAt'].some(k => typeof p[k] !== 'string')
     || !['DRAFT','SYNTHETIC','APPROVED','RETIRED'].includes(p.status)
     || [p.retentionPolicyRef,p.approvalRef].some(v => v !== null && typeof v !== 'string'))) throw new AccessError('consent');
-  return { ...consent, expiresAt: identity.expiresAt };
+  const local = identity.localMode ? await accessRequest('/api/collection/local-status') : undefined;
+  if (local && (!['','A','B','C'].includes(local.slot) || !Array.isArray(local.blockers) || typeof local.ready !== 'boolean')) throw new AccessError('consent');
+  return { ...consent, expiresAt: identity.expiresAt, ...(local ? { local } : {}) };
 }
 export interface WithdrawalReceipt { requestId: string; withdrawalId: string; status: 'QUARANTINED'; sessions: unknown[]; targets: unknown[]; unmet: string[] }
 export function validWithdrawal(value: unknown, id: string): value is WithdrawalReceipt {

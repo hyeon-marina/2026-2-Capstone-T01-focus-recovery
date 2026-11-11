@@ -1,3 +1,4 @@
+import { UUID4 } from './contract';
 import { setCredential, AccessError } from '../api/auth-fetch';
 import { readCollectionAccess, accessRequest } from './access';
 import { V2StatusClient } from './status';
@@ -128,6 +129,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
           return { access, withdrawal };
         } catch (e) { return { error: e instanceof AccessError ? e.kind : 'network' }; }
       }
+      if (m?.type === 'v2-recollect' && typeof m.attemptId === 'string' && UUID4.test(m.attemptId)) return accessRequest(`/api/collection/attempts/${m.attemptId}/recollect`, { reasonCode: m.reasonCode });
       if (m?.type === 'v2-assignments') return accessRequest('/api/collection/assignments');
       if (m?.type === 'v2-progress') { await syncReport(); return accessRequest('/api/collection/progress'); }
       if (m?.type === 'v2-start') {

@@ -85,7 +85,7 @@ def main():
             m,f,h=ds.load_bundle(out,key);assert len(f['visits'])==10;exports.append(out)
             privacy.append(fresh_privacy(slot,config,directory))
             metadata=sql(config,"SELECT COUNT(*) FROM page_visit; SELECT COUNT(*) FROM analysis_window; SELECT COUNT(*) FROM analysis_result; SELECT COUNT(*) FROM flyway_schema_history WHERE success=1;")
-            actual=[int(x) for x in metadata.split()];assert actual==[10,0,0,17];counts.append(dict(slot=slot,visits=10,windows=0,analyses=0,migrations=17,encryptedSha256=ds.digest(out.read_bytes()),manifestSha256=h,files=m['files']))
+            actual=[int(x) for x in metadata.split()];assert actual==[10,0,0,18];counts.append(dict(slot=slot,visits=10,windows=0,analyses=0,migrations=18,encryptedSha256=ds.digest(out.read_bytes()),manifestSha256=h,files=m['files']))
             print('PASS: independent MySQL '+slot+' / Chrome measured 10 Visits / no AI',flush=True)
         registry=root/'merge-registry.sqlite';merged=root/'merged.tar.age'
         r=ds.merge(exports,privacy,registry,merged,key,recipient,bundle_hashes=[ds.digest(x.read_bytes()) for x in exports]);assert (r['rawCompleted'],r['validVisits'],r['theoreticalWindows'])==(3,30,24)

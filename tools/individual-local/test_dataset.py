@@ -157,3 +157,16 @@ class DatasetTest(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+class PrivacyCliTest(unittest.TestCase):
+    def test_self_privacy_uses_owner_route_without_operator(self):
+        from unittest.mock import patch
+        import sys
+        import io
+        from contextlib import redirect_stdout
+        with tempfile.TemporaryDirectory() as temp:
+            out=Path(temp)/'privacy.json'
+            with patch.object(sys,'argv',['dataset.py','privacy','--server','https://localhost:9443','--credential-file','participant.json','--output',str(out)]),patch.object(d,'request',return_value={'observedAt':'2026-11-11T00:00:00Z'}) as request,redirect_stdout(io.StringIO()):
+                d.main()
+            self.assertEqual(request.call_args.args[2],'/api/collection/export-privacy')
+            self.assertTrue(out.exists())

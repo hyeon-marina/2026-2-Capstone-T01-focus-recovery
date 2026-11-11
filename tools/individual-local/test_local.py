@@ -34,3 +34,43 @@ class LocalTest(unittest.TestCase):
             self.assertEqual(file.read_text(),'synthetic-secret')
 
 if __name__=='__main__':unittest.main()
+
+class SelfSetupTest(unittest.TestCase):
+    def test_requires_slot_and_prevents_other_slot(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as temp:
+            d=Path(temp);local.private(d/'config.json',json.dumps(dict(slot='A')))
+            a=SimpleNamespace(slot='B')
+            with patch.object(local,'prerequisites'):
+                with self.assertRaisesRegex(ValueError,'LOCAL_SLOT_MISMATCH'):local.self_setup(a,d)
+            self.assertFalse((d/'owner.key').exists())
+    @unittest.skipIf(sys.platform=='win32','POSIX permission test')
+    def test_refuses_shared_and_symlink_inputs(self):
+        import os
+        with tempfile.TemporaryDirectory() as temp:
+            d=Path(temp);file=d/'key';local.private(file,'synthetic')
+            file.chmod(0o644)
+            with self.assertRaisesRegex(ValueError,'LOCAL_OWNER'):local.protected(d)
+            file.chmod(0o600);local.protected(d)
+            (d/'link').symlink_to(file)
+            with self.assertRaisesRegex(ValueError,'symlink'):local.protected(d)
+    def test_plan_checksum_is_sorted_compact_utf8(self):
+        import hashlib
+        import io
+        from contextlib import redirect_stdout
+        with tempfile.TemporaryDirectory() as temp:
+            file=Path(temp)/'policy.json';file.write_text(json.dumps(dict(plan=dict(revision=1,goals=['합성']))))
+            result=io.StringIO()
+            with redirect_stdout(result):local.main(['policy-checksum','--policy',str(file)])
+            expected=hashlib.sha256('{"goals":["합성"],"revision":1}'.encode()).hexdigest()
+            self.assertIn(expected,result.getvalue())
+
+
+class RuntimeJarTest(unittest.TestCase):
+    def test_running_jar_is_not_changed_by_workspace_rebuild(self):
+        with tempfile.TemporaryDirectory() as temp:
+            directory=Path(temp);source=directory/'source.jar';source.write_bytes(b'old-build')
+            with patch.object(local,'jar',return_value=source):
+                runtime=local.runtime_jar(directory,'backend-runtime.jar')
+            source.write_bytes(b'new-build')
+            self.assertEqual(runtime.read_bytes(),b'old-build')

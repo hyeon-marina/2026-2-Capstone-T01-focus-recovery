@@ -1,5 +1,16 @@
 # 수집 개시 Readiness
 
+## #103 최신 판정
+
+- 기술 기능: 로컬 소유자 전용 setup/회전·공통 정책 설치·슬롯 자동 배정·로컬 상태/파일 로그인·본인 재수집/최신 privacy 조회. 실행 근거와 플랫폼별 PASS/NOT_TESTED는 [새 검증 보고](local-self-setup-validation.md)를 따른다.
+- 실제 개시: **BLOCKED**. 팀의 실제 확정 정책·목표20·사이트·보존/삭제·명시적 동의·기관 판단·회수 담당/연락 경로·실제 HTTPS Chrome 파일럿이 필요하다. DRAFT 또는 합성 근거를 실제 승인으로 바꾸지 않는다.
+- 개인 PC 원본 모드: 운영자 Credential/등록/수동 DB Release/모델 추론은 필수가 아니다. `setup --slot`과 공통 확정 RAW_ONLY 정책을 사용한다. 본인 Credential·실제 동의·사이트·Build/Session Scope·privacy 검사는 유지한다.
+- AI 활성 real-collection: 아래 기존 독립 승인·모델 증거·운영 서버 검증이 그대로 적용된다.
+- Windows/NTFS·OS 인증서 신뢰·신규 OS 설치부터 사람의 수동 재현은 NOT_TESTED다. 합성 테스트 결과를 실제160세션으로 계산하지 않는다.
+
+아래 #101/#99 표는 당시 검증 기록이다.
+
+
 ## #101 로컬 원본 전용 판정
 
 **실제 참여자 수집 BLOCKED 유지.** AI/FastAPI·공용 서버는 개인 PC 원본 모드의 런타임 필수가 아닙니다. 아래 #99 표의 공용 인프라/실모델 행은 AI 활성 운영 경로의 항목입니다. 원본 수집을 위해 모델 실행을 강제하지 않지만, 기존 승인 Artifact의 참조를 임의 생략/승인하지도 않습니다.

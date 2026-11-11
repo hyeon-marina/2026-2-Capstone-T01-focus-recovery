@@ -524,8 +524,8 @@ def main():
         require(not a.output.exists(),'New output required')
         if a.participant:uid(a.participant)
         if a.command=='privacy':
-            require(a.participant,'Operator and --participant required for privacy after withdrawal')
-            value=request(a.server,a.credential_file,'/api/collection/admin/export-privacy/'+a.participant,a.ca_file,a.synthetic_loopback)
+            route='/api/collection/admin/export-privacy/'+a.participant if a.participant else '/api/collection/export-privacy'
+            value=request(a.server,a.credential_file,route,a.ca_file,a.synthetic_loopback)
             data=encoded(value);publish(a.output,data);print(json.dumps(dict(privacySaved=str(a.output),sha256=digest(data),observedAt=value['observedAt'])))
         else:
             require(a.recipient or a.synthetic_plaintext,'age --recipient required for real exports')

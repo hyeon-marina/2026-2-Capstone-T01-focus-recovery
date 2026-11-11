@@ -37,6 +37,14 @@ public class CollectionSitePolicy {
             var n=mapper.readTree(bytes);
             String digest=java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
             String status=n.path("status").asText(),build=n.path("buildId").asText();
+            if (n.path("schemaVersion").asText().equals("focus-local-policy/1")) {
+                if (!Arrays.equals(env.getActiveProfiles(),new String[]{"individual-local"})) return null;
+                var validator=new LocalCollectionPolicy(mapper);var plan=validator.validate(n,clock.instant());
+                var sites=validateLocalSites(n);
+                if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_local_owner o JOIN participant p ON p.participant_id=o.participant_id JOIN collection_plan c ON c.plan_id=1 WHERE o.policy_digest=? AND o.plan_checksum=? AND c.revision=? AND p.status='ACTIVE' AND p.withdrawn_at IS NULL",Integer.class,digest,validator.checksum(plan),plan.revision())!=1) return null;
+                if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_release WHERE policy_digest=? AND build_id=? AND approval_ref=? AND revoked_at IS NULL",Integer.class,digest,build,n.path("teamDecisionRef").asText())!=1)return null;
+                return new Policy(digest,build,n.path("policyId").asText(),n.path("policyVersion").asText(),"APPROVED",Instant.parse(n.path("expiresAt").asText()),sites);
+            }
             if(!(synthetic?status.equals("SYNTHETIC"):status.equals("APPROVED")) || !build.matches("[a-zA-Z0-9_.-]{1,100}"))return null;
             for(String k:List.of("approvalRef","contractApprovalRef","retentionRef","institutionRef","modelEvidenceRef","privacyEvidenceRef","startAuthorizationRef"))
                 if(!n.path(k).asText().matches("[a-zA-Z0-9_./:-]{3,255}"))return null;
@@ -55,6 +63,17 @@ public class CollectionSitePolicy {
             if(id.isBlank() || version.isBlank())return null;
             return new Policy(digest,build,id,version,status,expires,List.copyOf(sites));
         } catch(Exception e) { return null; }
+    }
+    List<Site> validateLocalSites(tools.jackson.databind.JsonNode n) {
+        List<Site> result=new ArrayList<>();
+        for(var s:n.path("sites")) {
+            String origin=s.path("origin").asText(),prefix=s.path("pathPrefix").asText();URI u=URI.create(origin);
+            if(!"https".equals(u.getScheme()) || u.getHost()==null || u.getUserInfo()!=null || u.getRawQuery()!=null || u.getRawFragment()!=null || !(u.getPath()==null || u.getPath().isEmpty()) || origin.contains("*") || !prefix.matches("/[a-zA-Z0-9_./-]*") || prefix.contains("..") || !origin.equals(u.getScheme()+"://"+u.getRawAuthority())) LocalCollectionPolicy.fail("LOCAL_POLICY_SITES: 정확한 HTTPS 공개 사이트·경로가 필요합니다.");
+            if(u.getHost().toLowerCase(Locale.ROOT).matches(".*(?:^|[.-])(bank|banking|paypal|stripe|accounts|login|auth|finance|wallet)(?:[.-]|$).*") || prefix.toLowerCase(Locale.ROOT).matches(".*(?:^|[/_.-])(login|signin|auth|account|profile|settings|checkout|payment|bank|password|wallet|finance)(?:[/_.-]|$).*"))LocalCollectionPolicy.fail("LOCAL_POLICY_SENSITIVE_SITE: 로그인·금융·민감 사이트는 허용할 수 없습니다.");
+            var site=new Site(origin,prefix);if(result.contains(site))LocalCollectionPolicy.fail("Duplicate site");result.add(site);
+        }
+        if(result.isEmpty() || result.size()>30)LocalCollectionPolicy.fail("LOCAL_POLICY_SITES: 최소 허용 사이트를 확정하세요.");
+        return List.copyOf(result);
     }
     public Policy require() { var p=current();if(p==null)throw blocked();return p; }
     public void bind(WorkSession s) {
@@ -75,7 +94,7 @@ public class CollectionSitePolicy {
         check(s);
         try {
             URI u=URI.create(url);String path=u.getPath().toLowerCase(Locale.ROOT);
-            if(path.matches(".*(?:^|[/_.-])(login|signin|auth|account|profile|settings|checkout|payment|bank|password)(?:[/_.-]|$).*")
+            if(u.getHost()==null || u.getHost().toLowerCase(Locale.ROOT).matches(".*(?:^|[.-])(bank|banking|paypal|stripe|accounts|login|auth|finance|wallet)(?:[.-]|$).*") || path.matches(".*(?:^|[/_.-])(login|logon|signin|sign-in|signup|sign-up|register|registration|password|reset-password|auth|oauth|callback|sso|checkout|payment|billing|banking|bank|wallet|account|profile|settings|myaccount|finance|financial|pay|verify|verification)(?:[/_.-]|$).*")
                 || u.getRawQuery()!=null || u.getRawFragment()!=null || u.getUserInfo()!=null)throw blocked();
             boolean allowed=require().sites().stream().anyMatch(site->url.startsWith(site.origin()+"/") && (site.pathPrefix().equals("/") || u.getPath().equals(site.pathPrefix()) || u.getPath().startsWith(site.pathPrefix().endsWith("/")?site.pathPrefix():site.pathPrefix()+"/")));
             if(!allowed)throw blocked();

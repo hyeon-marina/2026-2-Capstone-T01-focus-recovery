@@ -1,5 +1,16 @@
 # 수집 관리자 운영 가이드
 
+## #103 개인 PC 원본 모드 — 관리자 작업 대체
+
+individual-local에서는 각자가 `local.py setup --slot A/B/C`로 최초 소유자·가명 UUID·Credential·자기 배정을 준비한다. collection_operator를 만들지 않고 HTTP 관리 API는 기본 false다. 팀의 확정 공통 `focus-local-policy/1` RAW_ONLY 파일과 별도 신뢰 SHA-256을 setup에 전달하면 동의 정책·정확한 DB Release·Plan revision을 트랜잭션으로 설치한다. 별도 enroll/issue/bootstrap/반복 수동 Release는 개인 PC 절차에서 사용하지 않는다. 기존 real-collection 경로는 아래 역사적 운영 절차대로 유지한다.
+
+팀은 목적/항목/이용·보존/삭제·공개 사이트/경로·민감 URL/DOM/본문/검색어 처리·정책 기간/변경·개시 범위·기관 필요 여부와 실제 근거·최종 목표20개를 확정해야 한다. [DRAFT 양식](local-policy.draft.json)은 승인 근거가 아니다. 원본 전용은 모델 실행 증거를 요구하지 않고, AI 활성 모드의 modelEvidenceRef는 보존한다. 근거 문자열의 실제 사실성은 코드가 자동 인증하지 않는다. 팀이 기록·checksum을 별도로 대조한다.
+
+소유자 키/슬롯 불일치·기존 비어 있지 않은 DB는 인수하지 않는다. Credential 회전은 기존 Token을 폐기하며 UUID/원본/배정을 유지한다. 본인 종료·CLEAR 시도는 사유를 남겨 재수집할 수 있고 타인/활성/격리 시도는 거절한다. 철회는 재활성화하지 않으며 회전 인증으로 본인 최신 privacy 메타데이터만 계속 전달할 수 있다. Export schema와 출처/ID 매핑은 바꾸지 않는다.
+
+정책 변경은 활성 세션 종료 후 새 정책 버전·hash·빌드·본인 재동의가 필요하다. 실행 이력이 있는 Plan은 변경하지 않는다. 복원된 Release를 같은 정책 재적용으로 되살리지 않는다. 전체 외부 사본 회수·보존/삭제·사고 연락 경로는 실제 담당자와 증거가 필요하다. 상세 명령: [설치/수집 가이드](individual-local-setup.md), [통합 가이드](merge-guide.md), [#103 검증](local-self-setup-validation.md). 아래 #101/#99 결과는 그 시점 기록이며 현재 개인 모드의 필수 관리자 절차가 아니다.
+
+
 ## #101 개인 PC 원본 전용 운영 — 현재 시작점
 
 [개인 PC 설치](individual-local-setup.md) → [팀원 실습](participant-guide.md) → [파일 통합](merge-guide.md) → [실행/미검증 보고](individual-local-validation.md)를 따릅니다. 원본 수집에는 공용 서버·FastAPI·Qwen 실행이 필요하지 않습니다. 기본은 loopback HTTPS Spring + 자기 MySQL이며, 기존 `real-collection` AI 활성 배포도 아래 절대로 유지합니다. 실제 등록/정책/목표20/기관·보존/허용 사이트/시작 승인은 현재 BLOCKED입니다.

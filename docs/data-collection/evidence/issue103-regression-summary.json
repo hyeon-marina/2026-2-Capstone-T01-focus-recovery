@@ -1,0 +1,10 @@
+{
+  "tests": 1028,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 78,
+  "passed": 950,
+  "kind": "SYNTHETIC_REGRESSION_103",
+  "ai": "MOCK_MODELS",
+  "actualParticipantSessions": 0
+}

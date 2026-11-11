@@ -83,3 +83,17 @@ Progress.raw는 `{completed,syntheticCompleted,validVisits,theoreticalWindows,ge
 모든 API는 기존 TLS·Bearer Filter와 no-store를 사용합니다. Export는 REPEATABLE_READ + 참여자 잠금/감사이며 raw 본문을 응답하므로 proxy/body logging 금지입니다. privacy endpoint는 승인 Artifact 만료/철회 이후에도 운영자의 회수 확인을 위해 조회할 수 있습니다. snapshot JSON은 wire/실행용 포맷이며 전달용은 CLI가 `focus-raw-export/1` JSONL/Manifest/체크섬을 만들고 age로 암호화합니다. [실제 포맷·검증·통합](../data-collection/merge-guide.md)을 따릅니다.
 
 `individual-local`은 real-collection과 동일한 승인 검증을 적용하는 정확한 단일 프로필이고 AI Dispatcher만 기본 false입니다. deploymentConfigured는 원본 저장 승인 경계이며 dispatch 활성화를 요구하지 않습니다. 실제 승인/동의·사이트는 이번 구현에서 생성하지 않았습니다.
+
+
+## #103 individual-local 오프라인 소유자와 본인 API
+
+정확한 단일 individual-local·non-web·loopback MySQL/focus_collection·로컬 TLS에서만 LocalCollectionSetup이 동작한다. HTTP 등록/역할 부여 API는 추가하지 않는다. V18의 단일 소유자 key hash/slot/participant와 OS owner-only 파일을 함께 확인한다. 운영자 역할을 만들지 않으며 이 Profile의 administration-enabled 기본값은 false다.
+
+- `GET /api/auth/me`: `localMode` boolean 추가. 다른 모드는 false. 기존 필드 유지.
+- `GET /api/collection/local-status`: individual-local 본인만. `{slot,policyDigest,blockers[],details,ready}`. details는 보존/민감 페이지/본문/검색어/변경/개시 범위이며 토큰/타인 정보 없음.
+- `POST /api/collection/attempts/{attempt}/recollect`: individual-local 본인 소유의 ENDED·CLEAR 시도만. `{reasonCode: INSUFFICIENT_VISITS|DELIVERY_FAILED|USER_REQUEST}`, 204. 동의·소유자 잠금, 사유/감사·원래 시도 보존. 활성/타인/격리404. real-collection에는 이 경로 없음.
+- `GET /api/collection/export-privacy`: 본인만, 기존 privacy DTO. 철회 후에도 조회 가능. 기존 `/admin/export-privacy/{participant}`는 운영자 검사를 유지.
+
+`focus-local-policy/1` RAW_ONLY와 CONFIRMED 상태·실제 팀 근거/기관 판단·적용 기간·원문 정책·HTTPS 사이트·공통 확정 Plan을 검사한다. 원본에는 modelEvidenceRef를 요구하지 않는다. 전체 파일의 별도 신뢰 SHA-256 + 정렬 compact UTF-8 Plan checksum을 검증하고 DB Release를 설치한다. 내부 session_collection_scope와 빌드 digest 검증은 그대로다. 같은 policyId/version의 다른 bytes는 거절하며 변경 시 새 버전·재빌드·재동의가 필요하다. 기존 real-collection Artifact/독립 Release/AI 증거 계약은 변경하지 않는다.
+
+blockers: LOCAL_SETUP_REQUIRED, LOCAL_POLICY_MISSING, LOCAL_POLICY_DRAFT, LOCAL_POLICY_EXPIRED, LOCAL_POLICY_MISMATCH, GOAL_UNCONFIRMED, CONSENT_REQUIRED, PRIVACY_WITHDRAWN. 인증 없음/만료/폐기는 기존401을 유지하며 존재 여부를 노출하지 않는다. Chrome은 네트워크와 TLS 실패를 동일 TypeError로 받을 수 있어 `status`와 인증서 확인을 함께 안내한다.

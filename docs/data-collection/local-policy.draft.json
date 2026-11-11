@@ -1,0 +1,1289 @@
+{
+  "schemaVersion": "focus-local-policy/1",
+  "mode": "RAW_ONLY",
+  "status": "DRAFT",
+  "policyId": "",
+  "policyVersion": "",
+  "buildId": "",
+  "teamDecisionRef": "",
+  "notBefore": "",
+  "expiresAt": "",
+  "purpose": "",
+  "collectionItems": "",
+  "useScope": "",
+  "retentionRef": "",
+  "retentionPolicy": "",
+  "privacyEvidenceRef": "",
+  "sensitivePageExclusions": "",
+  "textPrivacyPolicy": "",
+  "changePolicy": "",
+  "collectionScope": "",
+  "institution": {
+    "decision": "UNRESOLVED",
+    "evidenceRef": ""
+  },
+  "startAuthorizationRef": "",
+  "sites": [],
+  "planChecksum": "",
+  "plan": {
+    "revision": 0,
+    "goals": [
+      {
+        "goalId": "GOAL-001",
+        "description": "정적 웹사이트의 GitHub Pages 배포 절차와 사용자 지정 도메인 연결 방법을 조사하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-002",
+        "description": "웹 접근성에서 키보드 탐색과 이미지 대체 텍스트의 점검 방법을 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-003",
+        "description": "Python 가상환경 생성과 의존성 고정 방법을 조사해 재현 가능한 설치 절차를 작성하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-004",
+        "description": "Git의 merge와 rebase 차이 및 충돌 해결 절차를 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-005",
+        "description": "브라우저 HTTP 캐시의 Cache-Control과 ETag 사용 방법을 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-006",
+        "description": "종이·유리·플라스틱의 재활용 분리배출 원칙을 공개 안내에서 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-007",
+        "description": "태양광과 풍력 발전의 원리 및 설치 환경 제약을 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-008",
+        "description": "도시 열섬의 원인과 녹지·차열 포장의 완화 방법을 조사하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-009",
+        "description": "LED와 형광등의 작동 원리 및 에너지 사용 차이를 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-010",
+        "description": "음식 보관 용기의 유리·스테인리스·플라스틱 재질 특성을 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-011",
+        "description": "한글의 창제 배경과 자음·모음 구성 원리를 공개 교육 자료에서 조사하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-012",
+        "description": "인상주의와 후기 인상주의 회화의 특징을 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-013",
+        "description": "도서관의 십진분류와 온라인 목록 검색 방법을 공개 안내에서 조사하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-014",
+        "description": "박물관 디지털 아카이브의 공개 이용 조건과 작품 검색 기능을 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-015",
+        "description": "오케스트라의 현악·목관·금관·타악기 역할을 공개 교육 자료에서 조사하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-016",
+        "description": "화산과 지진의 발생 원리 및 판 경계와의 관계를 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-017",
+        "description": "태양계의 지구형 행성과 목성형 행성의 특성을 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-018",
+        "description": "강수량과 습도의 측정 방식 및 일기예보에서의 의미를 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-019",
+        "description": "철도와 버스의 일반적인 운송 특성과 환승 정보 확인 방법을 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      },
+      {
+        "goalId": "GOAL-020",
+        "description": "식물의 광합성과 호흡의 원리 및 환경 조건 차이를 비교하세요.",
+        "status": "DRAFT",
+        "evidenceRef": null
+      }
+    ],
+    "assignments": [
+      {
+        "plannedSessionId": "PLAN-001",
+        "goalId": "GOAL-001",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-002",
+        "goalId": "GOAL-001",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-003",
+        "goalId": "GOAL-001",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-004",
+        "goalId": "GOAL-001",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-005",
+        "goalId": "GOAL-001",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-006",
+        "goalId": "GOAL-001",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-007",
+        "goalId": "GOAL-001",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-008",
+        "goalId": "GOAL-001",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-009",
+        "goalId": "GOAL-002",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-010",
+        "goalId": "GOAL-002",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-011",
+        "goalId": "GOAL-002",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-012",
+        "goalId": "GOAL-002",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-013",
+        "goalId": "GOAL-002",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-014",
+        "goalId": "GOAL-002",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-015",
+        "goalId": "GOAL-002",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-016",
+        "goalId": "GOAL-002",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-017",
+        "goalId": "GOAL-003",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-018",
+        "goalId": "GOAL-003",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-019",
+        "goalId": "GOAL-003",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-020",
+        "goalId": "GOAL-003",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-021",
+        "goalId": "GOAL-003",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-022",
+        "goalId": "GOAL-003",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-023",
+        "goalId": "GOAL-003",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-024",
+        "goalId": "GOAL-003",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-025",
+        "goalId": "GOAL-004",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-026",
+        "goalId": "GOAL-004",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-027",
+        "goalId": "GOAL-004",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-028",
+        "goalId": "GOAL-004",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-029",
+        "goalId": "GOAL-004",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-030",
+        "goalId": "GOAL-004",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-031",
+        "goalId": "GOAL-004",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-032",
+        "goalId": "GOAL-004",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-033",
+        "goalId": "GOAL-005",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-034",
+        "goalId": "GOAL-005",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-035",
+        "goalId": "GOAL-005",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-036",
+        "goalId": "GOAL-005",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-037",
+        "goalId": "GOAL-005",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-038",
+        "goalId": "GOAL-005",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-039",
+        "goalId": "GOAL-005",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-040",
+        "goalId": "GOAL-005",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-041",
+        "goalId": "GOAL-006",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-042",
+        "goalId": "GOAL-006",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-043",
+        "goalId": "GOAL-006",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-044",
+        "goalId": "GOAL-006",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-045",
+        "goalId": "GOAL-006",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-046",
+        "goalId": "GOAL-006",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-047",
+        "goalId": "GOAL-006",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-048",
+        "goalId": "GOAL-006",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-049",
+        "goalId": "GOAL-007",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-050",
+        "goalId": "GOAL-007",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-051",
+        "goalId": "GOAL-007",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-052",
+        "goalId": "GOAL-007",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-053",
+        "goalId": "GOAL-007",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-054",
+        "goalId": "GOAL-007",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-055",
+        "goalId": "GOAL-007",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-056",
+        "goalId": "GOAL-007",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-057",
+        "goalId": "GOAL-008",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-058",
+        "goalId": "GOAL-008",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-059",
+        "goalId": "GOAL-008",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-060",
+        "goalId": "GOAL-008",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-061",
+        "goalId": "GOAL-008",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-062",
+        "goalId": "GOAL-008",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-063",
+        "goalId": "GOAL-008",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-064",
+        "goalId": "GOAL-008",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-065",
+        "goalId": "GOAL-009",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-066",
+        "goalId": "GOAL-009",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-067",
+        "goalId": "GOAL-009",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-068",
+        "goalId": "GOAL-009",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-069",
+        "goalId": "GOAL-009",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-070",
+        "goalId": "GOAL-009",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-071",
+        "goalId": "GOAL-009",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-072",
+        "goalId": "GOAL-009",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-073",
+        "goalId": "GOAL-010",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-074",
+        "goalId": "GOAL-010",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-075",
+        "goalId": "GOAL-010",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-076",
+        "goalId": "GOAL-010",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-077",
+        "goalId": "GOAL-010",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-078",
+        "goalId": "GOAL-010",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-079",
+        "goalId": "GOAL-010",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-080",
+        "goalId": "GOAL-010",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-081",
+        "goalId": "GOAL-011",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-082",
+        "goalId": "GOAL-011",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-083",
+        "goalId": "GOAL-011",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-084",
+        "goalId": "GOAL-011",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-085",
+        "goalId": "GOAL-011",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-086",
+        "goalId": "GOAL-011",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-087",
+        "goalId": "GOAL-011",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-088",
+        "goalId": "GOAL-011",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-089",
+        "goalId": "GOAL-012",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-090",
+        "goalId": "GOAL-012",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-091",
+        "goalId": "GOAL-012",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-092",
+        "goalId": "GOAL-012",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-093",
+        "goalId": "GOAL-012",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-094",
+        "goalId": "GOAL-012",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-095",
+        "goalId": "GOAL-012",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-096",
+        "goalId": "GOAL-012",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-097",
+        "goalId": "GOAL-013",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-098",
+        "goalId": "GOAL-013",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-099",
+        "goalId": "GOAL-013",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-100",
+        "goalId": "GOAL-013",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-101",
+        "goalId": "GOAL-013",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-102",
+        "goalId": "GOAL-013",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-103",
+        "goalId": "GOAL-013",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-104",
+        "goalId": "GOAL-013",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-105",
+        "goalId": "GOAL-014",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-106",
+        "goalId": "GOAL-014",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-107",
+        "goalId": "GOAL-014",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-108",
+        "goalId": "GOAL-014",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-109",
+        "goalId": "GOAL-014",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-110",
+        "goalId": "GOAL-014",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-111",
+        "goalId": "GOAL-014",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-112",
+        "goalId": "GOAL-014",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-113",
+        "goalId": "GOAL-015",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-114",
+        "goalId": "GOAL-015",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-115",
+        "goalId": "GOAL-015",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-116",
+        "goalId": "GOAL-015",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-117",
+        "goalId": "GOAL-015",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-118",
+        "goalId": "GOAL-015",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-119",
+        "goalId": "GOAL-015",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-120",
+        "goalId": "GOAL-015",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-121",
+        "goalId": "GOAL-016",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-122",
+        "goalId": "GOAL-016",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-123",
+        "goalId": "GOAL-016",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-124",
+        "goalId": "GOAL-016",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-125",
+        "goalId": "GOAL-016",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-126",
+        "goalId": "GOAL-016",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-127",
+        "goalId": "GOAL-016",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-128",
+        "goalId": "GOAL-016",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-129",
+        "goalId": "GOAL-017",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-130",
+        "goalId": "GOAL-017",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-131",
+        "goalId": "GOAL-017",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-132",
+        "goalId": "GOAL-017",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-133",
+        "goalId": "GOAL-017",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-134",
+        "goalId": "GOAL-017",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-135",
+        "goalId": "GOAL-017",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-136",
+        "goalId": "GOAL-017",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-137",
+        "goalId": "GOAL-018",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-138",
+        "goalId": "GOAL-018",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-139",
+        "goalId": "GOAL-018",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-140",
+        "goalId": "GOAL-018",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-141",
+        "goalId": "GOAL-018",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-142",
+        "goalId": "GOAL-018",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-143",
+        "goalId": "GOAL-018",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-144",
+        "goalId": "GOAL-018",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-145",
+        "goalId": "GOAL-019",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-146",
+        "goalId": "GOAL-019",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-147",
+        "goalId": "GOAL-019",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-148",
+        "goalId": "GOAL-019",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-149",
+        "goalId": "GOAL-019",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-150",
+        "goalId": "GOAL-019",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-151",
+        "goalId": "GOAL-019",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-152",
+        "goalId": "GOAL-019",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-153",
+        "goalId": "GOAL-020",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-154",
+        "goalId": "GOAL-020",
+        "scenarioType": "GOAL_MAINTENANCE",
+        "repetition": 2,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-155",
+        "goalId": "GOAL-020",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 1,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-156",
+        "goalId": "GOAL-020",
+        "scenarioType": "JUSTIFIED_DETOUR",
+        "repetition": 2,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-157",
+        "goalId": "GOAL-020",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 1,
+        "slotId": "A"
+      },
+      {
+        "plannedSessionId": "PLAN-158",
+        "goalId": "GOAL-020",
+        "scenarioType": "GRADUAL_DRIFT",
+        "repetition": 2,
+        "slotId": "B"
+      },
+      {
+        "plannedSessionId": "PLAN-159",
+        "goalId": "GOAL-020",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 1,
+        "slotId": "C"
+      },
+      {
+        "plannedSessionId": "PLAN-160",
+        "goalId": "GOAL-020",
+        "scenarioType": "CLEAR_DRIFT",
+        "repetition": 2,
+        "slotId": "A"
+      }
+    ],
+    "slots": [
+      {
+        "slotId": "A",
+        "participantId": null
+      },
+      {
+        "slotId": "B",
+        "participantId": null
+      },
+      {
+        "slotId": "C",
+        "participantId": null
+      }
+    ]
+  }
+}
