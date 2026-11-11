@@ -14,7 +14,8 @@ class TeamPolicyProposalTest {
         var root=Path.of("../docs/data-collection");byte[] bytes=Files.readAllBytes(root.resolve("TEAM_POLICY.json"));
         var n=mapper.readTree(bytes);
         var draft=mapper.readTree(Files.readAllBytes(root.resolve("local-policy.draft.json")));
-        assertThat(n.path("plan")).isEqualTo(draft.path("plan"));
+        assertThat(n.path("plan").path("assignments")).isEqualTo(draft.path("plan").path("assignments"));
+        assertThat(n.path("plan").path("revision").asInt()).isEqualTo(1);
         var goals=mapper.readTree(Files.readAllBytes(root.resolve("goals.candidates.json"))).path("goals");
         for(int i=0;i<20;i++) assertThat(n.path("plan").path("goals").get(i).path("description")).isEqualTo(goals.get(i).path("description"));
         var plan=mapper.treeToValue(n.path("plan"),CollectionPlanService.Plan.class);CollectionPlanService.validate(plan);
@@ -26,7 +27,7 @@ class TeamPolicyProposalTest {
         for(String key:List.of("teamDecisionRef","retentionRef","privacyEvidenceRef","startAuthorizationRef","notBefore","expiresAt"))assertThat(n.path(key).asText()).isEmpty();
         assertThatThrownBy(()->validator.validate(n,Instant.now())).hasMessageContaining("LOCAL_POLICY_DRAFT");
         var sites=new CollectionSitePolicy(new org.springframework.mock.env.MockEnvironment(),null,java.time.Clock.systemUTC(),mapper).validateLocalSites(n);
-        assertThat(sites).hasSize(20);
+        assertThat(sites).hasSize(15);
         assertThat(sites.stream().map(CollectionSitePolicy.Site::origin)).doesNotContain("https://www.youtube.com","https://www.google.com","https://search.naver.com","https://blog.naver.com");
         assertThat(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes))).isEqualTo(Files.readString(root.resolve("TEAM_POLICY.sha256")).split(" ")[0]);
     }

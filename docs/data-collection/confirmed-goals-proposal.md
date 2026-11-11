@@ -1,6 +1,8 @@
-# 목표 20개 유지·확정 검토안 (#105)
+# 목표 20개 채택 계획 및 최종 확인 (#105)
 
-**제안 상태 DRAFT. 실제 팀 승인/목표별 10 Visit 파일럿은 BLOCKED다.** 아래 원문·완료 기준·시나리오는 goals.candidates.json을 그대로 옮겼다. 이 문서 제목의 확정은 절차의 목적이며 승인 완료가 아니다. 사이트 매핑/소주제는 수행 가능성 검토안으로 실제 수집 실적이 아니다.
+현재 운영 준비 절차는 [최종 Readiness](real-collection-final-readiness.md)를 따른다. 정책 내용과90일 보존을 채택하고 Plan revision1을 준비했다. 실제 기록이 없는 목표 승인/기관 판단은 DRAFT/UNRESOLVED로 남긴다. 실제 증거 입력 후 `local.py policy-prepare`가 Java 검증을 통과한 공통 파일/SHA를 생성한다. 아래 #105/#106의 기존 수치·제안/검증 내용은 당시 기록이며 최신 JSON은 접근 가능한15쌍으로 정리했다.
+
+**기존20개를 채택했다. 실제 팀 승인 상태는 DRAFT, 목표별10 Visit 파일럿은 BLOCKED다.** 아래 원문·완료 기준·시나리오는 goals.candidates.json을 그대로 옮겼다. 이 문서 제목의 확정은 절차의 목적이며 승인 완료가 아니다. 사이트 매핑/소주제는 수행 가능성 검토안으로 실제 수집 실적이 아니다.
 
 20목표 × 4시나리오 × 2회 = 160, A54/B53/C53. PLAN ID/Goal ID/type/repetition/slot/revision 0을 보존했다. 각 목표 8세션이다. 원본 목표/배정 checksum은 TEAM_POLICY.json에 연결한다. 승인 시 revision과 목표 evidence를 반영하므로 checksum을 다시 계산해야 한다.
 

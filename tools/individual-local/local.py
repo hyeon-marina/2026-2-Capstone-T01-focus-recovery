@@ -175,7 +175,7 @@ def main(argv=None):
     os.umask(0o077)
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--directory', type=Path, default=ROOT / '.collection/local')
-    p.add_argument('command', choices=['check', 'init', 'db', 'start', 'stop', 'status', 'logs', 'verify', 'build', 'bootstrap', 'backup', 'setup', 'policy-checksum', 'policy-validate'])
+    p.add_argument('command', choices=['check', 'init', 'db', 'start', 'stop', 'status', 'logs', 'verify', 'build', 'bootstrap', 'backup', 'setup', 'policy-checksum', 'policy-validate', 'policy-prepare'])
     p.add_argument('--slot', choices=['A', 'B', 'C'])
     p.add_argument('--db-port', type=int, default=33101)
     p.add_argument('--tls-port', type=int, default=9443)
@@ -185,10 +185,27 @@ def main(argv=None):
     p.add_argument('--rotate-credential', action='store_true')
     p.add_argument('--policy', type=Path)
     p.add_argument('--policy-sha256')
+    p.add_argument('--records', type=Path)
     a = p.parse_args(argv)
     if a.directory.is_symlink():
         raise ValueError('LOCAL_OWNER: symlink directory is not allowed')
     d = a.directory.absolute()
+    if a.command == 'policy-prepare':
+        if not a.records or not a.output or a.output.exists() or a.output.with_suffix('.sha256').exists():
+            raise ValueError('--records and NEW --output required; existing policy is never overwritten')
+        import policy as policy_tools
+        template = json.loads((ROOT / 'docs/data-collection/TEAM_POLICY.json').read_text(encoding='utf-8'))
+        value = policy_tools.prepare(template, json.loads(a.records.read_text(encoding='utf-8')), a.records.resolve().parent)
+        import tempfile
+        with tempfile.TemporaryDirectory() as temporary:
+            candidate = Path(temporary) / 'policy.json'
+            candidate.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+            main(['policy-validate', '--policy', str(candidate)])
+            private(a.output, candidate.read_text(encoding='utf-8'))
+        digest = hashlib.sha256(a.output.read_bytes()).hexdigest()
+        private(a.output.with_suffix('.sha256'), digest + '  ' + a.output.name + '\n')
+        print('Policy prepared. Verify evidence contents independently; each participant must still consent. SHA-256: ' + digest)
+        return
     if a.command == 'policy-validate':
         if not a.policy:
             raise ValueError('--policy FILE required')

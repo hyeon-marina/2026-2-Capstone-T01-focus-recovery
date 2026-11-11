@@ -1,5 +1,7 @@
 # 사이트별 원본 수집 검토 (#105)
 
+현재 운영 준비 절차는 [최종 Readiness](real-collection-final-readiness.md)를 따른다. 정책 내용과90일 보존을 채택하고 Plan revision1을 준비했다. 실제 기록이 없는 목표 승인/기관 판단은 DRAFT/UNRESOLVED로 남긴다. 실제 증거 입력 후 `local.py policy-prepare`가 Java 검증을 통과한 공통 파일/SHA를 생성한다. 아래 #105/#106의 기존 수치·제안/검증 내용은 당시 기록이며 최신 JSON은 접근 가능한15쌍으로 정리했다.
+
 실제 수집 허용 사이트는 현재 **0개**다. TEAM_POLICY.json의 아래 20개 origin/pathPrefix 쌍은 DRAFT 후보이며 학교/팀/사이트 확인이나 개인 동의를 대신하지 않는다. 상한 30개를 늘리지 않았다. 2026-11-11 KST에 공식 페이지·정책을 웹으로 확인하고 별도 임시 Chrome에서 읽기 전용 smoke를 실행했다. `COMPATIBLE_SMOKE`는 해당 대표 페이지의 HTTPS/HTTP200/범위/HTML/제목 존재/메타데이터 DOM 검사만 통과했다는 뜻이다. 실제 Extension 수집·SPA 이동·10 Visit 성공·권리 허가를 뜻하지 않는다. 원본문장/계정/폼값은 보고서에 저장하지 않았다.
 
 [실행 증거](evidence/issue105-site-smoke.json). 페이지에서 입력 포커스를 해제하고 읽는 상태를 점검했다. initialMetadataExcluded는 최초 상태, metadataExcluded는 읽기 상태다. 입력창을 사용하는 동안에는 Visit을 차단/격리한다. History API 존재만으로 SPA 전체 호환을 판정하지 않았다. 재시도 전의 403/404/리디렉션/보호 실패도 검증 보고에 남긴다.

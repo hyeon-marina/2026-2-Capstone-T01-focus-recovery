@@ -1,0 +1,42 @@
+{
+  "result": "PASS",
+  "kind": "SYNTHETIC-103-NOT-ACTUAL-COLLECTION",
+  "sources": [
+    {
+      "slot": "A",
+      "assignments": 54,
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "https": true,
+      "restart": true,
+      "rotation": true
+    },
+    {
+      "slot": "B",
+      "assignments": 53,
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "https": true,
+      "restart": true,
+      "rotation": true
+    },
+    {
+      "slot": "C",
+      "assignments": 53,
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "https": true,
+      "restart": true,
+      "rotation": true
+    }
+  ],
+  "chrome": "SYNTHETIC_SPKI_PINNED_HTTPS_NOT_OS_TRUST",
+  "merge": "PARTIAL",
+  "duplicateImports": 3,
+  "withdrawal": "QUARANTINED",
+  "privacyReplay": "REJECTED",
+  "actualParticipantSessions": 0
+}
