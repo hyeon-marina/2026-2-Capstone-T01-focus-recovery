@@ -1,5 +1,14 @@
 # 참여자 수집 절차 — Issue #99
 
+## #101 개인 PC 원본 수집 — 현재 경로
+
+각자의 Chrome → IndexedDB → localhost HTTPS Spring → localhost MySQL로 수집합니다. AI/FastAPI 없이 시작·Visit POST·Behavior PATCH·END·ACK·원본 품질·진행률·철회·Export가 동작합니다. [설치](individual-local-setup.md) 후 [실제 버튼/27단계 매뉴얼](participant-guide.md)을 따릅니다. 실제 수집 개시는 여전히 BLOCKED이며 승인 Artifact·독립 Release·Build/Session Scope·현재 동의·허용 사이트를 생략하지 않습니다.
+
+`POST /api/collection/assignments/{plannedId}/start` → 기존 Visit/Behavior API → `POST /api/sessions/{id}/end` → END ACK/Queue0 → 기존 `POST /api/collection/attempts/{id}/delivered` → `GET /api/collection/progress`의 `attempts[].rawStatus=RAW_COLLECTED`를 확인합니다. `analysisState=NOT_RUN`을 분석 성공으로 표시하지 않습니다. 기존 `QUALITY_PASSED`는 AI까지 포함한 의미를 유지합니다.
+
+수집 종료 후 `dataset.py export`로 age 암호화 파일을 만들고 [통합 관리자 매뉴얼](merge-guide.md)의 최신 privacy·해시·Import 검증을 수행합니다. 본문/Secret/Export를 GitHub에 올리지 않습니다. 아래 #99/#97 절은 AI 활성 경로 또는 당시 기록이며 원본 전용 흐름에 AI 실행을 요구하지 않습니다.
+
+
 현재 실제 참여자 수집은 **BLOCKED**입니다. 이 절차는 승인·운영 배포 후의 실제 `real-collection` 화면과 통제된 일반 HTML 검증에 사용한 동일 Adapter를 설명합니다. 실제 사람의 등록·동의·공용 서버·가중치·허용 사이트·기관 확인을 테스트가 대신하지 않습니다. [현재 검증 결과](real-collection-validation.md)를 먼저 확인합니다.
 
 1. **Chrome 준비**: 공식 Chrome을 설치하고 `chrome://settings/help`에서 버전을 확인합니다. Manifest의 최소 버전은106이지만 실행 검증 버전은 보고서에 별도로 적습니다. 전용 Chrome 프로필을 사용하고 개인 계정에 로그인하지 않습니다. Windows는 아직 NOT_TESTED입니다.

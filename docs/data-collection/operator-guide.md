@@ -1,5 +1,18 @@
 # 수집 관리자 운영 가이드
 
+## #101 개인 PC 원본 전용 운영 — 현재 시작점
+
+[개인 PC 설치](individual-local-setup.md) → [팀원 실습](participant-guide.md) → [파일 통합](merge-guide.md) → [실행/미검증 보고](individual-local-validation.md)를 따릅니다. 원본 수집에는 공용 서버·FastAPI·Qwen 실행이 필요하지 않습니다. 기본은 loopback HTTPS Spring + 자기 MySQL이며, 기존 `real-collection` AI 활성 배포도 아래 절대로 유지합니다. 실제 등록/정책/목표20/기관·보존/허용 사이트/시작 승인은 현재 BLOCKED입니다.
+
+로컬 자동화는 `tools/individual-local/local.py`의 check/init/db/start/stop/status/logs/verify/build/backup/bootstrap입니다. 최초 운영자/참여자/승인 정책은 자동 Seed하지 않습니다. 인증된 기존 manage.py에 `--ca-file`을 추가해 자기 공개 인증서를 검증하며 관리합니다. 로컬 Plan은 같은 revision·목표/배정 checksum·A54/B53/C53을 유지하고 각 PC에는 자기 슬롯의 로컬 participantId를 연결합니다. 배정/동의/소유권을 클라이언트 요청으로 임의 지정하지 않습니다.
+
+원본 전용 `individual-local`도 정확한 단일 Profile + #99 승인 Artifact/독립 DB Release/Build·Session Scope/현재 동의·허용 사이트를 요구합니다. AI 미실행을 승인 근거 생략으로 해석하지 않습니다. Artifact의 기존 증거 참조는 실제 책임자가 원본 전용 범위로 검토해야 합니다. DRAFT 목표/정책은 그대로 차단됩니다. 원본 완료는 RAW_COLLECTED이며 기존 QUALITY_PASSED와 다릅니다.
+
+Export는 본인/역할 인증·서버 snapshot 감사 → JSONL·Manifest/SHA-256 → age 암호화입니다. 통합 담당자는 발신자의 별도 확인된 암호문 해시와 최신 privacy 해시를 모두 받아야 합니다. 레지스트리는 출처·ID 충돌·중복·단조 철회 상태를 보존합니다. 사본 대장에는 원본 Export/통합본/백업/수신자/후속 학습 위치를 남기고 철회 시 기존 파일도 이용 중지/격리합니다. 암호화 백업 복원은 새 격리 DB에서 최신 원장을 재적용해 모든 Release를 폐기한 채 검증합니다. 전체 사본/모델 영향 회수 없이 PURGED를 표시하지 않습니다.
+
+아래 #99/#97 공용 서버/모델 절차는 해당 AI 활성 경로와 당시 기록입니다. 원본 로컬 수집을 시작하기 위해 AI를 켜거나 합성 정책을 실수집 DB에 넣지 않습니다.
+
+
 현재 판정: **실제 사용자 수집 BLOCKED**. #99에서 일반 사이트 Adapter·승인 배포 경로·운영 도구를 추가하고 통제된 일반 HTML Chrome E2E를 검증했습니다. 승인 정책·학교 절차·보존/전체 삭제, 공용 서버/TLS·실모델은 완료되지 않았습니다. 앞 절은 기존 #97 합성/등록 도구를 재사용하는 절차이며 실제 배포는 아래 “Issue #99” 절을 따릅니다. `enabled=true`나 이번 PR 병합으로 운영 Gate를 해제하지 않습니다. [Readiness](readiness-checklist.md)를 먼저 확인하세요.
 
 ## 1. 아키텍처와 환경

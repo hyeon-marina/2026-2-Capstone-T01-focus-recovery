@@ -22,15 +22,27 @@ public class CollectionOperatorBootstrap implements ApplicationRunner {
     private final JdbcTemplate jdbc;private final TransactionTemplate tx;private final Environment env;private final JsonMapper mapper;private final ConfigurableApplicationContext context;
     public CollectionOperatorBootstrap(JdbcTemplate jdbc,org.springframework.transaction.PlatformTransactionManager manager,Environment env,JsonMapper mapper,ConfigurableApplicationContext context){this.jdbc=jdbc;this.tx=new TransactionTemplate(manager);this.env=env;this.mapper=mapper;this.context=context;}
     public record Request(String identityReferenceHash,String authorityRef,String credentialFile) {}
+    static void createPrivateFile(Path output) throws java.io.IOException {
+        if(FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+            Files.createFile(output,PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
+        } else if(FileSystems.getDefault().supportedFileAttributeViews().contains("acl")) {
+            var owner=FileSystems.getDefault().getUserPrincipalLookupService().lookupPrincipalByName(System.getProperty("user.name"));
+            var entry=java.nio.file.attribute.AclEntry.newBuilder().setType(java.nio.file.attribute.AclEntryType.ALLOW).setPrincipal(owner).setPermissions(java.util.EnumSet.allOf(java.nio.file.attribute.AclEntryPermission.class)).build();
+            Files.createFile(output,new java.nio.file.attribute.FileAttribute<java.util.List<java.nio.file.attribute.AclEntry>>() {
+                public String name(){return "acl:acl";}
+                public java.util.List<java.nio.file.attribute.AclEntry> value(){return java.util.List.of(entry);}
+            });
+        } else throw new IllegalStateException("Owner-only POSIX permissions or Windows ACL required");
+    }
     @Override public void run(ApplicationArguments arguments) throws Exception {
         if(context instanceof org.springframework.web.context.WebApplicationContext || !"none".equals(env.getProperty("spring.main.web-application-type"))) throw new IllegalStateException("Offline non-web process required");
         var input=mapper.readValue(Files.readString(Path.of(env.getRequiredProperty("focus-recovery.collection.bootstrap-request"))),Request.class);
         if(input.identityReferenceHash()==null || !input.identityReferenceHash().matches("[a-f0-9]{64}"))throw new IllegalArgumentException("Trusted enrollment reference hash required");
         CollectionAdministration.reference(input.authorityRef());
         Path output=Path.of(input.credentialFile()).toAbsolutePath();
-        if(!FileSystems.getDefault().supportedFileAttributeViews().contains("posix"))throw new IllegalStateException("Bootstrap must run on a POSIX server with owner-only permissions");
+
         // Reserve an owner-only file before committing; a failed DB transaction leaves no valid credential.
-        Files.createFile(output,PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
+        createPrivateFile(output);
         byte[] bytes=new byte[32];new java.security.SecureRandom().nextBytes(bytes);
         String token=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes),hash=AuthenticationService.digest(token);
         String id=UUID.randomUUID().toString();Instant now=Instant.now();

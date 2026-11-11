@@ -12,7 +12,7 @@ const real = ['real-collection','controlled-web'].includes(build.mode);
 const send = (action: string, extra = {}) => chrome.runtime.sendMessage({ type: `v2-${action}`, ...extra });
 type Assignment = { plannedSessionId: string; goalId: string; goalText: string | null; goalStatus: string; scenarioType: string };
 type Local = { lifecycle: string; collectionAllowed: boolean; validVisits: number; pending: number; notificationPending?: number; endPhase?: string; storageFailed: boolean; accessError?: string; quarantined: boolean; withdrawalPhase?: string };
-type Progress = { planned: number; completed: number; syntheticSessions: number; syntheticQualityPassed: number; attempts: { plannedSessionId: string; status: string; source: string; quality: { validVisits: number; validWindows: number; reasons: string[] }; deliveryConfirmed: boolean }[] };
+type Progress = { planned: number; completed: number; syntheticSessions: number; syntheticQualityPassed: number; raw: { completed: number; syntheticCompleted: number }; attempts: { plannedSessionId: string; status: string; rawStatus: string; analysisState: string; rawQuality: { theoreticalWindows: number }; source: string; quality: { validVisits: number; validWindows: number; reasons: string[] }; deliveryConfirmed: boolean }[] };
 const scenarios: Record<string, string> = { GOAL_MAINTENANCE: '목표 유지', JUSTIFIED_DETOUR: '합리적인 우회', GRADUAL_DRIFT: '점진적인 이탈', CLEAR_DRIFT: '명확한 이탈' };
 function Participant() {
   const [access, setAccess] = useState<CollectionAccess>();
@@ -73,8 +73,8 @@ function Participant() {
       {local?.quarantined && <p role="status">개인정보 격리 상태입니다. 수집을 재개할 수 없습니다.</p>}
       {local?.lifecycle === 'ENDED' && <p role="status">종료 ACK를 받았습니다. 서버 품질 판정과 전송 확인을 아래에서 별도로 확인하세요.</p>}
       {error && <p role="alert">{error}</p>}
-      {progress && <section><h3>나의 진행</h3><p>실제 수집 {progress.completed} / 배정 {progress.planned} · 합성 {progress.syntheticSessions}세션 (품질 충족 {progress.syntheticQualityPassed})</p>
-        <ul>{progress.attempts.map((a,i) => <li key={i}>{a.plannedSessionId} · {a.source} · {a.status} · Visit {a.quality.validVisits} / Window {a.quality.validWindows} · 전송 {a.deliveryConfirmed ? '확인' : '미확인'}{a.quality.reasons.length ? ` · ${a.quality.reasons.join(', ')}` : ''}</li>)}</ul></section>}
+      {progress && <section><h3>나의 진행</h3><p>원본 수집 완료 {progress.raw.completed} / 배정 {progress.planned} · AI 포함 품질 완료 {progress.completed} · 합성 {progress.syntheticSessions}세션 (원본 완료 {progress.raw.syntheticCompleted} / AI 포함 {progress.syntheticQualityPassed})</p>
+        <ul>{progress.attempts.map((a,i) => <li key={i}>{a.plannedSessionId} · {a.source} · {a.status} · Visit {a.quality.validVisits} / Window {a.quality.validWindows} · 전송 {a.deliveryConfirmed ? '확인' : '미확인'} · 원본 {a.rawStatus} · AI {a.analysisState} · 이론상 Window {a.rawQuality.theoreticalWindows}{a.quality.reasons.length ? ` · AI 포함 품질: ${a.quality.reasons.join(', ')}` : ''}</li>)}</ul></section>}
     </section></div>
     {alert && <aside className="reminder" role="alert"><h2>처음의 목표를 확인하세요</h2><p>{alert.goalText}</p>{(['RETURN_TO_GOAL','CONTINUE_BROWSING'] as const).map(action => <button key={action} disabled={busy} onClick={async () => { setBusy(true);try { const r = await send('selection', { alertId: alert.alertId, action, selectedAt: new Date().toISOString() });if (r?.error) throw new Error();setAlert(null);await refresh(); } catch { setError('알림 선택을 확인하지 못했습니다. 재전송 / 복구로 영수증을 확인하세요.'); } finally { setBusy(false); } }}>{action === 'RETURN_TO_GOAL' ? '목표로 돌아가기' : '탐색 계속하기'}</button>)}</aside>}
     <footer>v{build.version} · {build.sourceCommit.slice(0,12)}{build.dirty ? ' + 작업 중 변경' : ''} · {build.mode}<br />서버: {build.apiOrigin} · P1~P6 PROPOSED / P2·P6 BLOCKED</footer>

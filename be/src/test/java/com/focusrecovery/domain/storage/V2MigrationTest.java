@@ -16,9 +16,9 @@ class V2MigrationTest {
 	void realMySqlMigration() throws Exception {
 		String base=System.getenv("FOCUS85_MYSQL_URL");
 		String schema="focus85_migration_"+UUID.randomUUID().toString().replace("-","");
-		try(var conn=DriverManager.getConnection(base,"root","synthetic-test-only");var stmt=conn.createStatement()) {
+		try(var conn=DriverManager.getConnection(base,"root",System.getenv().getOrDefault("FOCUS85_MYSQL_PASSWORD","synthetic-test-only"));var stmt=conn.createStatement()) {
 			stmt.execute("create database "+schema+" character set utf8mb4");
-			try { verify(base.replaceFirst("/focus85[^?]*","/"+schema),"root","synthetic-test-only"); }
+			try { verify(base.replaceFirst("/focus85[^?]*","/"+schema),"root",System.getenv().getOrDefault("FOCUS85_MYSQL_PASSWORD","synthetic-test-only")); }
 			finally {stmt.execute("drop database "+schema);}
 		}
 	}

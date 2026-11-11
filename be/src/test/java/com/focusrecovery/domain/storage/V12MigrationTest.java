@@ -16,9 +16,9 @@ class V12MigrationTest {
 	@Test @EnabledIfEnvironmentVariable(named="FOCUS89_MYSQL_URL", matches="jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/focus89.*")
 	void mysqlUpgradePreservesAllV11RowsAndLegacyUnique() throws Exception {
 		String base = System.getenv("FOCUS89_MYSQL_URL"), schema = "focus89_migration_" + UUID.randomUUID().toString().replace("-", "");
-		try (var connection = DriverManager.getConnection(base, "root", "synthetic-test-only"); var statement = connection.createStatement()) {
+		try (var connection = DriverManager.getConnection(base, "root", System.getenv().getOrDefault("FOCUS89_MYSQL_PASSWORD","synthetic-test-only")); var statement = connection.createStatement()) {
 			statement.execute("create database " + schema + " character set utf8mb4");
-			try { verify(base.replaceFirst("/focus89[^?]*", "/" + schema), "root", "synthetic-test-only"); }
+			try { verify(base.replaceFirst("/focus89[^?]*", "/" + schema), "root", System.getenv().getOrDefault("FOCUS89_MYSQL_PASSWORD","synthetic-test-only")); }
 			finally { statement.execute("drop database " + schema); }
 		}
 	}

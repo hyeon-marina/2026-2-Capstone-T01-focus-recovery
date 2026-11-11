@@ -25,7 +25,7 @@ public class CollectionSitePolicy {
     public CollectionSitePolicy(Environment env, JdbcTemplate jdbc, Clock clock, JsonMapper mapper) {
         this.env=env;this.jdbc=jdbc;this.clock=clock;this.mapper=mapper;
     }
-    public boolean realProfile() { return Arrays.equals(env.getActiveProfiles(), new String[]{"real-collection"}); }
+    public boolean realProfile() { return Arrays.equals(env.getActiveProfiles(), new String[]{"real-collection"}) || Arrays.equals(env.getActiveProfiles(), new String[]{"individual-local"}); }
     public Policy current() {
         try {
             boolean synthetic=Arrays.equals(env.getActiveProfiles(),new String[]{"test"});

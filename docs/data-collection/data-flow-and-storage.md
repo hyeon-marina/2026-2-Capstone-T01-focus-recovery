@@ -1,5 +1,18 @@
 # 데이터 흐름과 저장 구조 — Issue #99
 
+## #101 독립 로컬 수집과 파일 통합
+
+수집: `Chrome Content Script → 기존 v2 Collector/Runtime → IndexedDB POST/PATCH/END Queue → https://localhost:9443 → Local MySQL`. 통합: `MySQL A/B/C → 인증된 일관성 snapshot → JSONL/Manifest/SHA-256 → age → 최신 privacy 검증 → SQLite Import 메타데이터 → 암호화 통합 JSONL`. AI는 원본 수집의 필수 단계가 아닙니다. 기존 AI 활성 경로는 아래 절대로 보존됩니다.
+
+추가 저장 구조는 V17의 `collection_source_instance(instance_key=1,source_instance_id)`와 `collection_export_audit(export_id,source_instance_id,participant_id,actor_id,snapshot_at,session_count,visit_count)`입니다. 기존 WorkSession/PageVisit·Plan/Assignment/Attempt/Failure·Consent·Retraction/Tombstone 테이블을 그대로 읽습니다. Behavior는 `page_visit`의 실측 카운터이며 별도 JSONL에도 연결합니다. V1~V16 원문을 바꾸지 않았습니다.
+
+`CollectionExportService`는 인증된 본인 또는 현재 운영자 역할을 확인하고 참여자 잠금·REPEATABLE_READ transaction에서 allowlist 필드를 추출합니다. Credential/identity reference hash/request key/AI input snapshot은 Export하지 않습니다. 철회 동시 실행은 참여자 잠금으로 직렬화되며, snapshot 이후 발생한 철회는 통합 전 별도 최신 privacy가 반영합니다. raw endpoint는 현재 수집 Gate/유효 동의도 요구하고, privacy 메타데이터 조회는 철회 후에도 운영자에게 허용합니다.
+
+저장 위치: Chrome 수집 프로필의 기존 IndexedDB, 자기 Compose `<project>_local-db:/var/lib/mysql`, `.collection/local`의 Secret/TLS/로그, 보호된 `.tar.age` Export, `.collection/merge/registry.sqlite`의 **원문 없는** ID/해시·철회 금지 기록입니다. registry는 원본 데이터를 자동 보관하지 않으므로 다음 통합에도 포함할 불변 Export를 다시 입력합니다. 원본/통합 ID는 source+entity+originalId로 매핑하고 `id_map.jsonl`을 보존합니다.
+
+오프라인/재시작은 기존 Queue/ACK를 복구합니다. Export/Import는 신규 출력만 게시하고 실패 시 원본을 덮지 않습니다. 최신 privacy가 없거나 철회/격리이면 포함을 차단합니다. 과거 Export·백업·파생 사본을 자동 삭제하지 않으므로 사본 대장/회수 증거가 필요하며 PURGED를 만들지 않습니다. [원본 포맷·실행 순서](merge-guide.md), [검증 보고](individual-local-validation.md)를 참조합니다.
+
+
 실제 코드는 `fe/src/v2`, `fe/real`, `be/src/main`, `ai/v2`, `ai/collection_main.py`와 Flyway V1~V16을 기준으로 합니다. 현재 실제 수집은 BLOCKED이며 아래 구현 경로의 통제된 합성 실행과 실제 참여자 수집을 구분합니다.
 
 ```mermaid

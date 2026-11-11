@@ -1,5 +1,25 @@
 # 수집 개시 Readiness
 
+## #101 로컬 원본 전용 판정
+
+**실제 참여자 수집 BLOCKED 유지.** AI/FastAPI·공용 서버는 개인 PC 원본 모드의 런타임 필수가 아닙니다. 아래 #99 표의 공용 인프라/실모델 행은 AI 활성 운영 경로의 항목입니다. 원본 수집을 위해 모델 실행을 강제하지 않지만, 기존 승인 Artifact의 참조를 임의 생략/승인하지도 않습니다.
+
+| 항목 | 현재 상태 | 근거/남은 일 |
+| --- | --- | --- |
+| macOS loopback MySQL + individual-local HTTPS | PASS | 신규 볼륨·Flyway17·자체 공개 인증서 pin으로 health200·원문 없는 verify·암호화 백업 |
+| 실제 Chrome 원본 수집 | PASS (SYNTHETIC) | 독립 MySQL3/Spring3/임시 Chrome3, A/B/C각10실측 Visit·POST/END/ACK·RAW_COLLECTED/AI NOT_RUN |
+| 개인정보·전송·재시작 | PASS (SYNTHETIC) | 타인404, Worker/Chrome·Spring/MySQL 재시작, Queue 재전송, 철회·격리/오래된 privacy 거절 |
+| Export/통합 | PASS (SYNTHETIC) | age·해시·Schema/FK/분포·중복·충돌·부분/160판정·철회 제외. 원문/키는 Git 밖 |
+| 설치·팀원·관리자 매뉴얼 | PASS 범위 명시 | 실행 명령과 실제 합성 캡처. OS 신규 설치부터 사람의 수동 Chrome 로드/키체인 신뢰는 NOT_TESTED |
+| Windows 전체 실행/ACL/인증서 | NOT_TESTED | PowerShell 명령·ACL 경로 제공, 실제 Windows 장비 필요 |
+| Chrome OS 인증서 신뢰 설치/승인된 실제 HTTPS 수집 | NOT_TESTED / BLOCKED | Python pin 검증과 합성 HTTP Chrome을 구분. 실제 인증서 신뢰/승인 환경 파일럿 필요 |
+| 실제 참여자3명 등록·Credential 전달/본인 동의 | BLOCKED | 실사용자 조치/위임 근거 없음. 합성 계정 대체 불가 |
+| 목표20/사이트/기관·심의/보존·전체 회수/시작 승인 | BLOCKED | 기존 승인 상태 변경 없음. 별도 실수집 범위 검토와 독립 Release 필요 |
+| 전체 개인정보 사본/백업/후속 학습 회수 | BLOCKED | 자동 삭제/전체 PURGED 아님. 실제 담당자·사본 대장/증거 필요 |
+
+실행 세부와 최신 테스트 수는 [#101 검증 보고](individual-local-validation.md)에 있습니다. 아래 기존 #99 표/날짜는 해당 AI 활성 배포 기준의 기록으로 보존합니다.
+
+
 2026-11-11 KST, Issue #99. **실제 참여자 수집: BLOCKED.** P1~P6는 PROPOSED, P2/P6 개인정보 선결은 BLOCKED를 유지한다. 코드·PR·합성 동의·테스트 성공은 운영 승인 기록이 아니다. 이 문서는 임의의 승인자·보존기간·기관 판단을 만들지 않는다.
 
 상태는 `VERIFIED`(적힌 좁은 범위의 실행 증거 존재), `BLOCKED`(필수 조건 미충족), `NOT_TESTED`(실행 증거 없음)만 쓴다. VERIFIED가 있는 행도 실제 운영 전체를 승인한다는 뜻이 아니다. 상세 명령/한계는 [최신 검증 보고](real-collection-validation.md), 조치는 [운영 가이드](operator-guide.md)에 있다.

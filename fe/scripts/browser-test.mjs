@@ -139,8 +139,8 @@ try {
   assert.equal(await popup.getByText(/마지막 방문·행동 정보의 서버 저장을 확인한 뒤/).isVisible(), true);
   console.log('PASS: HTTP session creation, lost response, same-key retry after worker restart, duplicate guard, server session ID, server-end ordering notice');
   await page.bringToFront();
-  async function until(check, label) {
-    for (let i = 0; i < 50; i++) {
+  async function until(check, label, timeout = 5000) {
+    for (let i = 0; i < Math.ceil(timeout / 100); i++) {
       const result = await status();
       if (check(result)) return result;
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -285,14 +285,13 @@ try {
   const preserved = result.visits.map(v => [v.visitId, v.content]);
   const searchReady = result.readyVisits;
   await page.goto('https://www.google.com/search?q=NO_RESULTS');
-  await new Promise(resolve => setTimeout(resolve, 8500));
-  result = await status();
+  result = await until(state => state.candidates.at(-1)?.reason === 'unavailable-content', 'zero search results exhaust bounded wait', 15000);
   assert.equal(result.candidates.at(-1).reason, 'unavailable-content', 'zero search results exhaust bounded wait');
   assert.deepEqual(result.visits.map(v => [v.visitId, v.content]), preserved, 'empty search preserves valid visits');
   assert.deepEqual(result.readyVisits.slice(0, searchReady.length), searchReady, 'exclusions do not renumber published visits');
+  const googleExcludedId = result.candidates.at(-1).visitId;
   await page.goto('https://search.naver.com/search.naver?query=NO_RESULTS'); await page.bringToFront();
-  await new Promise(resolve => setTimeout(resolve, 8500));
-  result = await status();
+  result = await until(state => state.candidates.at(-1)?.visitId !== googleExcludedId && state.candidates.at(-1)?.reason === 'unavailable-content', 'empty Naver results exhaust bounded wait', 15000);
   assert.equal(result.candidates.at(-1).reason, 'unavailable-content', 'empty Naver results retain the bounded exclusion policy');
   assert.deepEqual(result.visits.map(v => [v.visitId, v.content]), preserved);
   // #60 now supports this observed structure; retain #59's fixture as a positive regression.

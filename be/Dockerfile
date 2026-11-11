@@ -3,6 +3,7 @@
 # ---- build ----
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /workspace
+ARG COLLECTION_SOURCE_COMMIT=NOT_RECORDED
 
 # 의존성 레이어 캐시: 빌드 스크립트만 먼저 복사해 의존성을 받아 둔다
 COPY gradlew settings.gradle build.gradle ./

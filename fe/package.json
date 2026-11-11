@@ -22,7 +22,8 @@
     "test:participant:browser": "node scripts/participant-locked-browser-test.mjs",
     "build:real": "npm run typecheck && vite build --mode real-collection --config vite.real.config.ts && vite build --config vite.real.content.config.ts",
     "test:real:browser": "node scripts/real-browser-test.mjs",
-    "test:real:locked": "node scripts/real-locked-browser-test.mjs"
+    "test:real:locked": "node scripts/real-locked-browser-test.mjs",
+    "test:raw:browser": "node scripts/raw-browser-test.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",
