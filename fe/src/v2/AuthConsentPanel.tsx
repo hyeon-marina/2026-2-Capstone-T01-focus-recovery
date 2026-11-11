@@ -66,7 +66,7 @@ export function AuthConsentPanel({ command, onAccess, context = 'synthetic' }: {
       <dt>보존·삭제 정책 참조</dt><dd>{policy.retentionPolicyRef ?? '미승인 · 보존기간 미확정'}</dd>
       <dt>승인 근거</dt><dd>{policy.approvalRef ?? '기관·운영 승인 없음'}</dd>
     </dl><p>철회는 아래 ‘전체 동의 철회’에서 요청합니다. 외부 사본 삭제 확인 전에는 격리 상태를 유지합니다.</p></details>
-      : <p>공통 동의 정책이 없습니다. local.py setup --slot A/B/C --policy FILE --policy-sha256 HASH로 팀의 확정 정책을 적용하세요.</p>}
+      : <p>공통 동의 정책이 없습니다. 최신 main에서 local.py setup --slot A/B/C를 실행하세요.</p>}
     <label className="access-check"><input type="checkbox" checked={checked} disabled={!acceptable || access?.withdrawn || busy} onChange={e => setChecked(e.target.checked)} />
       {synthetic ? '위 합성 정책의 목적·항목·이용 범위를 확인하고 합성 테스트 처리에 명시적으로 동의합니다.' : '위 정책의 목적·항목·이용 범위·보존·철회 절차를 확인하고 명시적으로 동의합니다.'}</label>
     <button disabled={busy || !checked || !acceptable || access?.withdrawn} onClick={() => void run('agree', { policyId: policy?.policyId, policyVersion: policy?.policyVersion })}>{synthetic ? '합성 동의 기록 저장' : '수집 동의 기록 저장'}</button>

@@ -1,3 +1,5 @@
+> 현재 운영 기준은 [CONFIRMED TEAM_POLICY](TEAM_POLICY.json), [정책 적용](policy-application-guide.md), [실행 가이드](individual-local-setup.md)입니다. 아래 #105/#106 권고안·DRAFT·records 입력 설명은 과거 설계 이력이며 기본 설치 절차가 아닙니다.
+
 # 실제 웹 탐색 원본 수집 공통 운영 정책 (#105)
 
 현재 운영 준비 절차는 [최종 Readiness](real-collection-final-readiness.md)를 따른다. 정책 내용과90일 보존을 채택하고 Plan revision1을 준비했다. 실제 기록이 없는 목표 승인/기관 판단은 DRAFT/UNRESOLVED로 남긴다. 실제 증거 입력 후 `local.py policy-prepare`가 Java 검증을 통과한 공통 파일/SHA를 생성한다. 아래 #105/#106의 기존 수치·제안/검증 내용은 당시 기록이며 최신 JSON은 접근 가능한15쌍으로 정리했다.

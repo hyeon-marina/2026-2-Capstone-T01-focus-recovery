@@ -111,6 +111,21 @@ def complete_local_files(d):
         private(d / 'site-policy.json', (ROOT / 'deploy/collection/site-policy.draft.json').read_text())
 
 
+def selected_policy(a, directory, config):
+    # Preserve an explicitly installed version on restart; pin exact bytes locally.
+    if a.policy:
+        source, expected = a.policy, a.policy_sha256
+    elif config.get('policySha256'):
+        source, expected = directory / 'site-policy.json', config['policySha256']
+    else:
+        source = ROOT / 'docs/data-collection/TEAM_POLICY.json'
+        expected = source.with_suffix('.sha256').read_text(encoding='utf-8').split()[0]
+    raw = source.read_bytes()
+    if len(raw) > 65536 or not expected or hashlib.sha256(raw).hexdigest() != expected:
+        raise ValueError('LOCAL_POLICY_CHECKSUM: policy bytes differ from pinned SHA-256')
+    return raw, expected
+
+
 def self_setup(a, directory):
     if not a.slot:
         raise ValueError('SLOT_REQUIRED: --slot A/B/C')
@@ -126,13 +141,9 @@ def self_setup(a, directory):
     owner = directory / 'owner.key'
     if not owner.exists():
         private(owner, secrets.token_urlsafe(48))
-    policy = None
-    if a.policy:
-        raw = a.policy.read_bytes()
-        if len(raw) > 65536 or not a.policy_sha256 or hashlib.sha256(raw).hexdigest() != a.policy_sha256:
-            raise ValueError('LOCAL_POLICY_CHECKSUM: obtain the common SHA-256 separately from the team')
-        policy = directory / ('policy-' + uuid.uuid4().hex + '.pending')
-        private(policy, raw.decode('utf-8'))
+    raw, digest = selected_policy(a, directory, config)
+    policy = directory / ('policy-' + uuid.uuid4().hex + '.pending')
+    private(policy, raw.decode('utf-8'))
     # Stop only a process whose nonce is verified by the existing stop implementation.
     if (directory / 'backend.json').exists():
         main(['--directory', str(directory), 'stop'])
@@ -140,7 +151,7 @@ def self_setup(a, directory):
     request = directory / ('setup-' + uuid.uuid4().hex + '.json')
     private(request, json.dumps(dict(slot=a.slot, ownerSecretFile=str(owner),
         credentialFile=str(directory / 'participant.json'), rotate=a.rotate_credential,
-        policyFile=str(policy) if policy else None, policyChecksum=a.policy_sha256)))
+        policyFile=str(policy) if policy else None, policyChecksum=digest)))
     env = env_for(config, directory)
     log = directory / 'setup.log'
     with log.open('ab') as stream:
@@ -152,6 +163,8 @@ def self_setup(a, directory):
         raise ValueError('LOCAL_SETUP_FAILED ' + ','.join(reasons) + ': inspect protected setup.log; data retained; rerun setup to recover')
     if policy:
         os.replace(policy, directory / 'site-policy.json')
+        config['policySha256'] = digest
+        (directory / 'config.json').write_text(json.dumps(config, indent=2), encoding='utf-8')
     main(['--directory', str(directory), 'start'])
     context = ssl.create_default_context(cafile=str(directory / 'tls/localhost.pem'))
     for _ in range(150):
@@ -167,8 +180,10 @@ def self_setup(a, directory):
         raise ValueError('SERVER_UNAVAILABLE: inspect backend.log and Docker; data retained')
     print('READY: slot ' + a.slot + '; credential saved to participant.json (value hidden); HTTPS verified.')
     print('Next: trust local certificate in Chrome, build extension, import participant.json into your own profile, review policy and explicitly consent.')
-    if not policy and json.loads((directory / 'site-policy.json').read_text()).get('status') == 'DRAFT':
-        print('BLOCKED: common policy and 20 goals are DRAFT. Obtain confirmed team policy + SHA-256; rerun setup --policy FILE --policy-sha256 HASH.')
+    installed = json.loads(raw)
+    print('POLICY_INSTALLED: ' + installed['policyId'] + '/' + installed['policyVersion'] + '; plan revision ' + str(installed['plan']['revision']))
+    if installed.get('institution', {}).get('decision') == 'UNRESOLVED':
+        print('INSTITUTION_BLOCKED: policy installed; actual collection requires the school/institution applicability decision. Individual consent is also required.')
 
 
 def main(argv=None):

@@ -17,7 +17,8 @@ public class V2StorageGate {
 
 	public boolean enabled() {
 		String[] profiles = environment.getActiveProfiles();
-		return (profiles.length == 1 && Arrays.asList(profiles).contains("test") || sites.realProfile() && sites.current()!=null)
+        var policy = sites.realProfile() ? sites.current() : null;
+		return (profiles.length == 1 && Arrays.asList(profiles).contains("test") || sites.realProfile() && policy!=null && policy.status().equals("APPROVED"))
 			&& environment.getProperty("focus-recovery.v2.storage.enabled", Boolean.class, false);
 	}
 

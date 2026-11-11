@@ -1,0 +1,102 @@
+{
+  "result": "PASS",
+  "kind": "SYNTHETIC-103-NOT-ACTUAL-COLLECTION",
+  "sources": [
+    {
+      "slot": "A",
+      "assignments": 54,
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "https": true,
+      "restart": true,
+      "rotation": true
+    },
+    {
+      "slot": "B",
+      "assignments": 53,
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "https": true,
+      "restart": true,
+      "rotation": true
+    },
+    {
+      "slot": "C",
+      "assignments": 53,
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "https": true,
+      "restart": true,
+      "rotation": true
+    }
+  ],
+  "chrome": "SYNTHETIC_SPKI_PINNED_HTTPS_NOT_OS_TRUST",
+  "merge": "PARTIAL",
+  "duplicateImports": 3,
+  "withdrawal": "QUARANTINED",
+  "privacyReplay": "REJECTED",
+  "actualParticipantSessions": 0,
+  "checkedOn": "2026-11-11",
+  "automaticRepositoryPolicyInstall": true,
+  "planRevision": 1,
+  "independentMysqlInstances": 3,
+  "chromeDetails": [
+    {
+      "kind": "SYNTHETIC_PINNED_HTTPS_NOT_OS_TRUST",
+      "slot": "A",
+      "sessionId": "2ec67cc0-68d0-45cb-b0a6-6df3ba12d7be",
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "fileLogin": true,
+      "explicitUiConsent": true,
+      "spa": true,
+      "workerRestart": true,
+      "browserRestart": true,
+      "wrongPinRejected": true
+    },
+    {
+      "kind": "SYNTHETIC_PINNED_HTTPS_NOT_OS_TRUST",
+      "slot": "B",
+      "sessionId": "5fb5b88d-fba1-4bd3-b5c9-4013b8aea37f",
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "fileLogin": true,
+      "explicitUiConsent": true,
+      "spa": true,
+      "workerRestart": true,
+      "browserRestart": true,
+      "wrongPinRejected": true
+    },
+    {
+      "kind": "SYNTHETIC_PINNED_HTTPS_NOT_OS_TRUST",
+      "slot": "C",
+      "sessionId": "0a145f16-2823-4a75-8647-782005605d7d",
+      "visits": 10,
+      "raw": "RAW_COLLECTED",
+      "ai": "NOT_RUN",
+      "fileLogin": true,
+      "explicitUiConsent": true,
+      "spa": true,
+      "workerRestart": true,
+      "browserRestart": true,
+      "wrongPinRejected": true
+    }
+  ],
+  "regression": {
+    "tests": 1031,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 78,
+    "passed": 953
+  },
+  "finalPolicyFocused": {
+    "passed": 15,
+    "failed": 0
+  },
+  "actualExternalCollection": "NOT_RUN_INSTITUTION_UNRESOLVED_AND_NO_ACTUAL_PARTICIPANT_CONSENT"
+}

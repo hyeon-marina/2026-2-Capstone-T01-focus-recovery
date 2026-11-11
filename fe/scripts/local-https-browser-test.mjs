@@ -43,6 +43,12 @@ async function login(id) {
   harness=await context.newPage();await harness.goto('chrome-extension://'+id+'/participant/index.html');
   await harness.getByLabel('로컬 Credential 파일 불러오기').setInputFiles(join(directory,'participant.json'));
   await harness.getByText(/로컬 슬롯 [ABC]/).waitFor();
+  const access=await send('access');
+  if (!access.access.consentValid) {
+    assert.equal(access.access.collectionEnabled,false);
+    await harness.getByRole('checkbox').check();
+    await harness.getByRole('button',{name:'수집 동의 기록 저장',exact:true}).click();
+  }
   await harness.getByText(/서버 동의 유효/).first().waitFor();
 }
 try {
@@ -67,5 +73,5 @@ try {
   await harness.bringToFront();await harness.getByRole('button',{name:'진행 상태 새로고침',exact:true}).click();
   await harness.getByText(/원본 RAW_COLLECTED/).waitFor();
   await harness.screenshot({path:join(directory,'https-metadata-complete.png'),fullPage:true});
-  await writeFile(join(directory,'https-chrome-summary.json'),JSON.stringify({kind:'SYNTHETIC_PINNED_HTTPS_NOT_OS_TRUST',slot:config.slot,sessionId:attempt.sessionId,visits:10,raw:'RAW_COLLECTED',ai:'NOT_RUN',fileLogin:true,spa:true,workerRestart:true,browserRestart:true,wrongPinRejected:true},null,2),{flag:'wx'});
+  await writeFile(join(directory,'https-chrome-summary.json'),JSON.stringify({kind:'SYNTHETIC_PINNED_HTTPS_NOT_OS_TRUST',slot:config.slot,sessionId:attempt.sessionId,visits:10,raw:'RAW_COLLECTED',ai:'NOT_RUN',fileLogin:true,explicitUiConsent:true,spa:true,workerRestart:true,browserRestart:true,wrongPinRejected:true},null,2),{flag:'wx'});
 } finally {await context?.close();}

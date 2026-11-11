@@ -39,6 +39,7 @@ public class LocalCollectionStatus {
             try {
                 var n=mapper.readTree(Files.readAllBytes(Path.of(env.getRequiredProperty("focus-recovery.collection.site-policy-file"))));
                 if(n.path("schemaVersion").asText().equals("focus-local-policy/1")) {
+                    if(!LocalCollectionPolicy.institutionCleared(n))blockers.add("INSTITUTION_BLOCKED");
                     var validator=new LocalCollectionPolicy(mapper);var plan=validator.validate(n,Instant.now());revision=plan.revision();
                     goalChecksum=AuthenticationService.digest(plan.goals().stream().map(g->validator.canonical(g)+"\n").collect(java.util.stream.Collectors.joining()));
                     assignmentChecksum=AuthenticationService.digest(plan.assignments().stream().map(g->validator.canonical(g)+"\n").collect(java.util.stream.Collectors.joining()));

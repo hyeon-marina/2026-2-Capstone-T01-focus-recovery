@@ -80,7 +80,7 @@ public class ConsentService {
     public boolean deploymentConfigured() { return releaseMatches() && environment.getProperty("focus-recovery.v2.storage.enabled",Boolean.class,false); }
     private boolean releaseMatches() {
         var release=sites.current();var p=policy();
-        return sites.realProfile() && release!=null && usable(p) && p.status().equals("APPROVED") && release.policyId().equals(p.policyId()) && release.policyVersion().equals(p.policyVersion());
+        return sites.realProfile() && release!=null && release.status().equals("APPROVED") && usable(p) && p.status().equals("APPROVED") && release.policyId().equals(p.policyId()) && release.policyVersion().equals(p.policyVersion());
     }
     @Transactional public State accept(Accept input) {
         UUID owner = AuthenticatedParticipant.required().participantId(); lockParticipant(owner);
