@@ -1,5 +1,8 @@
 # 데이터 통합 관리자 실습 매뉴얼 — Issue #101
 
+#103에서도 `focus-raw-export/1` JSONL/Manifest/SHA-256/age·출처+원래ID 매핑·privacy freshness/rollback·멱등/충돌 검사는 그대로다. 셀프 초기화는 각 DB의 고유 Participant/Source UUID를 만들고 공통 Plan revision/목표/배정 checksum을 유지한다. `dataset.py privacy`에서 --participant를 생략하면 **본인 전용** 최신 상태를 받는다. 별도 로컬 관리자 발급은 필요 없다. [새 설치 명령](individual-local-setup.md)과 [검증 보고](local-self-setup-validation.md)를 참조한다.
+
+
 대상은 A/B/C의 **독립 로컬 DB에서 만든 불변 Export 파일**입니다. AI/FastAPI/MySQL dump 덮어쓰기를 통합에 사용하지 않습니다. 관리 도구는 Python 표준 라이브러리·SQLite 메타데이터 레지스트리·age를 사용합니다. **실제 참여자 데이터의 수집·공유 승인은 현재 BLOCKED**이며 아래 실제 형식 명령은 승인 후 사용합니다. 실행한 합성 예시는 16절에 별도로 기록했습니다.
 
 ## 1. 수신 영역과 수신키 준비
@@ -84,13 +87,12 @@ python3 tools/individual-local/dataset.py inspect .collection/merge/incoming/A-0
 
 ## 7. 최신 개인정보 상태 확인
 
-통합 직전 **각 PC의 신뢰된 운영자**가 자기 로컬 서버에 인증하여 현재 상태를 받습니다. 참여자 Credential과 별개인 기존 운영자 역할이 필요하며, 전체 철회 이후에도 운영자는 메타데이터를 확인할 수 있습니다. 수집과 전송을 중단하고 합의한 기준 시점 이후 이 명령을 실행합니다.
+**#103 로컬 모드:** 통합 직전 각 참여자가 본인 Credential로 자기 최신 privacy를 조회합니다. 전체 철회 이후에도 본인 메타데이터 조회가 가능하며, 만료 시 setup --rotate-credential로 조회용 인증을 갱신합니다. 수집·동의·철회 상태를 되살리지 않습니다. 기존 운영 모드의 타인 조회만 운영자 역할과 --participant가 필요합니다. 수집과 전송을 중단하고 합의한 기준 시점 이후 이 명령을 실행합니다.
 
 ```sh
-read -r PARTICIPANT_ID
 python3 tools/individual-local/dataset.py privacy \
   --server https://localhost:9443 --ca-file .collection/local/tls/localhost.pem \
-  --credential-file .collection/local/operator.json --participant "$PARTICIPANT_ID" \
+  --credential-file .collection/local/participant.json \
   --output .collection/local/A-privacy-001.json
 ```
 

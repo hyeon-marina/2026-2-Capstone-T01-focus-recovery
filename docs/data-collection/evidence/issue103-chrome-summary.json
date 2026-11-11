@@ -1,0 +1,197 @@
+{
+  "afterWithdrawal": {
+    "privacyExcluded": 1,
+    "rawCompleted": 2,
+    "validVisits": 20
+  },
+  "aiProcess": false,
+  "duplicateImports": 3,
+  "idCollision": "REJECTED",
+  "independentMySql": 3,
+  "initial": {
+    "actualGeneratedWindows": 0,
+    "aiAnalysisCompletedWindows": 0,
+    "participants": {
+      "A": 1,
+      "B": 1,
+      "C": 1
+    },
+    "rawCompleted": 3,
+    "status": "PARTIAL",
+    "theoreticalWindows": 24,
+    "validVisits": 30
+  },
+  "kind": "SYNTHETIC-101",
+  "oldPrivacyReplay": "REJECTED",
+  "os": "darwin",
+  "perSource": [
+    {
+      "analyses": 0,
+      "encryptedSha256": "a4043b98e9cf6602c02f7f7d61e9360126cdf0aa67fb0e6ccd13a544b4f967b7",
+      "files": {
+        "assignments.jsonl": {
+          "rows": 160,
+          "sha256": "c80bf441db3a4cc47d273f92c5f1049c4c88ad61295ffd7faa45d332a12c3de7"
+        },
+        "behaviors.jsonl": {
+          "rows": 10,
+          "sha256": "0e58f330dab98f4ca1fdb1c727f894123c75d7b29b25828a0ef21de04a434c26"
+        },
+        "collection_attempts.jsonl": {
+          "rows": 1,
+          "sha256": "3d5219ec3212184fcbacb9ec68af70fc047aae3277a3f1eb119005f55cadcf23"
+        },
+        "collection_failures.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "consent_references.jsonl": {
+          "rows": 1,
+          "sha256": "e88a586d458902f9286dfdbeb19fc355dce56ef4ca601a60a709ca37b065f010"
+        },
+        "goals.jsonl": {
+          "rows": 20,
+          "sha256": "27acb3ee6c5c2d3355e696002bbe0a4a62be6f3535eaff1dc7e2fa326abb4461"
+        },
+        "participants.jsonl": {
+          "rows": 1,
+          "sha256": "f1044bcf2c7d946434e505f86b66005e4405c25d5cfe30972b67e86490ef3109"
+        },
+        "privacy_events.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "raw_quality.jsonl": {
+          "rows": 1,
+          "sha256": "c805e1db196b7d82ac0d00607391decb7bda96733fd9b1b9a7e58ffd6d08e819"
+        },
+        "sessions.jsonl": {
+          "rows": 1,
+          "sha256": "f757c62f94303e7bac26acf9c4577fef917252ab57473a9a9a2c15390fb7ccfb"
+        },
+        "visits.jsonl": {
+          "rows": 10,
+          "sha256": "74c597723f864ece8379d0f7675dc484620a8a8d3d88114a8f3a3297720525c8"
+        }
+      },
+      "manifestSha256": "99658380087ac2415a87522c8d737cdb0912a926461bb5d6c3b1928190be144b",
+      "migrations": 18,
+      "slot": "A",
+      "visits": 10,
+      "windows": 0
+    },
+    {
+      "analyses": 0,
+      "encryptedSha256": "04df8137192ef32a8ccaa5a0e7be02a74be95546de88732b65eb2a3ce27445ed",
+      "files": {
+        "assignments.jsonl": {
+          "rows": 160,
+          "sha256": "5a595fd0573c412e5f0478b4cc8151add8a6409d1a662e009d99e7783400bb8c"
+        },
+        "behaviors.jsonl": {
+          "rows": 10,
+          "sha256": "74756c0ee926f2ba268c51342757768434227c2b7cea2f59c8c59ef6ac3a83a8"
+        },
+        "collection_attempts.jsonl": {
+          "rows": 1,
+          "sha256": "bafaf5bdf4f44d011fc13f2974acb1f38a8a19fac5f9e49048399b0b8fdbe013"
+        },
+        "collection_failures.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "consent_references.jsonl": {
+          "rows": 1,
+          "sha256": "a361960304a7ce12aa11393ec174a710d54bed7be24e551e0c07ac8d1a426a34"
+        },
+        "goals.jsonl": {
+          "rows": 20,
+          "sha256": "3b7d878c5d420a0047cdf845e31b3ced359d3ddf6e968914da09c9f2cc7cdca5"
+        },
+        "participants.jsonl": {
+          "rows": 1,
+          "sha256": "3b5a2d2ed28d0cf0574fc20adb4ed17e5af4860c1a7ad2e2c9794c93e88b589c"
+        },
+        "privacy_events.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "raw_quality.jsonl": {
+          "rows": 1,
+          "sha256": "f0af8cb442fe90bdf55e04381e7bc91d75db9b7533bef387017409dca27ff1ca"
+        },
+        "sessions.jsonl": {
+          "rows": 1,
+          "sha256": "3c6370c6a97f1bdea2121c237e7ac0cefa1765cd876cdafd3a40558dd715695f"
+        },
+        "visits.jsonl": {
+          "rows": 10,
+          "sha256": "e5a7b64c86f61a68f3ad40dd574723b9a8dc59dbc04d7c078b32148e60845d44"
+        }
+      },
+      "manifestSha256": "1bd5878c9667350b0542c56e38914175743d905999bac4ec00fdca127071c07c",
+      "migrations": 18,
+      "slot": "B",
+      "visits": 10,
+      "windows": 0
+    },
+    {
+      "analyses": 0,
+      "encryptedSha256": "aa312b7de912d62049c4d042302291e22adfdc6c5a03e6980dd82d8a3eac38ec",
+      "files": {
+        "assignments.jsonl": {
+          "rows": 160,
+          "sha256": "a57a5f43447826ae2545530694dcbbd7440c989f9b094c92a2ced44e5985fbc5"
+        },
+        "behaviors.jsonl": {
+          "rows": 10,
+          "sha256": "54d2c7dffcef48656e37af2224795ea47e9a48f8e3dbdd1455cb633ada82331c"
+        },
+        "collection_attempts.jsonl": {
+          "rows": 1,
+          "sha256": "b3d438bda4136449480cc9348ced0da95c9d5fa80990547d5928413a3ecd0963"
+        },
+        "collection_failures.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "consent_references.jsonl": {
+          "rows": 1,
+          "sha256": "e641ab4182b1ec8cfe41da4bf0b3d45ee3f4ddf56636973dadd864a9791e0892"
+        },
+        "goals.jsonl": {
+          "rows": 20,
+          "sha256": "7543f6e766e7182287bfd45422e8891f8706b755e0882060233bdf30922648fd"
+        },
+        "participants.jsonl": {
+          "rows": 1,
+          "sha256": "fd60772a4e24b9c61e0892d63be25e82aa14889df8820dc0d7a4fae828cee816"
+        },
+        "privacy_events.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "raw_quality.jsonl": {
+          "rows": 1,
+          "sha256": "c22ad4e0b743099148c6b165185ad4546e801b950a54fe12237a4ce60556898d"
+        },
+        "sessions.jsonl": {
+          "rows": 1,
+          "sha256": "616dbc6438955f6ddf0deaad03c6f1c1fd6ef9ddac0981fae28b69af8cee8508"
+        },
+        "visits.jsonl": {
+          "rows": 10,
+          "sha256": "ae89a1bb6f6b01e21562dbab3c46d979b11b8f3d9020933a4650a9e9970c22c0"
+        }
+      },
+      "manifestSha256": "8ab22b6d69ecfef849fbf265355b7f57112d153fd35b910b1c1974233413f58e",
+      "migrations": 18,
+      "slot": "C",
+      "visits": 10,
+      "windows": 0
+    }
+  ],
+  "planMismatch": "REJECTED",
+  "result": "PASS",
+  "serverAndMySqlRestart": "PASS"
+}

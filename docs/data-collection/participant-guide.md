@@ -1,6 +1,15 @@
 # 팀원용 데이터 수집 실습 매뉴얼 — A/B/C
 
-**실제 참여자 수집: BLOCKED.** 설치 준비는 할 수 있지만 실제 동의·목표·사이트·기관·보존/회수·시작 승인과 독립 Release가 완료되기 전에는 실제 웹 탐색 데이터를 수집하지 않습니다. 현재 저장소의 목표20개는 DRAFT입니다. [설치 가이드](individual-local-setup.md), [Readiness](readiness-checklist.md), [실행 증거와 미검증 항목](individual-local-validation.md)을 함께 확인하세요.
+## #103 셀프 초기화 사용 경로
+
+최신 설치·25단계 수행 항목과 실제 명령은 [A/B/C 셀프 초기화 매뉴얼](individual-local-setup.md)을 따른다. 각자 `python3 tools/individual-local/local.py setup --slot A`(B/C는 자기 슬롯) → 공통 확정 정책/hash 적용 → `build` → 본인 Chrome 프로필에서 **로컬 Credential 파일 불러오기** → 본인 `participant.json` 선택 → 정책/보존/민감페이지 처리 확인 → 직접 동의 → 배정 선택 → 시작/10 Visit/종료 ACK/RAW_COLLECTED → 암호화 Export 순서다. Windows는 `python`을 사용한다.
+
+로컬 화면은 슬롯·HTTPS 연결·Credential 준비·정책 SHA-256·정책 없음/DRAFT/만료/무결성·목표 미확정·미동의·철회 차단 사유를 표시한다. 빌드 digest가 다르면 재빌드 안내 후 시작을 막는다. Credential은 표시/캡처하지 않고 session storage에만 연결한다. Chrome 전체 종료 후 파일을 다시 선택한다. 만료/폐기는 `setup --slot A --rotate-credential` 후 재로그인한다.
+
+완료량 부족 시 종료 후 **재수집 사유** 선택 → **사유 기록 후 재수집 허용** → 같은 PLAN의 새 시도로 수행한다. 본인 종료·CLEAR 세션만 가능하며 원래 시도는 남는다. 전체 철회 후 수집은 재활성화하지 않는다. 최신 privacy 전달을 위한 인증만 재발급할 수 있다. 새 검증/캡처와 NOT_CAPTURED 항목은 [#103 검증 보고](local-self-setup-validation.md)에 있다. 아래 #101 실습 화면은 기존 흐름 설명이며, 실제 승인/기관/보존/최종 목표가 확정되었다는 뜻이 아니다.
+
+
+**실제 참여자 수집: BLOCKED.** 설치 준비는 할 수 있지만 실제 동의·목표·사이트·기관·보존/회수·시작 승인과 로컬 공통 정책 적용(운영 모드는 독립 Release)가 완료되기 전에는 실제 웹 탐색 데이터를 수집하지 않습니다. 현재 저장소의 목표20개는 DRAFT입니다. [설치 가이드](individual-local-setup.md), [Readiness](readiness-checklist.md), [실행 증거와 미검증 항목](individual-local-validation.md)을 함께 확인하세요.
 
 아래 이미지는 **개인정보 없는 통제 HTML·임시 Chrome 프로필·독립 테스트 MySQL로 실제 실행한 SYNTHETIC/TEST 화면**입니다. 실사용 승인 화면이나 실제 참여자 실적이 아닙니다. 버튼은 실제 Extension의 버튼입니다. 화면의 테스트 서버 포트18101은 실수집 기본 HTTPS9443과 구분합니다.
 
@@ -74,7 +83,7 @@ python3 tools/individual-local/local.py build
 
 아이콘을 눌러 수집 화면을 열고 **발급 자격정보**에 담당자가 안전하게 전달한 본인 Credential을 붙여 넣습니다. **인증 / 계정 전환**을 누릅니다. 입력은 로그인 후 비워지며 화면에 `인증됨`이 나와야 합니다. Credential을 촬영하거나 단체 채팅에 보내지 않습니다.
 
-![실제 로그인 전 합성 화면](images/team-guide/extension-login.png)
+![실제 로그인 전 합성 화면](images/team-guide/self103-local-login.png)
 
 이 화면은 실제 코드의 로그인 화면입니다. 테스트 서버와 SYNTHETIC 정책을 사용하는 경우에도 실제 사용자 수집 승인으로 해석하지 않습니다.
 
@@ -82,7 +91,7 @@ python3 tools/individual-local/local.py build
 
 정책 펼침 영역에서 수집 목적·항목·이용 범위·보존/삭제 참조·철회 방법·승인 근거를 읽습니다. 실제 참여 시에는 승인된 정책에 본인이 명시적으로 동의한 뒤 **수집 동의 기록 저장**을 누릅니다. `서버 동의 유효`가 표시되어야 합니다. 내용을 이해하지 못했거나 근거가 없으면 동의하지 않고 담당자에게 확인합니다.
 
-![합성 정책 내용을 확인하는 실제 화면](images/team-guide/consent.png)
+![합성 정책 내용을 확인하는 실제 화면](images/team-guide/self103-consent.png)
 
 사진은 **SYNTHETIC**이라 버튼명이 **합성 동의 기록 저장**이며 기관/운영 승인 없음이 표시됩니다. 실제 동의 기록을 대신하지 않습니다. 서버·설치 패키지의 승인 정책도 일치해야 세션 시작이 가능합니다.
 
@@ -90,7 +99,7 @@ python3 tools/individual-local/local.py build
 
 **배정 목표**에서 자기 PLAN을 선택합니다. 시나리오는 해당 PLAN에 이미 배정되어 표시되며 **독립된 자유 선택 버튼은 없습니다**. 목표 유지/합리적인 우회/점진적인 이탈/명확한 이탈 중 표시된 안내를 따릅니다. 미확정 목표는 시작할 수 없습니다.
 
-![GOAL-001 / PLAN-001의 합성 배정 화면](images/team-guide/collection-goal.png)
+![GOAL-001 / PLAN-001의 합성 배정 화면](images/team-guide/self103-collection-goal.png)
 
 실제 테스트에서 A는 `GOAL-001 / PLAN-001 / 목표 유지`, B는 `PLAN-002 / 목표 유지`, C는 `PLAN-003 / 합리적인 우회`였습니다. 합성 목표 문자열은 `Synthetic TypeScript transaction research`입니다. 실제 팀 목표20개를 확정한 예시가 아닙니다. 실제 B/C는 자기 서버에서 반환한 배정을 사용합니다.
 
@@ -98,7 +107,7 @@ python3 tools/individual-local/local.py build
 
 본인 배정·목표·허용 사이트·동의·Gate가 모두 유효하면 **세션 시작**을 한 번 누릅니다. 세션 상태가 `ACTIVE`가 되어야 합니다. 버튼이 비활성이거나 요청이 거절되면 새 ID를 만들거나 설정을 바꾸어 우회하지 않습니다.
 
-![실제 합성 세션 시작 화면](images/team-guide/collection-start.png)
+![실제 합성 세션 시작 화면](images/team-guide/self103-collection-start.png)
 
 ## 16. 웹 탐색 수행
 
@@ -110,7 +119,7 @@ python3 tools/individual-local/local.py build
 
 화면의 **서버 수신 Visit**는 IndexedDB에만 생긴 후보 수가 아니라 ACK를 받은 Visit 수입니다. 최소10개, 권장12~15개를 확보합니다. **미완료 POST/PATCH**가 있으면 원본과 행동 정보가 아직 서버에 확정되지 않았을 수 있습니다. 수집 창을 보는 동안에는 탐색 페이지가 비활성화되므로 체류시간이 늘지 않습니다.
 
-![실제 5 Visit 시점의 합성 수집 진행](images/team-guide/collection-progress.png)
+![실제 5 Visit 시점의 합성 수집 진행](images/team-guide/self103-collection-progress.png)
 
 ## 18. 세션 종료
 
@@ -125,7 +134,7 @@ python3 tools/individual-local/local.py build
 - 로컬 미완료 POST/PATCH0, 종료 ACK `acked`
 - 원본 전용 모드에서는 `AI NOT_RUN`, 생성 Window0
 
-![실제 원본 완료와 AI 미실행을 구분한 합성 결과](images/team-guide/collection-complete.png)
+![실제 원본 완료와 AI 미실행을 구분한 합성 결과](images/team-guide/self103-collection-complete.png)
 
 이 합성 화면은 `원본 완료 1 / AI 포함 0`이며 실제 실적은0입니다. 기존 `QUALITY_PASSED`는 Window/AI/상태 이력까지 요구합니다. 따라서 원본 수집이 정상이어도 AI 미실행이면 기존 AI 포함 품질 상태는 `RECOLLECT_REQUIRED`일 수 있습니다. **원본 RAW_COLLECTED와 AI NOT_RUN이 정상인 원본 전용 수집을 AI 미실행 때문에 다시 수집하지 않습니다.** 개인정보 격리는 항상 완료보다 우선합니다.
 
@@ -153,7 +162,7 @@ python3 tools/individual-local/local.py verify
 
 ## 23. 데이터 Export
 
-관리자가 `age-keygen`으로 만든 **공개 수신키**(`age1...`)만 받습니다. 개인 복호화 키는 받거나 공유하지 않습니다. 수집을 종료하고 Queue0·ACK·원본 완료를 확인한 뒤 실행합니다. 아래 변수에는 담당자가 전달한 공개키를 넣습니다. Credential 파일은 발급 시 받은 보호 JSON입니다.
+운영 모드에서 관리자가 `age-keygen`으로 만든 **공개 수신키**(`age1...`)만 받습니다. 개인 복호화 키는 받거나 공유하지 않습니다. 수집을 종료하고 Queue0·ACK·원본 완료를 확인한 뒤 실행합니다. 아래 변수에는 담당자가 전달한 공개키를 넣습니다. Credential 파일은 발급 시 받은 보호 JSON입니다.
 
 ```sh
 read -r AGE_RECIPIENT
@@ -182,7 +191,7 @@ shasum -a 256 .collection/local/A-001.tar.age
 Get-FileHash .collection/local/A-001.tar.age -Algorithm SHA256
 ```
 
-두 값이 같아야 합니다. 내부 Manifest/행 수/파일별 checksum·FK 검사는 개인 복호화 키를 가진 관리자가 [통합 매뉴얼](merge-guide.md)의 `dataset.py verify`로 수행합니다. 참여자에게 관리자의 개인키를 요청하지 않습니다.
+두 값이 같아야 합니다. 내부 Manifest/행 수/파일별 checksum·FK 검사는 개인 복호화 키를 가진 운영 모드에서 관리자가 [통합 매뉴얼](merge-guide.md)의 `dataset.py verify`로 수행합니다. 참여자에게 관리자의 개인키를 요청하지 않습니다.
 
 ## 25. 안전한 파일 전달
 
@@ -194,20 +203,20 @@ Get-FileHash .collection/local/A-001.tar.age -Algorithm SHA256
 
 현재 세션만 끝내려면 **세션 종료 · 수집 중지**를 사용합니다. 전체 동의를 철회하려면 **전체 동의 철회 · 수집 즉시 중지**를 누릅니다. 오프라인이면 철회 요청이 로컬에 보존되므로 연결 복구 후 본인으로 재인증하여 전송합니다. 로그아웃·Credential 폐기는 철회 요청을 대신하지 않습니다.
 
-![실제 합성 참여자의 전체 철회 접수 화면](images/team-guide/withdrawal.png)
+![실제 합성 참여자의 전체 철회 접수 화면](images/team-guide/self103-withdrawal.png)
 
 `동의 철회됨`, `QUARANTINED`, 전체 삭제 확인 미완료를 확인합니다. 소유 세션은 즉시 격리되고 원본 완료 실적에서 제외됩니다. 관리자에게 Export 수신자·백업·통합 데이터셋·후속 학습 사본의 회수를 요청합니다. 새 개인정보 상태로 재통합하면 기존 Export의 해당 세션도 제외됩니다. **과거에 배포한 파일 자체가 자동 삭제되지는 않습니다.** 담당자가 사본 대장에 격리/삭제 증거를 남겨야 하며 전체 증거 없이 PURGED가 되지 않습니다.
 
 ## 27. 자주 발생하는 오류
 
-![로컬 서버 연결 실패 시 실제 안내 화면](images/team-guide/connection-error.png)
+![로컬 서버 연결 실패 시 실제 안내 화면](images/team-guide/self103-tls-blocked.png)
 
 이 이미지는 **DRAFT/수집 차단 패키지 + 임시 프로필**에서 실제 로그인 요청을 시험한 화면입니다. Chrome에 localhost 인증서를 아직 신뢰 설치하지 않아 서버 연결 실패 안내가 표시됐습니다. 입력 Credential은 테스트용 잘못된 문자열이며 촬영 전에 비웠습니다. 인증서를 무시해서 성공 상태로 만든 화면이 아닙니다.
 
 
 | 화면/상태 | 할 일 |
 | --- | --- |
-| 실제 사용자 수집 BLOCKED / 세션 시작 비활성 | 승인·동의·목표·허용 사이트·빌드 정책·독립 Release를 담당자와 확인. 우회 금지 |
+| 실제 사용자 수집 BLOCKED / 세션 시작 비활성 | 승인·동의·목표·허용 사이트·빌드 정책·로컬 공통 정책 적용(운영 모드는 독립 Release)를 담당자와 확인. 우회 금지 |
 | 인증정보 만료 | 본인 Credential 갱신·재인증. 계정 전환으로 과거 Queue 전송 금지 |
 | Visit 수가 증가하지 않음 | 허용 공개 페이지·활성 탭/창·실측5초·본문 추출 확인. 화면 전환 중 체류시간은 증가하지 않음 |
 | 미완료 POST/PATCH / END_PENDING | 서버/TLS·네트워크 확인 → 재전송 / 복구. IndexedDB/Extension 삭제 금지 |

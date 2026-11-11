@@ -21,7 +21,7 @@ class V17MigrationTest {
   var ds=new SingleConnectionDataSource(url,user,password,true);var j=new JdbcTemplate(ds);
   var before=new LinkedHashMap<String,List<Map<String,Object>>>();
   for(String table:List.of("work_session","page_visit","participant","consent_record","privacy_retraction","collection_release"))before.put(table,new V2MigrationTest().normalize(j.queryForList("SELECT * FROM "+table)));
-  var f=Flyway.configure().dataSource(ds).load();assertThat(f.migrate().migrationsExecuted).isEqualTo(1);
+  var f=Flyway.configure().dataSource(ds).target("17").load();assertThat(f.migrate().migrationsExecuted).isEqualTo(1);
   before.forEach((table,rows)->assertThat(new V2MigrationTest().normalize(j.queryForList("SELECT * FROM "+table))).containsExactlyInAnyOrderElementsOf(rows));
   assertThat(j.queryForObject("SELECT COUNT(*) FROM collection_export_audit",Integer.class)).isZero();
   assertThat(j.queryForObject("SELECT COUNT(*) FROM collection_source_instance",Integer.class)).isZero();

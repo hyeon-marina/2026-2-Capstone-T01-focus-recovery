@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 public class CollectionExportController {
     private final CollectionExportService exports;
     public CollectionExportController(CollectionExportService exports){this.exports=exports;}
+    @GetMapping("/export-privacy") public Map<String,Object> myPrivacy(){return exports.privacy(AuthenticatedParticipant.required().participantId(),false);}
     @PostMapping("/exports") public Map<String,Object> mine(){return exports.export(AuthenticatedParticipant.required().participantId(),false);}
     @PostMapping("/admin/exports/{participant}") public Map<String,Object> export(@PathVariable UUID participant){return exports.export(participant,true);}
     @GetMapping("/admin/export-privacy/{participant}") public Map<String,Object> privacy(@PathVariable UUID participant){return exports.privacy(participant);}

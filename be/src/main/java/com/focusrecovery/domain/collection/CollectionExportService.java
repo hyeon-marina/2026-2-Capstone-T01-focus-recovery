@@ -82,10 +82,14 @@ public class CollectionExportService {
         return Map.of("manifest",manifest,"files",files);
     }
     @Transactional(isolation=Isolation.REPEATABLE_READ)
-    public Map<String,Object> privacy(UUID participant) {
-        admin.requireOperator();consent.lockParticipant(participant);
+    public Map<String,Object> privacy(UUID participant) { return privacy(participant,true); }
+    @Transactional(isolation=Isolation.REPEATABLE_READ)
+    public Map<String,Object> privacy(UUID participant,boolean operator) {
+        if(operator)admin.requireOperator();
+        if(!participant.equals(AuthenticatedParticipant.required().participantId()))admin.requireOperator();
+        consent.lockParticipant(participant);
         String source=source();
-        admin.audit("READ_EXPORT_PRIVACY",participant.toString(),"individual-local-101");
+        jdbc.update("INSERT INTO collection_audit VALUES(?,?,?,?,?,?)",UUID.randomUUID().toString(),AuthenticatedParticipant.required().participantId().toString(),"READ_EXPORT_PRIVACY",participant.toString(),"individual-local-103",Timestamp.from(clock.instant()));
         return privacy(participant,source,clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS));
     }
     private Map<String,Object> privacy(UUID participant,String source,Instant now) {

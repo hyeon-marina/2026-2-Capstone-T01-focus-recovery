@@ -1,36 +1,21 @@
-# 개인 PC 설치·실행 가이드 — Issue #101
+# A/B/C 로컬 셀프 초기화 — Issue #103
 
-**현재 실제 참여자 수집은 BLOCKED입니다.** 이 가이드는 설치와 승인 전 준비까지 실행할 수 있습니다. 실제 수집은 [Readiness](readiness-checklist.md)의 동의·목표·기관·사이트·보존/회수·개시 승인과 독립 DB Release를 모두 갖춘 뒤 시작합니다. 합성 계정·정책을 실수집 DB에 넣지 않습니다.
+각 PC의 전용 MySQL·Spring과 본인 Chrome 프로필로 원본을 수집한다. 공용 서버·사설망·FastAPI·Qwen·별도 Credential 발급 관리자는 필요 없다. **실제 팀 정책·목표·개인정보/기관 판단은 현재 BLOCKED**다. 설치·계정 준비와 실제 수집 개시를 구분한다. 실행 결과와 미검증 범위는 [검증 보고](local-self-setup-validation.md)에 기록한다.
 
-기본 연결은 `Chrome → IndexedDB → https://localhost:9443 Spring Boot → 127.0.0.1:33101 MySQL`입니다. FastAPI·모델·다른 팀원의 PC는 필요하지 않습니다. A/B/C는 **각자 PC에 새 DB/볼륨**을 만듭니다. 아래 명령은 저장소 루트에서 실행하며 기본 작업 경로는 `.collection/local`입니다. 실제 실행 증거와 OS별 한계는 [검증 보고](individual-local-validation.md)에 있습니다.
+## 1. 프로그램 준비
 
-## 1. 준비 프로그램
+Git, Python 3.11+, **JDK21**(java/javac/keytool/jcmd), Docker Desktop(Linux containers·Compose), Node >=22.12/npm, age/age-keygen, MV3 Chrome이 필요하다. MySQL8.4는 Docker가 실행하며 호스트 설치는 필요 없다. Gradle은 저장소 Wrapper를 쓴다.
 
-| 프로그램 | 요구사항 / 확인 |
-| --- | --- |
-| Git | `git --version` |
-| JDK | **JDK 21**, JRE만 설치하면 안 됨. `java -version`, `javac -version`, `keytool`, `jcmd` |
-| Gradle | 별도 설치 불필요. 저장소 Wrapper **9.7.1** 사용 |
-| Docker Desktop | Linux container 모드와 Compose v2. `docker info`, `docker compose version` |
-| MySQL | Compose가 **8.4** 이미지를 실행. 호스트 MySQL 설치 불필요 |
-| Node/npm | 저장소 요구 `>=22.12`; `node --version`, `npm --version` |
-| Python | 3.11 이상. 추가 pip 패키지 없이 설치/Export/통합 도구 실행 |
-| age | `age --version`, `age-keygen`. 공개 수신키 암호화에 사용 |
-| Chrome | MV3 지원 Chrome. 테스트에는 개인 프로필 대신 Chrome for Testing 사용 |
-
-다운로드/설치의 기준은 [Temurin 공식 설치](https://adoptium.net/installation/), [Docker Windows 설치](https://docs.docker.com/desktop/setup/install/windows-install/), [Docker macOS 설치](https://docs.docker.com/desktop/setup/install/mac-install/), [Node 공식 다운로드](https://nodejs.org/en/download), [Python 다운로드](https://www.python.org/downloads/), [age 공식 설치](https://github.com/FiloSottile/age#installation)입니다. Windows의 WSL2/가상화·Docker 요구사항은 현재 공식 안내에 맞춥니다. 학교 PC의 설치 권한은 담당자에게 요청하고 수집 중에는 관리자 권한으로 실행하지 않습니다.
-
-macOS에서 Homebrew를 이미 사용하는 경우 필요한 프로그램만 설치합니다.
+macOS: 설치된 Homebrew로 `brew install age`, 나머지는 [Temurin](https://adoptium.net/installation/), [Docker](https://docs.docker.com/desktop/setup/install/mac-install/), [Node](https://nodejs.org/en/download), [Python](https://www.python.org/downloads/) 공식 설치 프로그램을 사용한다. JDK 선택:
 
 ```sh
-brew install age
-# JDK/Chrome/Docker/Node/Python이 없다면 위 공식 설치 프로그램 사용.
 export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
 export PATH="$JAVA_HOME/bin:$PATH"
 java -version
+javac -version
 ```
 
-Windows PowerShell에서는 공식 설치 프로그램 또는 다음 패키지를 사용할 수 있습니다. 설치 후 새 터미널을 열고 JDK21의 `JAVA_HOME`과 `bin` PATH를 확인합니다. **Windows 전체 절차는 NOT_TESTED**입니다.
+Windows PowerShell(전체 Windows 실행 **NOT_TESTED**): [Docker Windows 설치](https://docs.docker.com/desktop/setup/install/windows-install/)의 WSL2/가상화 조건을 확인한다. JDK21·Node·Python·Git·Chrome을 설치하고 새 터미널의 JAVA_HOME/PATH를 확인한다.
 
 ```powershell
 winget install --exact --id EclipseAdoptium.Temurin.21.JDK
@@ -40,183 +25,134 @@ javac -version
 python --version
 ```
 
-디스크에는 MySQL 볼륨·Chrome 원본/Queue·암호화 Export가 함께 남습니다. 수집 전 여유 공간과 승인된 로컬 디스크 암호화/백업 정책을 확인합니다. 개인 클라우드 동기화 폴더에 Secret·DB·Export를 두지 않습니다.
+두 OS 모두 Docker Desktop을 켜고 `docker info`, `docker compose version`, `node --version`, `age --version`을 확인한다. Secret·DB·Export는 개인 클라우드 동기화 폴더에 두지 않는다.
 
-## 2. 프로젝트 준비
-
-새 폴더에서 개인 Fork를 복제합니다. 기존 작업 폴더나 브랜치를 덮어쓰지 않습니다.
+## 2. 저장소와 빌드
 
 ```sh
 git clone https://github.com/hyeon-marina/2026-2-Capstone-T01-focus-recovery.git
 cd 2026-2-Capstone-T01-focus-recovery
 git remote add upstream https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery.git
 git fetch origin
-git switch --track origin/feat/101/v2-individual-local-collection
-cd fe
-npm ci
-cd ../be
+git switch --track origin/feat/103/v2-local-self-setup
+npm ci --prefix fe
+cd be
 ./gradlew bootJar
 cd ..
 python3 tools/individual-local/local.py check
 ```
 
-Windows는 같은 Git 명령을 사용하고, 빌드는 아래처럼 실행합니다.
+Windows는 같은 Git/npm 명령 후 `be`에서 `.\gradlew.bat bootJar`를 실행하고, 이후 모든 `python3`을 `python`으로 바꾼다. PowerShell에서는 아래 여러 줄 shell 명령을 한 줄로 입력한다.
 
-```powershell
-Set-Location fe
-npm ci
-Set-Location ../be
-.\gradlew.bat bootJar
-Set-Location ..
-python tools/individual-local/local.py check
-```
+## 3. 본인 슬롯 초기화
 
-## 3. 최초 로컬 설정
-
-A는 `--slot A`, B/C는 자신의 슬롯을 사용합니다. 각 PC이므로 포트는 모두 같은 기본값을 사용해도 됩니다.
+A/B/C는 **각자 PC에서 자기 한 줄만** 실행한다.
 
 ```sh
-python3 tools/individual-local/local.py init --slot A
+python3 tools/individual-local/local.py setup --slot A
+python3 tools/individual-local/local.py setup --slot B
+python3 tools/individual-local/local.py setup --slot C
 ```
 
-```powershell
-python tools/individual-local/local.py init --slot A
-```
+신규 설정·랜덤 Secret·TLS → 자기 Compose MySQL → 오프라인 소유자·UUID·Credential·DRAFT 배정 → HTTPS Spring → 연결 검사 순서다. 실행 중인 자기 서버는 jcmd nonce로 확인해 중지 후 갱신하고 재시작한다. 현재 세션은 먼저 종료·ACK를 확인한다. 실제 수집 중에는 setup을 실행하지 않는다.
 
-결과는 `.collection/local`의 신규 전용 Compose 프로젝트명, 랜덤 DB 비밀번호 파일, PKCS12 및 localhost 인증서, **DRAFT** 사이트 정책입니다. 참여자·동의·관리자·수집 승인 데이터는 생성하지 않습니다. 기존 디렉터리는 거절하므로 재시작할 때 `init`을 반복하지 않습니다.
+화면의 `READY: slot A; credential saved ... (value hidden); HTTPS verified`는 **인증 준비**이며 수집 허가가 아니다. 이어지는 `BLOCKED: common policy and 20 goals are DRAFT`는 정상적인 현재 상태다. 다른 슬롯 재실행은 차단된다. 같은 슬롯 재실행은 UUID/배정/기존 데이터를 유지한다. 유효 Credential도 유지하고, 유실·만료·폐기된 Credential만 새로 발급한다. 초기 실패 시 DB·볼륨을 삭제하지 말고 원인을 해결한 뒤 같은 명령을 반복한다.
 
-| 위치 | 내용 |
+기본 경로 `.collection/local`:
+
+| 파일 | 용도 |
 | --- | --- |
-| `config.json` | 자기 슬롯·전용 project·DB/TLS 포트, 비밀번호 없음 |
-| `secrets/` | DB root/app 및 PKCS12 비밀번호. 인수·화면·Git에 출력하지 않음 |
-| `tls/backend.p12` | 서버 개인키 포함, 공유 금지 |
-| `tls/localhost.pem`, `localhost.cer` | 공개 인증서. localhost/127.0.0.1 SAN, 90일 유효 |
-| `site-policy.json` | 초기 DRAFT·허용 사이트 없음. 승인 담당자가 검토한 Artifact로만 교체 |
-| `backend.log`, `backend.json` | 실행 로그와 PID/프로세스 식별값 |
+| `config.json` | 슬롯·전용 project·DB33101/TLS9443 |
+| `owner.key` | 최초 OS 소유자 증명. 공유·Git 업로드 금지; 유실 시 DB를 임의 인수하지 않음 |
+| `participant.json` | 본인 Credential·만료·UUID·슬롯. owner-only, 값 출력/캡처 금지 |
+| `tls/backend.p12`, `secrets/` | 개인키·비밀번호, 공유 금지 |
+| `tls/localhost.pem`, `localhost.cer` | 공개 인증서, SAN/지문/90일 기간 확인 |
+| `site-policy.json` | 설치한 공통 정책의 정확한 바이트 |
+| `setup-runtime.jar`, `backend-runtime.jar` | 실행 시점 JAR 사본. 작업 폴더 재빌드가 실행 중 JVM을 바꾸지 않음 |
+| `setup.log`, `backend.log` | 보호된 진단 로그. 공유 전 검토 |
 
-POSIX는 디렉터리700/파일600, Windows는 `icacls`로 상속 제거 후 현재 사용자만 허용합니다. `local.py`와 Java 최초 운영자 초기화에 Windows ACL 경로가 있지만 **Windows NTFS·ACL 실행은 NOT_TESTED**입니다. ACL 설정 실패 시 진행하지 않습니다.
+POSIX 소유자·700/600과 symlink 차단, Windows 현재 사용자 ACL을 검사한다. 이전 #101 `init` 설정은 DB가 비어 있을 때만 setup으로 이어갈 수 있다. 기존 참여자/세션/계획/정책이 있는 DB는 인수하지 않는다. 기존 데이터는 Export로 보존하고 별도 신규 디렉터리·빈 포트를 사용한다. 같은 PC에서 테스트할 때만 `--directory NEW --db-port 33231 --tls-port 19543`처럼 격리한다. 실제 A/B/C 슬롯을 다른 PC로 복제하지 않는다.
 
-## 4. 로컬 HTTPS 인증서 신뢰
-
-인증서 경고를 무시하거나 Chrome의 `--ignore-certificate-errors`를 사용하지 않습니다. 먼저 인증서의 SHA-256 지문과 SAN을 확인합니다.
+## 4. 로컬 HTTPS
 
 ```sh
 keytool -printcert -file .collection/local/tls/localhost.cer
+python3 tools/individual-local/local.py status
 ```
 
-macOS: `localhost.cer`를 키체인 접근의 **로그인** 키체인으로 가져오고, 이 PC에서 생성한 인증서의 지문을 확인한 뒤 SSL 신뢰를 설정합니다. Chrome을 완전히 종료했다가 다시 시작합니다. 이 문서 작성 환경에서는 **사용자 키체인에 인증서 신뢰를 설치하지 않았습니다(NOT_TESTED)**. 대신 Python 명령은 `localhost.pem`을 명시적 신뢰 대상으로 사용해 TLS를 실제 검증했습니다.
-
-Windows PowerShell: 지문을 확인한 이 인증서만 현재 사용자 저장소에 등록합니다. 컴퓨터 전체 Root 저장소를 변경할 필요가 없습니다.
+macOS는 생성한 인증서를 로그인 키체인에 가져와 지문을 확인한 뒤 SSL 신뢰를 설정한다. Windows는 확인한 공개 인증서만 현재 사용자 저장소에 설치한다.
 
 ```powershell
 Import-Certificate -FilePath .collection/local/tls/localhost.cer -CertStoreLocation Cert:\CurrentUser\Root
 ```
 
-Chrome에서 `https://localhost:9443/api/health`를 열어 인증서 경고가 없는지 확인합니다. 경고가 남으면 **수집을 시작하지 않습니다**. 인증서 만료/교체는 서버 중지 후 새 키·공개 인증서를 준비하고 동일 검증을 반복합니다. 기존 PKCS12를 임의 덮어쓰는 갱신 자동화는 제공하지 않습니다.
+Chrome을 완전히 재시작하고 `https://localhost:9443/api/health`에 경고 없이 연결되는지 확인한다. Python은 `localhost.pem`으로 서버 인증서를 검증한다. 인증서 경고 무시·TLS 검증 해제는 사용하지 않는다. Chrome OS 신뢰 설치와 실제 승인된 HTTPS 수집은 이 작업에서 **NOT_TESTED**다. 인증서 만료 시 수집 중지 후 개인키·인증서 교체/신뢰 검증이 필요하다. 기존 PKCS12를 자동 덮어쓰지 않는다.
 
-## 5. DB와 Backend 시작
+## 5. 팀의 공통 정책 적용
 
-Docker Desktop을 먼저 켭니다.
+[local-policy.draft.json](local-policy.draft.json)은 **빈 DRAFT 입력 양식**이다. 팀의 실제 최종 목표20개·수집 목적/항목/이용·보존/삭제·민감페이지/본문/검색어 처리·변경/만료·정확한 HTTPS 사이트/경로·명시적 개시 범위·근거를 채운다. 기관 판단은 `REQUIRED_SATISFIED` 또는 실제 근거가 있는 `NOT_REQUIRED`와 `evidenceRef`다. 미확정은 `UNRESOLVED`로 남기며 수집은 차단된다. 모델 실행 증거 필드는 RAW_ONLY에 없다.
 
-```sh
-python3 tools/individual-local/local.py db
-python3 tools/individual-local/local.py start
-python3 tools/individual-local/local.py status
-python3 tools/individual-local/local.py verify
-```
+공통 Plan은 revision>=1, 목표 `CONFIRMED`와 실제 원문/evidenceRef, 160개 기존 배정, 빈 participantId 슬롯3개를 포함한다. 로컬 UUID는 setup이 자기 슬롯에만 연결한다. 다른 PC의 UUID를 공통 파일에 넣지 않는다. A54/B53/C53·목표별4유형×2회는 고정이다.
 
-```powershell
-python tools/individual-local/local.py db
-python tools/individual-local/local.py start
-python tools/individual-local/local.py status
-python tools/individual-local/local.py verify
-```
-
-`db`는 자기 Compose 프로젝트만 `up -d --wait`하며 기존 볼륨의 행을 보존합니다. `start`는 JAR를 background 실행하고 `backend.log`에 기록합니다. `status`가 시작 직후 실패하면 잠시 기다린 뒤 로그와 DB health를 확인합니다. 성공은 `HTTPS health: 200`입니다. **Health 200은 수집 승인 완료가 아닙니다.**
-
-Profile은 정확히 **`individual-local` 하나**입니다. `real-collection`과 동일한 Artifact·독립 DB Release·현재 승인 동의·Build/Session Scope·허용 사이트를 검사합니다. storage flag는 있어도 승인 Artifact가 없으면 저장 Gate가 닫힙니다. AI Dispatcher는 false이고 기본 AI 서비스 Secret은 없습니다. 다른 Profile을 함께 지정해 승인 Gate를 우회할 수 없습니다.
-
-Flyway V1~V17을 적용합니다. 기존 Migration 원문은 변경하지 않았습니다. 볼륨 이름은 `config.json`의 project에 `_local-db`를 붙인 값이고 MySQL 내부 경로는 `/var/lib/mysql`입니다. Docker Desktop VM 내부 볼륨이므로 Finder/탐색기에서 DB 파일을 직접 수정하지 않습니다. 포트는 둘 다 loopback에만 bind합니다.
-
-## 6. 최초 관리자·참여자·계획 준비 — 운영 담당자만
-
-실제 위임/기관/동의/사이트 승인 근거를 먼저 확보합니다. 일반 참여자는 이 절의 DB·승인 작업을 하지 않고 본인 Credential만 전달받습니다. 관리자 권한은 수집 승인이나 정책 Seed를 대신하지 않습니다.
-
-Backend를 중지한 상태에서 DB만 실행하고, 신뢰된 담당자가 `.collection/local/bootstrap-request.json`을 보호된 방식으로 준비합니다. 필드는 `identityReferenceHash`(별도 가명 연결표 참조의 SHA-256), `authorityRef`(실제 위임 근거), `credentialFile`(새 owner-only 파일의 절대경로)입니다. 실명·이메일을 넣지 않습니다. 테스트값으로 실제 역할을 발급하지 않습니다.
+팀이 확정 파일을 만든 뒤 다음 명령으로 공통 Plan checksum을 계산한다.
 
 ```sh
-python3 tools/individual-local/local.py bootstrap --request .collection/local/bootstrap-request.json
-python3 tools/individual-local/local.py start
+python3 tools/individual-local/local.py policy-checksum --policy TEAM_POLICY.json
 ```
 
-Windows는 `python`을 사용합니다. Windows 초기 Credential 생성은 owner ACL 초기 속성을 사용하며 미검증입니다. 기존 관리자가 있으면 초기화를 반복하지 말고 현재 관리자의 Credential 발급/회전 절차를 사용합니다. 최초 운영자 Credential은 1시간 한도이며 사용 중 만료되기 전에 기존 `issue`로 교체합니다. 자동 재발급은 없습니다.
-
-인증된 관리 CLI에는 로컬 공개 인증서를 명시합니다.
+출력 `planChecksum`을 파일의 해당 필드에 넣고 **다시 실행**해 최종 파일 SHA-256을 확인한다. Plan checksum은 키를 정렬한 compact UTF-8 JSON의 SHA-256(줄바꿈 없음)이다. 팀은 파일과 **별도 인증 경로로 확인한 최종 SHA-256**을 세 명에게 동일하게 전달한다. SHA-256은 파일 무결성 확인이며 실제 사람/기관 승인을 증명하는 서명은 아니다. 실제 검토 기록과 담당자·회수 연락 경로를 별도로 보관한다. 제공되지 않은 승인 값을 임의 생성하지 않는다.
 
 ```sh
-python3 tools/collection/manage.py --server https://localhost:9443 \
-  --ca-file .collection/local/tls/localhost.pem \
-  --credential-file .collection/local/operator.json init
-python3 tools/collection/manage.py --server https://localhost:9443 \
-  --ca-file .collection/local/tls/localhost.pem \
-  --credential-file .collection/local/operator.json plan --output .collection/local/plan.json
+python3 tools/individual-local/local.py setup --slot A --policy TEAM_POLICY.json --policy-sha256 TEAM_CONFIRMED_SHA256
 ```
 
-[관리 API](../contracts/collection-operations-api.md)의 `enroll --input`, `issue --participant UUID --input --output`으로 자기 PC의 참여자를 등록하고 별도 안전 경로로 Credential을 전달합니다. `--output` Credential은 새 파일이어야 합니다. Windows 명령은 한 줄로 실행하거나 PowerShell backtick 줄연결을 사용합니다.
+B/C는 자기 슬롯을 쓴다. CLI는 정확한 파일 hash와 정책·Plan·기간·사이트를 검사하고 DB 동의 정책과 Release/scope 메타데이터를 **한 번에 자동 연결**한다. 별도 운영자 등록/발급/DBA Release 요청은 없다. HTTP 관리자 API는 individual-local에서 기본 비활성이다. 기존 real-collection의 독립 승인·모델 증거 경로는 그대로다.
 
-운영 책임자가 동일한 목표20개 원문·근거와 배정160개를 준비합니다. 각 PC의 Plan revision을 동일하게 맞추되 **A PC에는 A 슬롯의 로컬 participantId, B/C PC에는 자기 슬롯의 ID**를 연결할 수 있습니다. goal/assignment checksum은 로컬 참여자 UUID와 별개입니다. `prepare-plan.py`는 DRAFT 설명만 병합하고 확정하지 않습니다. 팀 승인 없이는 CONFIRMED를 저장하지 않습니다. 시작한 목표·배정·소유자는 수정할 수 없고 A54/B53/C53 분포도 보존해야 합니다.
+정책 변경의 notBefore는 이전 정책보다 뒤여야 한다. 정책 변경은 새 policyVersion·새 파일 hash·재빌드·재동의가 필요하다. 활성 세션이 있으면 적용을 거절한다. 실행 이력이 있는 공통 Plan은 변경하지 않는다. 이전 정책 세션을 새 정책에 자동 재연결하지 않는다. 복원 도구가 폐기한 Release를 같은 정책 재실행으로 되살리지 않으며, 실제 재검토한 새 버전이 필요하다.
 
-현재 실제 승인 Artifact/DB Release/정책은 제공되지 않았습니다. 승인 파일의 필드·독립 DBA Release·정책 등록 절차는 [운영 가이드의 #99 절](operator-guide.md)을 따릅니다. 원본 전용 실행도 모든 기존 승인 참조를 요구합니다. `modelEvidenceRef`를 임의로 만들지 않고, AI 미실행 원본 수집 범위의 검토 근거를 실제 담당자가 확정해야 합니다. 모델 실행은 이번 Profile의 런타임 전제가 아닙니다.
-
-## 7. Extension 빌드·설치와 준비 판정
+## 6. Extension 설치·로그인·동의
 
 ```sh
 python3 tools/individual-local/local.py build
 ```
 
-```powershell
-$env:PYTHON = 'python'
-python tools/individual-local/local.py build
-```
+`fe/dist-real`과 설치 ZIP이 만들어진다. Credential은 정적 Extension에 포함되지 않는다. `chrome://extensions` → 개발자 모드 → **압축해제된 확장 프로그램을 로드합니다** → `fe/dist-real` → 아이콘으로 참여자 화면을 연다. 본인 전용 Chrome 프로필을 쓴다.
 
-기존 `build:real`과 패키징을 재사용합니다. 출력은 `fe/dist-real`, ZIP은 `fe/packages/focus-v2-real-*.zip`입니다. `build-info.json`의 apiOrigin이 `https://localhost:9443`인지 확인합니다. `checksums.json`은 파일별 SHA-256, 패키징 출력은 ZIP SHA-256입니다. 실행 JAR·설치 ZIP은 승인된 Commit에서 재빌드해 인계합니다.
+**로컬 Credential 파일 불러오기**에서 `.collection/local/participant.json`을 선택한다. 파일은 본인 프로필의 확장 UI에서만 읽고 Token은 MV3 trusted-context **session storage**에 저장한다. 콘텐츠 스크립트/local/sync/IndexedDB에 복제하지 않는다. 파일 업로드나 다른 프로필 자동 전파를 하지 않는다. 수동 password 입력도 가능하다. Chrome 완전 종료 후 다시 파일을 선택한다.
 
-Chrome의 별도 수집 프로필 → `chrome://extensions` → 개발자 모드 → **압축해제된 확장 프로그램을 로드합니다** → `fe/dist-real` 선택. ZIP을 받았다면 새 폴더에 풀어 해당 폴더를 선택합니다. 툴바 확장 메뉴에서 Focus Recovery를 고정하고 아이콘을 눌러 화면을 엽니다. [화면별 실습](participant-guide.md)을 이어갑니다.
+화면에서 로컬 슬롯·HTTPS 연결·Credential 준비·정책 SHA-256·차단 사유를 확인한다. 목적·항목·범위·보존/삭제·민감페이지/검색어/본문 처리·철회를 읽고 체크박스를 직접 선택해 **수집 동의 기록 저장**을 누른다. setup은 동의하지 않는다. 목표를 선택하고 시나리오를 읽는다. **세션 시작**은 본인 배정·확정 목표·유효 정책·동의·빌드 일치 상태에서만 가능하다. 정책을 바꿨다면 build 후 확장을 새로고침하고 재로그인한다.
 
-준비 판정은 로그인 성공, 현재 동의 유효, 본인 배정, 확정 목표, 서버·빌드 정책 digest 일치, 독립 Release, 사이트·기관·보존·시작 승인이 모두 필요합니다. DRAFT 패키지는 서버만 접근하고 사이트 수집 권한이 없습니다. 정책을 바꾸면 Extension도 새 digest로 재빌드해야 합니다.
+## 7. 탐색·완료·Export·철회
 
-## 8. 종료·재시작·로그·장애
+1. **세션 시작** 후 허용 사이트의 공개 페이지에서 목표/시나리오대로 탐색한다. 로그인·계정·금융·결제·민감 DOM/URL은 제외한다.
+2. 활성 탭/창의 실측5초 이상 Visit만 유효하다. 4초 미만 복귀 누적·최초5분 PATCH·size3/stride1은 유지한다.
+3. 서버 수신 Visit10개 이상(권장12~15), Queue와 오류를 확인한다.
+4. **세션 종료 · 수집 중지** → POST/PATCH0 → 종료 ACK `acked` → 전송 확인 → `원본 RAW_COLLECTED`·`AI NOT_RUN`을 확인한다. AI 포함 QUALITY_PASSED와 구분한다.
+5. 부족/실패하면 **재수집 사유**를 선택하고 **사유 기록 후 재수집 허용**을 누른 뒤 같은 PLAN을 새 시도로 수행한다. 본인의 종료·CLEAR 세션만 가능하며 이력은 남는다. 최신 유효 시도만 집계한다.
+6. [Export/암호화/통합 가이드](merge-guide.md)대로 `.tar.age`를 신규 출력한다. 암호문과 별도 SHA-256·최신 privacy를 전달하며 원문/키/Token은 GitHub에 올리지 않는다.
+7. 철회하려면 **전체 동의 철회 · 수집 즉시 중지**를 누른다. 연결이 없으면 요청이 보존되며 복구 후 재전송한다. `QUARANTINED`는 전체 삭제 완료가 아니다. 최신 상태를 통합 담당자에게 전달하고 외부 사본·백업의 회수/삭제를 실제 방침에 따라 확인한다.
 
-먼저 Extension에서 세션 종료 → POST/PATCH0 → 종료 ACK acked → 원본 RAW_COLLECTED를 확인합니다.
+## 8. 복구와 Credential 회전
 
 ```sh
-python3 tools/individual-local/local.py stop
-python3 tools/individual-local/local.py db
-python3 tools/individual-local/local.py start
-python3 tools/individual-local/local.py status
-python3 tools/individual-local/local.py logs
+python3 tools/individual-local/local.py setup --slot A --rotate-credential
 ```
 
-Windows는 `python`으로 동일하게 실행합니다. `stop`은 JDK `jcmd`로 PID의 실행 식별값을 대조한 뒤 해당 Backend만 종료하고 자기 MySQL만 중지합니다. 볼륨·DB·파일을 삭제하지 않습니다. stale PID/프로세스 검사 실패면 다른 프로세스를 종료하지 않고 멈춥니다. 실제 프로세스가 종료되었는지 확인한 운영자만 stale `backend.json`을 별도로 보관·이름 변경한 뒤 재시작합니다.
+기존 Credential을 원자 폐기하고 본인 UUID를 유지한다. 이전 파일의 값은 다시 인증할 수 없다. 확장에서 새 파일을 선택한다. 철회 후에도 이 명령은 **최신 privacy 조회용 인증만** 갱신하며 철회·격리·수집 차단을 해제하지 않는다. 비활성 계정과 소유자 키 불일치는 거절한다.
 
-| 증상 | 조치 |
+| 상황 | 조치 |
 | --- | --- |
-| 포트 사용 중 | 다른 프로세스를 임의 종료하지 않음. 최초 init에서 `--db-port`, `--tls-port`로 빈 포트 지정. TLS 포트 변경 후 새 Extension 빌드 |
-| Docker 연결 실패 | Docker Desktop 실행·Linux container 모드·현재 사용자 권한 확인 |
-| TLS 실패 | 공개 인증서 경로·SAN·기간·Chrome 신뢰 확인. 검증 해제 금지 |
-| DB 비밀번호 오류 | 최초 init의 secrets와 볼륨의 계정을 대조. 기존 볼륨에서는 환경변수 변경만으로 비밀번호가 바뀌지 않음 |
-| 401 | Credential 만료/폐기 확인 후 본인으로 재인증. 이전 Queue를 다른 계정으로 전송하지 않음 |
-| 409 COLLECTION_POLICY_BLOCKED | Artifact·DB Release·승인 기간·현재 정책·빌드 digest·세션 scope 확인 |
-| 원본 미완료 | 유효 Visit10 이상·종료 ACK·Queue·전송 보고·동의/격리 확인. AI 미실행 자체는 원본 실패 원인이 아님 |
-| 디스크/저장 오류 | 수집 중지, 로그·공간 확인. IndexedDB/볼륨을 삭제하거나 새 세션 ID로 바꾸지 않음 |
+| 설치 누락/JDK | setup의 MISSING_PROGRAMS/JDK_REQUIRED를 확인하고 위 프로그램 준비 |
+| 서버·Docker 오류 | Docker 실행, `status`, 보호된 backend.log/setup.log, 포트 확인 |
+| TLS 오류 | SAN·지문·기간·Chrome 사용자 신뢰 확인; 검증 해제 금지 |
+| Credential 없음/401 | setup 재실행 또는 `--rotate-credential`, 새 파일로 재로그인 |
+| 로컬 미초기화/다른 슬롯 | 본인 디렉터리와 슬롯 확인; 기존 DB 인수/슬롯 전환 금지 |
+| 정책 없음/DRAFT/목표 미확정 | 실제 공통 확정 파일/근거를 받아 적용. 자동 확정 금지 |
+| 정책 hash/기간/빌드 불일치 | 확정 SHA-256·적용 기간 확인, setup 적용 후 build/확장 새로고침/재동의 |
+| 사이트 차단 | 공통 허용 사이트의 공개 경로만 탐색; 민감 페이지 허용 확대 금지 |
+| 미동의/철회·격리 | 본인 동의 또는 실제 사본 회수 절차; 철회 계정 재활성화 금지 |
+| Queue/저장 오류 | 재전송/복구, 디스크·저장소 확인. IndexedDB/볼륨 삭제 금지 |
 
-로컬 DB 복구용 백업도 기본 평문 파일을 만들지 않습니다. 담당자의 age 공개 수신키를 준비한 뒤 다음을 실행합니다. 이 `.sql.age`는 **DB 복구용 백업**이며 참여자 JSONL Export/통합용 파일이 아닙니다.
+평상시 재시작은 `db` → `start` → `status`, 종료는 Extension ACK 후 `stop`이다. `stop`은 자기 nonce 확인 프로세스와 Compose만 중지하고 볼륨을 보존한다. stale PID는 다른 프로세스를 죽이지 않는다. 소유자가 실제 종료를 확인한 뒤 기록 파일을 별도 보관해 복구한다. 미완성 init에서 TLS 파일이 없으면 `setup`이 남은 인증서 생성/내보내기를 재시도한다. 기존 개인키를 덮어쓰지 않는다.
 
-```sh
-read -r AGE_RECIPIENT
-python3 tools/individual-local/local.py backup --recipient "$AGE_RECIPIENT" --output .collection/local/backup-001.sql.age
-```
-
-Windows는 `python`과 PowerShell 공개키 변수를 사용합니다. 백업은 MySQL app 계정으로 single-transaction dump를 메모리에서 직접 암호화하고 신규 출력만 게시합니다. 복구는 운영 담당자가 신규 격리 DB에만 수행하고 최신 철회 원장 적용으로 모든 Release를 폐기한 상태에서 검증합니다. 승인/Secret/참여자 정보를 포함할 수 있으므로 일반 팀원 간 전달용으로 쓰지 않습니다.
-
-로그는 로컬에서 검토하며 원문·Credential·비밀번호를 공개 Issue에 붙이지 않습니다. 백업 복구는 별도 격리 DB와 최신 철회 원장을 사용합니다. [통합/회수 가이드](merge-guide.md)와 기존 `restore-quarantine.py`를 따르고, 복원 후 Release를 자동 재승인하지 않습니다.
+DB 복구 백업은 `local.py backup --recipient PUBLIC_AGE_KEY --output NEW.sql.age`다. 팀원 통합에는 DB dump를 사용하지 않는다. 기존 [복원/격리 절차](operator-guide.md)를 따르고 원본·최신 철회 원장·볼륨을 임의 수정/삭제하지 않는다.
