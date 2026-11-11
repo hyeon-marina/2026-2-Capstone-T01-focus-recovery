@@ -51,6 +51,20 @@ class CollectionSitePolicyTest {
         for(String url:List.of("https://docs.example.org.evil/guide/public","https://docs.example.org/guides/public","http://docs.example.org/guide/public","https://docs.example.org/guide/account","https://docs.example.org/guide/%61ccount","https://docs.example.org/guide/public?token=private"))
             assertThatThrownBy(()->policy.checkVisit(session,url)).hasFieldOrPropertyWithValue("code","COLLECTION_POLICY_BLOCKED");
     }
+    @Test void deploymentReadinessDoesNotRequireAiDispatch() throws Exception {
+        setup("individual-local");env.setProperty("focus-recovery.v2.dispatch.enabled","false");
+        var consent=new com.focusrecovery.domain.consent.ConsentService(jdbc,Clock.systemUTC(),env,policy) {
+            @Override public Policy policy(){return new Policy("test-policy","1","SESSION_COLLECTION","synthetic test","synthetic test","synthetic test","synthetic-retention","synthetic-approval","APPROVED",Instant.EPOCH);}
+        };
+        assertThat(consent.deploymentConfigured()).isTrue();
+        artifact.put("status","DRAFT");save();assertThat(consent.deploymentConfigured()).isFalse();
+    }
+    @Test void individualLocalUsesTheSameArtifactReleaseAndExactProfileBoundary() throws Exception {
+        setup("individual-local");assertThat(policy.current()).isNotNull();
+        when(jdbc.queryForObject(anyString(),eq(Integer.class),any(),any(),any(),any())).thenReturn(0);
+        assertThat(new V2StorageGate(env,null,policy).enabled()).isFalse();
+        env.setActiveProfiles("individual-local","test");assertThat(policy.realProfile()).isFalse();
+    }
     @Test void syntheticReleaseNeverEnablesRealProfile() throws Exception {
         setup("test");assertThat(policy.current()).isNotNull();env.setActiveProfiles("real-collection");assertThat(policy.current()).isNull();
     }

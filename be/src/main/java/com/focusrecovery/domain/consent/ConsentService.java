@@ -77,7 +77,7 @@ public class ConsentService {
         // Approved consent alone cannot activate collection; an independently authorized release is required.
         return new State(owner, policy(), id, id != null, id != null && (synthetic() || releaseMatches()) && environment.getProperty("focus-recovery.v2.storage.enabled", Boolean.class, false), withdrawn(owner));
     }
-    public boolean deploymentConfigured() { return releaseMatches() && environment.getProperty("focus-recovery.v2.storage.enabled",Boolean.class,false) && environment.getProperty("focus-recovery.v2.dispatch.enabled",Boolean.class,false); }
+    public boolean deploymentConfigured() { return releaseMatches() && environment.getProperty("focus-recovery.v2.storage.enabled",Boolean.class,false); }
     private boolean releaseMatches() {
         var release=sites.current();var p=policy();
         return sites.realProfile() && release!=null && usable(p) && p.status().equals("APPROVED") && release.policyId().equals(p.policyId()) && release.policyVersion().equals(p.policyVersion());

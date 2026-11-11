@@ -40,3 +40,31 @@ tasks.register('runCollectionPilot', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'com.focusrecovery.domain.collection.CollectionPilotServer'
 }
+
+// Record the built server revision, independently of the CLI checkout used for export.
+springBoot {
+    buildInfo {
+        properties {
+            additional = ['sourceCommit': providers.environmentVariable('COLLECTION_SOURCE_COMMIT').orElse(providers.provider {
+                try {
+                    def sha = providers.exec { commandLine 'git', 'rev-parse', 'HEAD'; ignoreExitValue = true }.standardOutput.asText.get().trim()
+                    return sha ?: 'NOT_RECORDED'
+                } catch (Exception ignored) { return 'NOT_RECORDED' }
+            }).get()]
+        }
+    }
+}
+
+// Explicit isolated synthetic environment only, excluded from bootJar.
+tasks.register('runIndividualLocalSynthetic', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.focusrecovery.domain.collection.IndividualLocalSyntheticServer'
+}
+
+tasks.register('writeCollectionTestClasspath') {
+    dependsOn testClasses
+    doLast {
+        layout.buildDirectory.file('collection-test-classpath.txt').get().asFile.text = sourceSets.test.runtimeClasspath.asPath
+    }
+}

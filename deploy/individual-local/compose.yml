@@ -1,0 +1,27 @@
+# Each PC uses its own new project and persistent volume; no AI service.
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    ports: ["127.0.0.1:${COLLECTION_DB_PORT:-33101}:3306"]
+    environment:
+      MYSQL_DATABASE: focus_collection
+      MYSQL_USER: focus_collection
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql-root
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql-app
+      TZ: UTC
+    secrets: [mysql-root, mysql-app]
+    volumes: [local-db:/var/lib/mysql]
+    healthcheck:
+      test: [CMD-SHELL, 'mysqladmin ping --silent']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    logging:
+      driver: local
+      options: {max-size: "10m", max-file: "3"}
+volumes:
+  local-db: {}
+secrets:
+  mysql-root: {file: "${COLLECTION_SECRET_DIR}/mysql-root"}
+  mysql-app: {file: "${COLLECTION_SECRET_DIR}/spring.datasource.password"}

@@ -66,3 +66,20 @@ Delivered는 클라이언트의 종료 ACK 후 전송 영수증이다. 서버 �
 ## #99 실제 사이트 배포
 
 `GET /api/collection/site-policy`: 인증 필요. `{digest,buildId,policyId,policyVersion,status,expiresAt,sites:[{origin,pathPrefix}]}` 또는409 COLLECTION_POLICY_BLOCKED. `POST assignments/{plannedId}/start`의 실수집 경로는 X-Collection-Build를 추가 검증하고 현재 승인 동의·독립 DB release·정책 digest를 session scope에 묶습니다. SYNTHETIC 정책으로 PARTICIPANT 실적을 만들지 않으며 APPROVED 문자열만으로 exact-test를 운영으로 바꾸지 않습니다. `Progress.actualCollectionBlocked`는 배포/서버 구성 상태이며 실제 참여자 동의·파일럿·기관 승인 사실을 대신하지 않습니다. 후보 설명을 병합하는 prepare-plan.py는 CONFIRMED로 바꾸지 않습니다.
+
+
+## #101 원본 품질·독립 로컬·Export API
+
+기존 DTO 필드를 제거하지 않고 `Attempt.rawQuality={validVisits,theoreticalWindows,referencesValid,reasons}`, `rawStatus`, `analysisState=NOT_RUN/INCOMPLETE/COMPLETED`, `analysisWindowCount`를 추가합니다. rawStatus는 QUARANTINED/FAILED/RECOLLECT_REQUIRED/IN_PROGRESS/RAW_COLLECTED입니다. 원본 정상 종료·10유효 Visit·ID/sequence·서버 저장/전송 보고·현재 동의·privacy로 판정하며 AI를 요구하지 않습니다. 기존 QUALITY_PASSED/Progress.completed/quality는 기존 AI 포함 의미 그대로입니다.
+
+Progress.raw는 `{completed,syntheticCompleted,validVisits,theoreticalWindows,generatedWindows,analysisCompletedWindows,participants,goals,scenarios}`입니다. 실제 source의 PLAN별 최신 Attempt를 집계하고 합성은 syntheticCompleted로 분리합니다. 배정 수정은 기존 잠금 검사를 유지하며 A54/B53/C53 분포를 깨뜨리면400입니다. delivered는 본인 확인 후 참여자 잠금과 현재 동의도 확인합니다.
+
+| Method / 경로 | 권한·응답 |
+| --- | --- |
+| POST `/api/collection/exports` | 인증된 본인의 snapshot `{manifest,files}`. 현재 수집 Gate/동의 필요 |
+| POST `/api/collection/admin/exports/{participant}` | 기존 현재 운영자 역할과 대상 동의/Gate 필요 |
+| GET `/api/collection/admin/export-privacy/{participant}` | 기존 현재 운영자 역할. 철회 후에도 원문 없는 `{sourceInstanceId,participantId,observedAt,withdrawn,validConsentId,sessions,tombstones}` |
+
+모든 API는 기존 TLS·Bearer Filter와 no-store를 사용합니다. Export는 REPEATABLE_READ + 참여자 잠금/감사이며 raw 본문을 응답하므로 proxy/body logging 금지입니다. privacy endpoint는 승인 Artifact 만료/철회 이후에도 운영자의 회수 확인을 위해 조회할 수 있습니다. snapshot JSON은 wire/실행용 포맷이며 전달용은 CLI가 `focus-raw-export/1` JSONL/Manifest/체크섬을 만들고 age로 암호화합니다. [실제 포맷·검증·통합](../data-collection/merge-guide.md)을 따릅니다.
+
+`individual-local`은 real-collection과 동일한 승인 검증을 적용하는 정확한 단일 프로필이고 AI Dispatcher만 기본 false입니다. deploymentConfigured는 원본 저장 승인 경계이며 dispatch 활성화를 요구하지 않습니다. 실제 승인/동의·사이트는 이번 구현에서 생성하지 않았습니다.

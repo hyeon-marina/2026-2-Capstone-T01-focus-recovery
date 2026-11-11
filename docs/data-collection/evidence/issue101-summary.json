@@ -1,0 +1,246 @@
+{
+  "afterWithdrawal": {
+    "privacyExcluded": 1,
+    "rawCompleted": 2,
+    "validVisits": 20
+  },
+  "afterWithdrawalDataset": ".collection/validation-101-final/after-withdrawal.tar.age",
+  "aiProcess": false,
+  "containers": [
+    "focus101-f909ba6ae6fc-a",
+    "focus101-f909ba6ae6fc-b",
+    "focus101-f909ba6ae6fc-c"
+  ],
+  "dataset": ".collection/validation-101-final/merged.tar.age",
+  "duplicateImports": 3,
+  "idCollision": "REJECTED",
+  "independentMySql": 3,
+  "initial": {
+    "actualGeneratedWindows": 0,
+    "aiAnalysisCompletedWindows": 0,
+    "participants": {
+      "A": 1,
+      "B": 1,
+      "C": 1
+    },
+    "rawCompleted": 3,
+    "status": "PARTIAL",
+    "theoreticalWindows": 24,
+    "validVisits": 30
+  },
+  "kind": "SYNTHETIC-101",
+  "oldPrivacyReplay": "REJECTED",
+  "os": "darwin",
+  "perSource": [
+    {
+      "analyses": 0,
+      "encryptedSha256": "99bfe73a2ba76d624f821408fa2eea5f8f0b57a71737077b535674c46934f8e3",
+      "files": {
+        "assignments.jsonl": {
+          "rows": 160,
+          "sha256": "683adecbc51bea1d5ce840eb653e2c66395332cde76565e95f6ee97ede92aa65"
+        },
+        "behaviors.jsonl": {
+          "rows": 10,
+          "sha256": "d2dceca95f2e8fba5d53365f6b08a8332b6290613b0c0436c18ade82dec5533e"
+        },
+        "collection_attempts.jsonl": {
+          "rows": 1,
+          "sha256": "a5407118f3522c9d59adc9892923a22a8a6eb93490350d73d12e440a9183fecc"
+        },
+        "collection_failures.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "consent_references.jsonl": {
+          "rows": 1,
+          "sha256": "9bfb4a0d866817ca7652da012fe1b03bc0d67bb37cbd6d6f868456a48beb208a"
+        },
+        "goals.jsonl": {
+          "rows": 20,
+          "sha256": "ec27abec33d9b9629903f0e73b8b0e69f7d0842a09f32854d1c337042378e8c5"
+        },
+        "participants.jsonl": {
+          "rows": 1,
+          "sha256": "afde52dccf73fef63d4a005492a7aa8ea9fe2fa7b7143102f748ab2d4ccc376e"
+        },
+        "privacy_events.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "raw_quality.jsonl": {
+          "rows": 1,
+          "sha256": "91d0f815d924e9ba36f95cad25dd501acbb03449c9cd61a84cd1eadbe326cf90"
+        },
+        "sessions.jsonl": {
+          "rows": 1,
+          "sha256": "a8ef0a17da08091665f8659850cad475cc8e8944593a57a02e0a02e318253803"
+        },
+        "visits.jsonl": {
+          "rows": 10,
+          "sha256": "3db2242ffff89219bec076bd0c0ffa4d418e578eee09fe19bc6907c04d588e38"
+        }
+      },
+      "manifestSha256": "41bbfb4fba46139e5f1486c17a29ae661ed1dee9313c6b1ae86c7501b644b3da",
+      "migrations": 17,
+      "slot": "A",
+      "visits": 10,
+      "windows": 0
+    },
+    {
+      "analyses": 0,
+      "encryptedSha256": "55491cd5d496b904b2618d1f49ef339be21e18e683822f499661f876aeebb5e7",
+      "files": {
+        "assignments.jsonl": {
+          "rows": 160,
+          "sha256": "597ab6bfd6d7deea10a102a68f82462d3b24cf81d6d27f2562dde1ee4625b882"
+        },
+        "behaviors.jsonl": {
+          "rows": 10,
+          "sha256": "ed18ec6293397666af89f5d117e3d0c49f6e9bb3bf6d07132d4db6c71731321b"
+        },
+        "collection_attempts.jsonl": {
+          "rows": 1,
+          "sha256": "9df4af1c82b6cd6a3c558b458813246cf69f7e9e32b07996a95ff40173a8b2e8"
+        },
+        "collection_failures.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "consent_references.jsonl": {
+          "rows": 1,
+          "sha256": "5f27c96a913cef7d2b19b0a0e05694400b6b16d3224e9973ae2d7cd668d00bc1"
+        },
+        "goals.jsonl": {
+          "rows": 20,
+          "sha256": "7dd04d8a4a80fa726fa89d8ed25e8feda714574368a2a208a7160d2a4919bdbd"
+        },
+        "participants.jsonl": {
+          "rows": 1,
+          "sha256": "8bf3a6583b4449cb40d58ef13ebbfdb118698ef773daec3e12dc67b8a31f1060"
+        },
+        "privacy_events.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "raw_quality.jsonl": {
+          "rows": 1,
+          "sha256": "00897f6b6ac20ff1dd5ca5a98ed05bed7aa7c4bd23935dff0bc684730ae544a2"
+        },
+        "sessions.jsonl": {
+          "rows": 1,
+          "sha256": "8a59bcde3a0eb1bd0088f3e2ad0bceb2ac20d1f705a898204e00c5a7476e7995"
+        },
+        "visits.jsonl": {
+          "rows": 10,
+          "sha256": "ac872475ffada4a2f4dff5c8c79e41b2767938e6d0913d9aaf7aabef29cbe864"
+        }
+      },
+      "manifestSha256": "bb59723b04c867cc0dd34f5fc09eaffbbcfdb8d03da801f315c11cc8c2b66109",
+      "migrations": 17,
+      "slot": "B",
+      "visits": 10,
+      "windows": 0
+    },
+    {
+      "analyses": 0,
+      "encryptedSha256": "7047c8a76cdf1f3159fdbf918f01f2fe91fd29861de221ecba86a1535bbaa0b6",
+      "files": {
+        "assignments.jsonl": {
+          "rows": 160,
+          "sha256": "f08432879761389be49351bc8e31deb1cb2af95b9ef805fda39f45d21c5c71fb"
+        },
+        "behaviors.jsonl": {
+          "rows": 10,
+          "sha256": "b0eedc90556d8eb9743ba0c6b3a3df00b5d05e448add5f51ff71dcd934b2c2f9"
+        },
+        "collection_attempts.jsonl": {
+          "rows": 1,
+          "sha256": "b41c8bc3fef9221c5ced0633700c856fa106210acf353166a385db4c5dd1b5e9"
+        },
+        "collection_failures.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "consent_references.jsonl": {
+          "rows": 1,
+          "sha256": "d80e57980f5600a2ba05264cf6a5e393397799df8b3540aaa897fa6f3fd5a67d"
+        },
+        "goals.jsonl": {
+          "rows": 20,
+          "sha256": "9eaba9e2f313fc11dbb148a8ea72aabadcb1228590851485272cb4a018654e59"
+        },
+        "participants.jsonl": {
+          "rows": 1,
+          "sha256": "623a0074383723e38d5352c541a6e1e22c6626b94aaae1a8dfe589e4ea2a3e8e"
+        },
+        "privacy_events.jsonl": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "raw_quality.jsonl": {
+          "rows": 1,
+          "sha256": "6654bb5f0c80e8c399918c573ef5eee63d63420ef1b3f2184eafd1ffae252733"
+        },
+        "sessions.jsonl": {
+          "rows": 1,
+          "sha256": "231c3af0b3188f993117c0cbb13632501078442ceddd9817f4a45902cb89fd73"
+        },
+        "visits.jsonl": {
+          "rows": 10,
+          "sha256": "89c3587528a66717bd5d8d1e095748bffa36d3e0e8323f6379a54a0475f3cd1c"
+        }
+      },
+      "manifestSha256": "c7e239e7a6e387fb04daa47fdd0fd391d6e933f511a1c6f125ca84c7e0203224",
+      "migrations": 17,
+      "slot": "C",
+      "visits": 10,
+      "windows": 0
+    }
+  ],
+  "planMismatch": "REJECTED",
+  "result": "PASS",
+  "serverAndMySqlRestart": "PASS",
+  "backendRegression": {
+    "tests": 1020,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 78,
+    "passed": 942
+  },
+  "restore": {
+    "activeReleases": 0,
+    "exportAudits": 2,
+    "kind": "SYNTHETIC-101-RESTORE",
+    "purged": false,
+    "quarantinedSessions": 1,
+    "result": "PASS",
+    "schema": "focus101_restore_9fa2eaa81de147f084a2365f8c58a52f",
+    "sourceRowsPreserved": true,
+    "visits": 10,
+    "withdrawnParticipants": 1
+  },
+  "environment": {
+    "os": "macOS 27.2 arm64",
+    "jdk": "Temurin 21.0.10",
+    "gradle": "9.7.1",
+    "chrome": "Chrome for Testing 151.0.7922.34",
+    "mysql": "8.4",
+    "node": "25.9.0",
+    "python": "3.11.16",
+    "age": "1.3.2",
+    "windows": "NOT_TESTED"
+  },
+  "privacyNote": "SYNTHETIC only. The initial 3-session artifact predates withdrawal and is quarantined; use the 2-session post-withdrawal artifact. No raw bundles, identities or keys in Git.",
+  "finalTargetedBackend": {
+    "tests": 29,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "passed": 28
+  },
+  "pythonLocalTests": {
+    "passed": 27,
+    "failed": 0
+  }
+}

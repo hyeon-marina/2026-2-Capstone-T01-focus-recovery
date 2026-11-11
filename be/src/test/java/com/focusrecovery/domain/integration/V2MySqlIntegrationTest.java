@@ -14,6 +14,6 @@ import org.springframework.test.context.*;
 class V2MySqlIntegrationTest extends V2IntegrationContract {
 	@DynamicPropertySource static void mysql(DynamicPropertyRegistry properties) {
 		properties.add("spring.datasource.url", () -> System.getenv("FOCUS89_MYSQL_URL"));
-		properties.add("spring.datasource.username", () -> "root"); properties.add("spring.datasource.password", () -> "synthetic-test-only");
+		properties.add("spring.datasource.username", () -> "root"); properties.add("spring.datasource.password", () -> System.getenv().getOrDefault("FOCUS89_MYSQL_PASSWORD","synthetic-test-only"));
 	}
 }

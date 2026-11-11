@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -21,6 +22,7 @@ def main():
     parser.add_argument('--server', required=True)
     parser.add_argument('--credential-file', type=Path, required=True)
     parser.add_argument('--synthetic-loopback', action='store_true')
+    parser.add_argument('--ca-file', help='Explicit trusted local certificate; TLS verification stays enabled')
     parser.add_argument('command', choices=['init', 'plan', 'save-plan', 'progress', 'enroll', 'issue', 'revoke', 'review', 'audit'])
     parser.add_argument('--input', type=Path)
     parser.add_argument('--participant')
@@ -58,7 +60,7 @@ def main():
         def redirect_request(self, *unused):
             return None
     try:
-        with urllib.request.build_opener(NoRedirect).open(request, timeout=30) as response:
+        with urllib.request.build_opener(NoRedirect, urllib.request.HTTPSHandler(context=ssl.create_default_context(cafile=args.ca_file))).open(request, timeout=30) as response:
             raw = response.read()
         result = json.loads(raw) if raw else {'status': 'OK'}
         if args.command == 'issue':

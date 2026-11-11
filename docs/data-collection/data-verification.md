@@ -1,5 +1,22 @@
 # 수집 데이터 확인·검증 — Issue #99
 
+## #101 AI 비의존 원본 완료 검증
+
+`attempts[].rawQuality={validVisits,theoreticalWindows,referencesValid,reasons}`와 `rawStatus`, `analysisState`, `analysisWindowCount`를 추가했습니다. 원본 상태는 개인정보/동의 → 검토 실패/재수집 → 진행 중 → 정상 종료·최소10 유효 Visit·ID/증가 sequence·전송 보고 일치 순서로 판정합니다. 완료는 **RAW_COLLECTED**입니다. sequence 공백은 허용합니다. 기존 `quality/status/QUALITY_PASSED`와 completed는 AI/상태까지 검사하는 기존 의미를 유지합니다.
+
+최상위 `raw`는 최신 PARTICIPANT 시도만 완료/Visit/이론상 Window/생성 Window/분석 완료와 슬롯·목표·시나리오별로 집계합니다. 합성은 `raw.syntheticCompleted`로 분리하며 최신 Attempt를 기준으로 합니다. 개인정보가 불명확하거나 현재 동의가 유효하지 않은 세션은 원본 완료에서 제외됩니다. `actualCollectionBlocked`는 수집 배포 Gate이며 이제 AI Dispatcher 실행을 요구하지 않습니다.
+
+```sh
+python3 tools/individual-local/local.py status
+python3 tools/individual-local/local.py verify
+python3 -m unittest discover -s tools/individual-local -p 'test_*.py'
+# 운영자 Credential/공개 인증서를 준비한 뒤 기존 manage.py progress를 사용.
+# Export/통합 검사는 merge-guide.md의 dataset.py verify/inspect 명령을 사용.
+```
+
+최소1600 Visit/이론상1280 Window는 **160세션 각각10개**의 가정입니다. 세션마다 max(0,n−2)를 합산하며 생성 Window/AI 완료 수를 따로 봅니다. 실제 합성 Chrome·MySQL A/B/C E2E는3세션30 Visit/이론상24/생성0/분석0, 철회 후2세션20 Visit였습니다. 전체160 판정은 별도 합성 fixture 단위 테스트입니다. [정확한 실행 증거](individual-local-validation.md)와 [팀원용 화면](participant-guide.md)을 확인합니다. 아래 품질/Window/AI 절은 기존 분석 활성 경로에 해당합니다.
+
+
 실제 사용자 수집은 BLOCKED입니다. 검증은 승인된 관리 권한으로 수행하며 원문/검색어/Credential을 출력하지 않습니다. [저장 구조](data-flow-and-storage.md)와 [현재 실행 증거](real-collection-validation.md)를 함께 봅니다.
 
 참여자는 확장 화면에서 **서버 수신 Visit**, 미완료 POST/PATCH, 종료 ACK, 미전송 알림 영수증과 **나의 진행**을 확인합니다. `ENDED`/종료 ACK만으로 완료가 아닙니다. `QUALITY_PASSED`는 종료·10개 이상 유효 Visit·ordered3/stride1 Window 전체·각 AI 성공·최신 상태 이력·decision dirty 없음·전송 보고·privacy CLEAR를 함께 검사한 결과입니다. 참가자간 조회는 차단됩니다.

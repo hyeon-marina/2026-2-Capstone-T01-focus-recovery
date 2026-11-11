@@ -16,6 +16,7 @@ public class CollectionController {
     private final CollectionPlanService plan;
     private final CollectionProgressService progress;
     private final JdbcTemplate jdbc;
+    @org.springframework.beans.factory.annotation.Autowired private com.focusrecovery.domain.consent.ConsentService consent;
     public CollectionController(CollectionAdministration admin,CollectionPlanService plan,CollectionProgressService progress,JdbcTemplate jdbc){this.admin=admin;this.plan=plan;this.progress=progress;this.jdbc=jdbc;}
     @GetMapping("/site-policy") public CollectionSitePolicy.Policy sitePolicy() { AuthenticatedParticipant.required();return sitePolicy.require(); }
     @org.springframework.beans.factory.annotation.Autowired private CollectionSitePolicy sitePolicy;
@@ -42,6 +43,9 @@ public class CollectionController {
     @PostMapping("/attempts/{attempt}/delivered") @Transactional
     @ResponseStatus(HttpStatus.NO_CONTENT) public void delivered(@PathVariable UUID attempt,@RequestBody Delivered input){
         var owner=AuthenticatedParticipant.required().participantId();
+        consent.lockParticipant(owner);
+        if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_attempt WHERE attempt_id=? AND participant_id=?",Integer.class,attempt.toString(),owner.toString())!=1)throw new AccessDenied(404);
+        consent.requireConsent(owner);
         if(input.visitCount()<0 || input.lastSequence()<0)throw new InvalidRequestException("실제 전송 개수와 sequence가 필요합니다.");
         if(jdbc.update("UPDATE collection_attempt SET delivered_visit_count=?,delivered_through_sequence=? WHERE attempt_id=? AND participant_id=? AND session_id IN (SELECT session_id FROM work_session WHERE status='ENDED' AND privacy_status='CLEAR')",input.visitCount(),input.lastSequence(),attempt.toString(),owner.toString())!=1)throw new AccessDenied(404);
     }

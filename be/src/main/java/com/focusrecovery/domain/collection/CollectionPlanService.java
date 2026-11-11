@@ -92,6 +92,7 @@ public class CollectionPlanService {
             if(!previous.equals(a) && jdbc.queryForObject("SELECT COUNT(*) FROM collection_attempt WHERE planned_session_id=?",Integer.class,a.plannedSessionId())>0)locked();
             jdbc.update("UPDATE collection_assignment SET slot_id=? WHERE planned_session_id=?",a.slotId(),a.plannedSessionId());
         }
+        for(String slot:List.of("A","B","C"))if(p.assignments().stream().filter(a->a.slotId().equals(slot)).count()!=(slot.equals("A")?54:53))invalid();
         for(var g:p.goals()) {
             var previous=old.goals().stream().filter(x->x.goalId().equals(g.goalId())).findFirst().orElseThrow();
             if(!previous.equals(g) && jdbc.queryForObject("SELECT COUNT(*) FROM collection_attempt t JOIN collection_assignment a ON a.planned_session_id=t.planned_session_id WHERE a.goal_id=?",Integer.class,g.goalId())>0)locked();

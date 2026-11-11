@@ -18,7 +18,7 @@ class V16MigrationTest {
   new V15MigrationTest().verify(url,user,password);
   var ds=new SingleConnectionDataSource(url,user,password,true);var j=new JdbcTemplate(ds);
   var before=new V2MigrationTest().normalize(j.queryForList("SELECT * FROM work_session"));
-  var f=Flyway.configure().dataSource(ds).load();assertThat(f.migrate().migrationsExecuted).isEqualTo(1);
+  var f=Flyway.configure().dataSource(ds).target("16").load();assertThat(f.migrate().migrationsExecuted).isEqualTo(1);
   assertThat(new V2MigrationTest().normalize(j.queryForList("SELECT * FROM work_session"))).containsExactlyInAnyOrderElementsOf(before);
   assertThat(j.queryForObject("SELECT COUNT(*) FROM collection_release",Integer.class)).isZero();
   assertThat(j.queryForObject("SELECT COUNT(*) FROM session_collection_scope",Integer.class)).isZero();

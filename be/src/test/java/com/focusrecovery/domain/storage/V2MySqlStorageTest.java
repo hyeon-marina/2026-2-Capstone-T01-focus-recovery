@@ -14,6 +14,6 @@ class V2MySqlStorageTest extends V2StorageContract {
 	@DynamicPropertySource static void mysql(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", () -> System.getenv("FOCUS85_MYSQL_URL"));
 		registry.add("spring.datasource.username", () -> "root");
-		registry.add("spring.datasource.password", () -> "synthetic-test-only");
+		registry.add("spring.datasource.password", () -> System.getenv().getOrDefault("FOCUS85_MYSQL_PASSWORD","synthetic-test-only"));
 	}
 }
