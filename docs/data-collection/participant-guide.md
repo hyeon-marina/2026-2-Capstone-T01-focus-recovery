@@ -38,11 +38,23 @@
 
 ## 6. 프로젝트 파일 준비
 
-같은 가이드의 신규 clone/브랜치/`npm ci`/`bootJar`/`local.py init --slot A`를 실행합니다. B/C는 자기 슬롯입니다. 기존 `.collection/local`이 있으면 init을 반복하지 않습니다. Secret이나 Export를 Git으로 전달하지 않습니다.
+같은 가이드의 신규 clone/브랜치/`npm ci`/`bootJar` 준비 후 본인 슬롯으로 셀프 초기화합니다. B/C는 자기 슬롯입니다. 같은 슬롯 setup은 기존 UUID/데이터를 유지합니다. 공통 확정 정책/hash 적용은 [정책 적용 가이드](policy-application-guide.md)를 따릅니다. Secret이나 Export를 Git으로 전달하지 않습니다.
+
+macOS:
+
+```sh
+python3 tools/individual-local/local.py setup --slot A
+```
+
+Windows PowerShell (**NOT_TESTED**):
+
+```powershell
+py -3 tools/individual-local/local.py setup --slot A
+```
 
 ## 7. Docker/MySQL 실행
 
-Docker Desktop을 켜고 저장소 루트에서 실행합니다.
+setup이 자기 MySQL을 시작합니다. 이후 중지한 자기 환경을 다시 켤 때는 Docker Desktop을 켜고 저장소 루트에서 실행합니다.
 
 ```sh
 python3 tools/individual-local/local.py db
@@ -51,6 +63,8 @@ python3 tools/individual-local/local.py db
 자기 전용 project의 persistent volume이 시작되어야 합니다. 다른 PC의 주소나 MySQL 계정은 필요하지 않습니다.
 
 ## 8. Spring Boot 실행
+
+setup이 자기 HTTPS Backend도 시작합니다. 이후 중지한 자기 환경을 다시 켤 때 실행합니다.
 
 ```sh
 python3 tools/individual-local/local.py start
@@ -84,7 +98,7 @@ python3 tools/individual-local/local.py build
 
 ## 12. Extension 로그인
 
-아이콘을 눌러 수집 화면을 열고 **발급 자격정보**에 담당자가 안전하게 전달한 본인 Credential을 붙여 넣습니다. **인증 / 계정 전환**을 누릅니다. 입력은 로그인 후 비워지며 화면에 `인증됨`이 나와야 합니다. Credential을 촬영하거나 단체 채팅에 보내지 않습니다.
+아이콘을 눌러 수집 화면을 열고 **로컬 Credential 파일 불러오기**에서 setup이 자기 PC에 저장한 `.collection/local/participant.json`을 선택합니다. 화면의 `인증됨`·자기 A/B/C 슬롯·HTTPS 연결·공통 정책 SHA-256을 확인합니다. 파일은 서버로 업로드되지 않으며 Token은 trusted-context session storage에만 연결됩니다. 별도 관리자 발급 없이 진행합니다. Credential 파일/값을 촬영하거나 단체 채팅에 보내지 않습니다.
 
 ![실제 로그인 전 합성 화면](images/team-guide/self103-local-login.png)
 
