@@ -147,3 +147,12 @@ python3 tools/individual-local/run-regression.py --mysql-fixture NEW_HTTP_CHROME
 ```
 
 재현용 테스트 스크립트는 신규 볼륨/파일만 생성하고 종료 시 이 실행의 프로세스/컨테이너만 중지하며 볼륨/DB/프로필을 보존한다. 합성 승인·동의·기관 값은 실제 정책/참여자 환경으로 복사하지 않는다. 실제 실행 출력은 `.collection/issue105-*`, 공개 가능한 축약본만 evidence에 기록했다. 구현 Commit과 최종 문서 기록은 별도 한국어 Commit으로 남긴다. 최종 SHA/Push/PR URL은 아래 실행 기록 및 PR 본문에서 확인한다.
+
+### 최종 게시 기록
+
+- 구현 Commit: `16501357e12e9d8a50689c5f7ce28223326bb8e2` (`feat: 실제 수집 메타데이터 정책과 안전한 URL 식별 환경 구축 (#105)`). 이 Commit의 clean tree에서 real 메타데이터 Extension/ZIP 재빌드 PASS, sourceCommit 일치·dirty=false·metadataOnly=true·제안 sites20·policyDigest 일치 확인.
+- 로컬 DRAFT 제안 ZIP SHA-256: `511a9ea1a99b897ab8179489755ebe90ca0c554c2ff6ad2a80c07bc7e447cebe`. 실제 승인 배포물이 아니며 ZIP/원본 데이터/개인키/Credential은 Git에 넣지 않았다.
+- 원본 목표/Plan/빈 정책 양식과 Flyway V1~V18 bytes 동일 PASS, docs19개 상대 링크/코드 fence·diff/Secret 혼입 검사 PASS.
+- 개인 Fork `origin/feat/105/v2-real-collection-policy` 일반 Push 성공. 공식 main 직접 Push·force·자동 Merge 없음.
+- [공식 main 대상 PR #106](https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/pull/106), 요청한 제목과 Repository 템플릿 적용. GitHub 연결 도구의 생성 권한403은 인증된 hyeon-marina 로컬 CLI로 처리했다.
+- 이 최종 게시 기록만 별도 한국어 문서 Commit으로 추가한다. 최종 HEAD SHA는 PR의 Commit 목록과 최종 보고를 참조한다.
