@@ -1,6 +1,8 @@
-# 실제 웹 탐색 원본 수집 정책 권고안 (#105)
+# 실제 웹 탐색 원본 수집 공통 운영 정책 (#105)
 
-이 문서는 개발 기본안이다. **실제 개시는 BLOCKED**다. [TEAM_POLICY.json](TEAM_POLICY.json)은 `focus-local-policy/1`, `RAW_ONLY`, `DRAFT`이며 실제 팀 의결·참여자 동의·기관 판단 증거가 없다. `UNRESOLVED`, 빈 증거/기간, Goal DRAFT, Plan revision 0을 유지한다. 이 PR이나 SHA-256만으로 승인되지 않는다. [적용 절차](policy-application-guide.md)의 실제 기록을 확보한 뒤 동일 Java 검증기를 통과해야 한다.
+현재 운영 준비 절차는 [최종 Readiness](real-collection-final-readiness.md)를 따른다. 정책 내용과90일 보존을 채택하고 Plan revision1을 준비했다. 실제 기록이 없는 목표 승인/기관 판단은 DRAFT/UNRESOLVED로 남긴다. 실제 증거 입력 후 `local.py policy-prepare`가 Java 검증을 통과한 공통 파일/SHA를 생성한다. 아래 #105/#106의 기존 수치·제안/검증 내용은 당시 기록이며 최신 JSON은 접근 가능한15쌍으로 정리했다.
+
+수집 내용은 공통 운영 정책으로 채택했다. 실제 승인 기록은 별도로 확보한다. **실제 개시는 BLOCKED**다. [TEAM_POLICY.json](TEAM_POLICY.json)은 `focus-local-policy/1`, `RAW_ONLY`, `DRAFT`이며 실제 팀 의결·참여자 동의·기관 판단 증거가 없다. `UNRESOLVED`, 빈 증거/기간, Goal DRAFT, Plan revision 0을 유지한다. 이 PR이나 SHA-256만으로 승인되지 않는다. [적용 절차](policy-application-guide.md)의 실제 기록을 확보한 뒤 동일 Java 검증기를 통과해야 한다.
 
 ## 목적과 운영 범위
 
@@ -43,7 +45,7 @@
 
 ## 동의·보존·삭제·철회
 
-보존 기본 **제안**은 최종 평가 종료일부터 90일이다. 현재 실제 평가 종료일·기산일·삭제 실행일·담당자/연락 경로가 확인되지 않았다. `retentionRef`의 실제 비공개 운영 기록에 날짜, 원본 PC 3개·Chrome 프로필/IndexedDB/HMAC 키·통합본·Export·백업 사본 대장, 각 담당자와 완료 확인자, 암호키 처리, 삭제 증빙 위치를 확정해야 한다. 개인정보를 포함한 운영 기록 자체는 공개 Git에 넣지 않는다. 이 PR은 자동 삭제 작업을 예약하거나 이미 삭제했다고 주장하지 않는다.
+보존 공통 **정책**은 최종 평가 종료일부터 90일이다. 현재 실제 평가 종료일·기산일·삭제 실행일·담당자/연락 경로가 확인되지 않았다. `retentionRef`의 실제 비공개 운영 기록에 날짜, 원본 PC 3개·Chrome 프로필/IndexedDB/HMAC 키·통합본·Export·백업 사본 대장, 각 담당자와 완료 확인자, 암호키 처리, 삭제 증빙 위치를 확정해야 한다. 개인정보를 포함한 운영 기록 자체는 공개 Git에 넣지 않는다. 이 PR은 자동 삭제 작업을 예약하거나 이미 삭제했다고 주장하지 않는다.
 
 각 참여자는 정책/항목/보존/철회 설명을 읽고 Extension에서 스스로 명시적 동의를 기록한다. setup·정책 설치·Credential 회전이 동의를 만들지 않는다. 철회 버튼은 즉시 신규 수집을 중단하고 서버/Queue 격리·동의 철회를 요청한다. 네트워크가 끊겼으면 재연결하여 철회 ACK를 확인한다. 통합 담당자는 최신 privacy snapshot/hash를 전달받아 과거 Export의 재유입을 차단한다. 이전 원본/암호화 Export/통합/백업/모델 영향까지 사본 대장대로 회수·이용 중단·삭제하고 증거를 기록한다. QUARANTINED와 PURGED는 다르다. 외부 사본까지 자동 삭제되었다고 표시하지 않는다.
 

@@ -1,0 +1,99 @@
+{
+  "teamDecisionRef": {
+    "file": "",
+    "sha256": ""
+  },
+  "retentionRef": {
+    "file": "",
+    "sha256": ""
+  },
+  "privacyEvidenceRef": {
+    "file": "",
+    "sha256": ""
+  },
+  "startAuthorizationRef": {
+    "file": "",
+    "sha256": ""
+  },
+  "goalReviewRef": {
+    "file": "",
+    "sha256": ""
+  },
+  "institutionRef": {
+    "file": "",
+    "sha256": ""
+  },
+  "siteReviewRef": {
+    "file": "",
+    "sha256": ""
+  },
+  "confirmedByRecordOwner": false,
+  "policyVersion": "1",
+  "buildId": "focus-ready-v1",
+  "notBefore": "",
+  "expiresAt": "",
+  "institutionDecision": "UNRESOLVED",
+  "finalEvaluationDate": null,
+  "sites": [
+    {
+      "origin": "https://docs.github.com",
+      "pathPrefix": "/en/pages"
+    },
+    {
+      "origin": "https://developer.mozilla.org",
+      "pathPrefix": "/en-US/docs"
+    },
+    {
+      "origin": "https://docs.python.org",
+      "pathPrefix": "/3"
+    },
+    {
+      "origin": "https://git-scm.com",
+      "pathPrefix": "/docs"
+    },
+    {
+      "origin": "https://www.w3.org",
+      "pathPrefix": "/WAI/"
+    },
+    {
+      "origin": "https://science.nasa.gov",
+      "pathPrefix": "/"
+    },
+    {
+      "origin": "https://www.epa.gov",
+      "pathPrefix": "/recycle"
+    },
+    {
+      "origin": "https://www.metmuseum.org",
+      "pathPrefix": "/ko/art"
+    },
+    {
+      "origin": "https://www.hangeul.go.kr",
+      "pathPrefix": "/"
+    },
+    {
+      "origin": "https://philharmonia.co.uk",
+      "pathPrefix": "/resources/"
+    },
+    {
+      "origin": "https://www.noaa.gov",
+      "pathPrefix": "/jetstream"
+    },
+    {
+      "origin": "https://notice.tistory.com",
+      "pathPrefix": "/"
+    },
+    {
+      "origin": "https://d2.naver.com",
+      "pathPrefix": "/helloworld"
+    },
+    {
+      "origin": "https://ko.wikipedia.org",
+      "pathPrefix": "/wiki"
+    },
+    {
+      "origin": "https://en.wikipedia.org",
+      "pathPrefix": "/wiki"
+    }
+  ]
+}

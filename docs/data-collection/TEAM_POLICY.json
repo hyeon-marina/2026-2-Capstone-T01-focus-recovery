@@ -3,16 +3,16 @@
   "mode": "RAW_ONLY",
   "status": "DRAFT",
   "policyId": "focus-team-raw-v2",
-  "policyVersion": "1-proposal",
+  "policyVersion": "1",
   "buildId": "focus-105-metadata-v1",
   "teamDecisionRef": "",
   "notBefore": "",
   "expiresAt": "",
-  "purpose": "개발팀원 A/B/C 3명의 명시적으로 시작·종료한 웹 탐색 세션에서 목표 유지·이탈·복귀 행동을 분석한다. 실제 참여자 동의와 기관 판단을 대신하지 않는 정책 권고안이다.",
+  "purpose": "개발팀원 A/B/C 3명의 명시적으로 시작·종료한 웹 탐색 세션에서 목표 유지·이탈·복귀 행동을 분석한다. 공통 운영 정책 내용은 채택했으며 실제 참여자 동의와 기관 판단은 별도 기록한다.",
   "collectionItems": "가명 Participant/Goal/Scenario/Session/Visit ID, 도메인, 세션 범위 HMAC 페이지 식별자, 고정 어휘의 제목 주제(Topic), 방문 순서·시각·활성 체류·탭 전환·행동 누적·시작/종료·수집/전송/ACK 상태. title은 원제목이 아닌 Topic 분류이고 content는 METADATA_ONLY 고정 표식이다. 검색어는 [NOT_COLLECTED] 표식만 저장한다.",
   "useScope": "캡스톤 AI 모델 학습·평가와 탐색 행동 분석에 한정한다. 원본 공개·외부 배포를 금지한다. 통합 담당자에게 age 암호화한 가명 데이터만 전달하고 목적 외 이용을 금지한다. 계획된 시나리오를 관찰된 AI 정답 라벨로 자동 사용하지 않는다.",
   "retentionRef": "",
-  "retentionPolicy": "권고: 최종 평가 종료일부터 90일. 실제 평가 종료일·기산일·삭제 예정일·원본/통합/Export/백업별 담당자와 연락 경로·사본대장·삭제 검증 절차를 retentionRef의 실제 기록으로 확정해야 한다. 현재 미정이며 자동 삭제 스케줄이 설정되었다고 주장하지 않는다. 철회 시 즉시 신규 수집을 중단하고 격리·이용 중지 후 사본 회수·삭제 증거를 기록한다.",
+  "retentionPolicy": "공통 운영 정책: 최종 평가 종료일부터 90일. 자동 삭제 스케줄러는 구현되지 않았다. 각 PC 소유자와 통합 담당자는 실제 기산일 확인 후 삭제일과 사본별 책임·확인 증거를 기록한다. 실제 평가 종료일·기산일·삭제 예정일·원본/통합/Export/백업별 담당자와 연락 경로·사본대장·삭제 검증 절차를 retentionRef의 실제 기록으로 확정해야 한다. 현재 미정이며 자동 삭제 스케줄이 설정되었다고 주장하지 않는다. 철회 시 즉시 신규 수집을 중단하고 격리·이용 중지 후 사본 회수·삭제 증거를 기록한다.",
   "privacyEvidenceRef": "",
   "sensitivePageExclusions": "비밀번호·Cookie·인증 Token·로그인/인증·계정 설정·이메일/메신저/개인 문서·금융/결제·의료/건강·주민등록번호/연락처/주소·비공개 콘텐츠·폼 입력값·허용 밖 사이트 콘텐츠를 제외한다. YouTube 영상/음성/자막/댓글 원문·계정·추천정보는 수집하지 않는다. 민감 URL/DOM 감지 시 해당 Visit을 제외하거나 세션을 격리한다. 공개 여부만으로 안전을 보증하지 않는다.",
   "textPrivacyPolicy": "focus-local-policy/1은 본문·검색결과/블로그 텍스트·원제목·검색어·Query/Fragment 원문을 저장하지 않는 METADATA_ONLY 모드로 처리한다. 제목은 제한된 Topic 어휘만 남긴다. 원문 URL은 허용 origin/path 검사와 민감키 검사 직후 세션별 HMAC 식별자로 대체한다. 원본 URL/HMAC key는 Export하지 않는다. 정규식은 완전한 개인정보 제거기가 아니며 사람이 승인된 공개 주제만 탐색하고 오탐/미탐은 중단·격리/철회 절차로 처리한다.",
@@ -53,14 +53,6 @@
       "pathPrefix": "/recycle"
     },
     {
-      "origin": "https://www.si.edu",
-      "pathPrefix": "/spotlight"
-    },
-    {
-      "origin": "https://www.si.edu",
-      "pathPrefix": "/openaccess"
-    },
-    {
       "origin": "https://www.metmuseum.org",
       "pathPrefix": "/ko/art"
     },
@@ -69,16 +61,8 @@
       "pathPrefix": "/"
     },
     {
-      "origin": "https://www.nl.go.kr",
-      "pathPrefix": "/NL/contents/"
-    },
-    {
       "origin": "https://philharmonia.co.uk",
       "pathPrefix": "/resources/"
-    },
-    {
-      "origin": "https://www.usgs.gov",
-      "pathPrefix": "/programs"
     },
     {
       "origin": "https://www.noaa.gov",
@@ -87,10 +71,6 @@
     {
       "origin": "https://notice.tistory.com",
       "pathPrefix": "/"
-    },
-    {
-      "origin": "https://www.maangchi.com",
-      "pathPrefix": "/recipe"
     },
     {
       "origin": "https://d2.naver.com",
@@ -105,9 +85,9 @@
       "pathPrefix": "/wiki"
     }
   ],
-  "planChecksum": "c851b1457df44535abbdb12a690be4b2c0d00bed3ac74bf8b5931939d3dc25fa",
+  "planChecksum": "52e28a4fd9a6717f10f18c2cfef3f4f649761491922836ac4c293a73b9f13b02",
   "plan": {
-    "revision": 0,
+    "revision": 1,
     "goals": [
       {
         "goalId": "GOAL-001",
