@@ -85,7 +85,7 @@ class DefaultPolicyTest(unittest.TestCase):
             value=json.loads(raw)
             self.assertEqual(value['status'],'CONFIRMED')
             self.assertEqual(value['plan']['revision'],1)
-            self.assertEqual(value['institution']['decision'],'UNRESOLVED')
+            self.assertEqual(value['institution']['decision'],'NOT_REQUIRED')
             self.assertEqual(hashlib.sha256(raw).hexdigest(),digest)
             local.private(d/'site-policy.json',raw.decode())
             self.assertEqual(local.selected_policy(a,d,dict(policySha256=digest)),(raw,digest))
@@ -98,3 +98,17 @@ class DefaultPolicyTest(unittest.TestCase):
             p=Path(temp)/'policy.json';p.write_text('{}')
             with self.assertRaisesRegex(ValueError,'LOCAL_POLICY_CHECKSUM'):
                 local.selected_policy(SimpleNamespace(policy=p,policy_sha256=None),p.parent,{})
+
+    def test_only_verified_superseded_official_policy_upgrades(self):
+        from types import SimpleNamespace
+        import hashlib
+        with tempfile.TemporaryDirectory() as temp:
+            d=Path(temp);old=b'{"old":"synthetic-test-only"}'
+            pin=hashlib.sha256(old).hexdigest();local.private(d/'site-policy.json',old.decode())
+            a=SimpleNamespace(policy=None,policy_sha256=None)
+            with patch.object(local,'SUPERSEDED_TEAM_POLICY_SHA256',pin):
+                raw,_=local.selected_policy(a,d,dict(policySha256=pin))
+                self.assertEqual(json.loads(raw)['institution']['decision'],'NOT_REQUIRED')
+                (d/'site-policy.json').write_bytes(old+b' ')
+                with self.assertRaisesRegex(ValueError,'LOCAL_POLICY_CHECKSUM'):
+                    local.selected_policy(a,d,dict(policySha256=pin))

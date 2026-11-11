@@ -1,0 +1,26 @@
+{
+  "checkedOn": "2026-11-11",
+  "baseMain": "e023f12104ee984b78627cc13f45278f87124751",
+  "backend": {
+    "tests": 1032,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 78,
+    "passed": 954
+  },
+  "frontend": {
+    "typecheck": "PASS",
+    "passed": 917,
+    "skipped": 2
+  },
+  "ai": {
+    "passed": 244
+  },
+  "python": {
+    "localPassed": 36,
+    "collectionPassed": 5
+  },
+  "contract": "PASS",
+  "policySHA256": "8af39d4851d4a01e00d6ce87fe28e887207a862a9824d8127768175878c25c25",
+  "actualHumanConsents": 0
+}

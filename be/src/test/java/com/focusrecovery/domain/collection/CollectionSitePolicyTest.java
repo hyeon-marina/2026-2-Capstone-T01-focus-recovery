@@ -65,10 +65,16 @@ class CollectionSitePolicyTest {
         assertThat(new V2StorageGate(env,null,policy).enabled()).isFalse();
         env.setActiveProfiles("individual-local","test");assertThat(policy.realProfile()).isFalse();
     }
-    @Test void installedOperationalPolicyDoesNotInventInstitutionAuthorization() throws Exception {
+    @Test void reportedNotRequiredPolicyOpensDeploymentButUnresolvedStillBlocks() throws Exception {
         setup("individual-local");
         Files.copy(Path.of("../docs/data-collection/TEAM_POLICY.json"),dir.resolve("policy.json"),StandardCopyOption.REPLACE_EXISTING);
         when(jdbc.queryForObject(anyString(),eq(Integer.class),any(),any(),any())).thenReturn(1);
+        policy=new CollectionSitePolicy(env,jdbc,Clock.systemUTC(),mapper);
+        assertThat(policy.require().status()).isEqualTo("APPROVED");
+        assertThat(new V2StorageGate(env,null,policy).enabled()).isTrue();
+        var unresolved=mapper.readTree(Files.readString(dir.resolve("policy.json")));
+        var value=mapper.convertValue(unresolved,Map.class);value.put("institution",Map.of("decision","UNRESOLVED","evidenceRef",""));
+        Files.writeString(dir.resolve("policy.json"),mapper.writeValueAsString(value));
         assertThat(policy.current().status()).isEqualTo("INSTITUTION_BLOCKED");
         assertThat(new V2StorageGate(env,null,policy).enabled()).isFalse();
         assertThatThrownBy(()->policy.require()).hasFieldOrPropertyWithValue("code","INSTITUTION_BLOCKED");

@@ -9,13 +9,13 @@
 | 정책 | CONFIRMED·Plan1·20목표·160배정·공통 SHA/Checksum |
 | 설치 | local.py build, fe/dist-real, localhost 인증서 검증 |
 | 로그인 | 본인 participant.json·본인 슬롯 |
-| 개시 | 실제 필요한 기관 조건과 본인 명시적 동의, 목표·시나리오 선택 |
+| 개시 | 기관 비대상 NOT_REQUIRED 반영, 본인 명시적 동의, 목표·시나리오 선택 |
 | 탐색 | 허용된 Origin/Path, 활성5초 이상 유효 Visit≥10 |
 | 종료 | POST/PATCH Queue0·END ACK·전송 확인 |
 | 원본 | RAW_COLLECTED·AI NOT_RUN |
 | 전달 | age Export·최신 privacy·SHA, Manifest 검증·중복 방지 Import |
 
-실제 외부 요건이 미충족이면 외부 탐색 수집을 수행하지 않는다. 합성 Chrome·Spring·MySQL E2E와 외부 읽기 전용 호환성 검증을 별도 기록한다. 실제160세션 실적으로 합산하지 않는다. 현재 기관 판단은 UNRESOLVED다.
+실제 외부 요건이 미충족이면 외부 탐색 수집을 수행하지 않는다. 합성 Chrome·Spring·MySQL E2E와 외부 읽기 전용 호환성 검증을 별도 기록한다. 실제160세션 실적으로 합산하지 않는다. 현재 기관 판단은 NOT_REQUIRED다. 실제 참여자 동의는 별도이며 자동 E2E 동의는 본인의 동의가 아니다.
 
 URL은 정확한 사이트 범위·민감 키·인코딩을 검사한 직후 세션별 HMAC 페이지 식별자로 대체한다. Query가 있다는 이유만으로 일괄 차단하지 않으며 page/p와 알려진 추적값·anchor를 처리한다. 미검토 Query·hash route·민감 파라미터는 차단한다. 제목은 고정 Topic으로 제한하고 본문은 METADATA_ONLY 표식만 남긴다. 원본 URL·HMAC key는 Export하지 않는다.
 

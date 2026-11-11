@@ -1,6 +1,6 @@
 # A/B/C 실제 로컬 수집 실행 가이드
 
-공통 운영 정책은 [TEAM_POLICY.json](TEAM_POLICY.json)의 CONFIRMED 버전이다. 목표20개·160배정·A54/B53/C53·Plan revision1을 사용한다. `records.json`, `policy-prepare`, 관리자 Credential, 수동 DB Release는 기본 설치에 필요 없다. 학교·기관 판단은 UNRESOLVED이며 실제 수집 개시는 별도 조건이다. [검증 결과](enable-real-collection-validation.md)를 확인한다.
+공통 운영 정책은 [TEAM_POLICY.json](TEAM_POLICY.json)의 CONFIRMED 버전이다. 목표20개·160배정·A54/B53/C53·Plan revision1을 사용한다. `records.json`, `policy-prepare`, 관리자 Credential, 수동 DB Release는 기본 설치에 필요 없다. 학교·기관 직접 확인 결과를 전달받아 NOT_REQUIRED로 반영했다. 기관 조건에 따른 차단은 해제되며 본인 동의는 계속 필요하다. [검증 결과](institution-not-required-validation.md)를 확인한다.
 
 ## 1. 필수 프로그램 설치
 
@@ -90,9 +90,9 @@ setup이 개인 Secret·Owner Key·TLS·전용 Docker MySQL·로컬 Spring을 �
 
 ## 5. 공통 정책 자동 적용
 
-setup은 저장소 JSON의 전체 SHA-256, 정책 식별자·기간, Plan Checksum·revision·20목표·160배정·빈 공통 슬롯·사이트를 검증하고 본인 슬롯에만 UUID를 연결한다. `POLICY_INSTALLED`를 확인한다. 설치한 정확한 바이트의 SHA를 개인 config에 고정하며 이후 setup은 같은 정책을 보존한다. 변조는 차단된다. 새 정책으로 갱신할 때만 명시적 `--policy FILE --policy-sha256 HASH`를 사용한다.
+setup은 저장소 JSON의 전체 SHA-256, 정책 식별자·기간, Plan Checksum·revision·20목표·160배정·빈 공통 슬롯·사이트를 검증하고 본인 슬롯에만 UUID를 연결한다. `POLICY_INSTALLED`를 확인한다. 설치한 정확한 바이트의 SHA를 개인 config에 고정한다. 정확한 #108 공식 버전2 SHA가 확인되면 같은 setup으로 저장소 버전3을 자동 적용한다. 사용자 지정 정책은 보존한다. 변조는 차단된다. 새 정책으로 갱신할 때만 명시적 `--policy FILE --policy-sha256 HASH`를 사용한다.
 
-정책·목표를 다시 작성하거나 승인 증빙 JSON을 만들지 않는다. 기관 판단 미등록 시 `INSTITUTION_BLOCKED`가 표시되며 정책 설치 성공과 구분된다. 날짜 미등록은 정책을 DRAFT로 바꾸지 않는다. 보존기간은 최종 평가 종료일+90일이며 운영 시 삭제일·사본·책임·실행을 기록한다.
+정책·목표를 다시 작성하거나 승인 증빙 JSON을 만들지 않는다. 운영 정책은 기관 비대상 NOT_REQUIRED이며 INSTITUTION_BLOCKED가 발생하지 않는다. [판단 출처](institution-not-required.md)는 저장소에 포함된다. 본인 동의 전 수집은 계속 차단한다. 날짜 미등록은 정책을 DRAFT로 바꾸지 않는다. 보존기간은 최종 평가 종료일+90일이며 운영 시 삭제일·사본·책임·실행을 기록한다.
 
 ## 6. Chrome Extension 빌드
 
@@ -133,7 +133,7 @@ Chrome에서 `https://localhost:9443/api/health`가 인증서 경고 없이 열�
 
 ## 9. 본인 동의
 
-목적·수집 항목·이용 범위·보존·제외 정책을 읽고 본인이 체크박스와 동의 버튼을 누른다. setup은 동의를 생성하지 않는다. 기관 판단 미등록은 본인 동의로 해제되지 않는다. 전체 동의 철회는 즉시 신규 수집을 중단하고 기존 데이터 격리·회수 경로를 유지한다.
+목적·수집 항목·이용 범위·보존·제외 정책을 읽고 본인이 체크박스와 동의 버튼을 누른다. setup은 동의를 생성하지 않는다. 본인 동의는 setup이나 자동 테스트로 대신하지 않는다. 전체 동의 철회는 즉시 신규 수집을 중단하고 기존 데이터 격리·회수 경로를 유지한다.
 
 ## 10. 목표 선택
 
@@ -141,7 +141,7 @@ Chrome에서 `https://localhost:9443/api/health`가 인증서 경고 없이 열�
 
 ## 11. 실제 수집 시작
 
-기관 개시 조건 및 본인 동의가 충족되어 화면의 수집 준비가 유효할 때 세션 시작을 누른다. Extension에 표시된 정확한 Origin/Path Prefix 안의 공개 페이지를 탐색한다. 403/404·로그인·접근 제한은 우회하지 않는다. 사이트·민감 URL/DOM 검사는 계속 적용된다.
+기관 비대상 판단은 저장소 정책에 이미 반영됐다. 본인 동의를 완료하고 화면의 수집 준비가 유효할 때 세션 시작을 누른다. Extension에 표시된 정확한 Origin/Path Prefix 안의 공개 페이지를 탐색한다. 403/404·로그인·접근 제한은 우회하지 않는다. 사이트·민감 URL/DOM 검사는 계속 적용된다.
 
 활성 창·탭에서 의미 있는 페이지를5초 이상 읽는다. 유효 Visit10개 이상, 권장12~15개를 수집한다. 일반 페이지의 page/p 숫자 Query·알려진 추적 파라미터·일반 anchor는 정책에 따라 처리하며 검색어·Query/Fragment 원문은 저장하지 않는다. Hash SPA 라우트·알 수 없는 Query·민감 파라미터는 차단한다. 추적 Query만 바꿔 Visit을 채우지 않는다.
 

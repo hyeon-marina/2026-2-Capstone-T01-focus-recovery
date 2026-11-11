@@ -1,0 +1,209 @@
+{
+  "result": "PASS",
+  "kind": "AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT",
+  "actualParticipantConsents": 0,
+  "actualHumanResearchSessions": 0,
+  "source": "Real public Python Docs HTTPS; no mocking",
+  "sources": [
+    {
+      "slot": "A",
+      "policyDigest": "8af39d4851d4a01e00d6ce87fe28e887207a862a9824d8127768175878c25c25",
+      "assignments": 54,
+      "chrome": {
+        "kind": "AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT",
+        "actualParticipantConsent": false,
+        "observedPages": [
+          {
+            "path": "/3/library/venv.html",
+            "status": 200
+          },
+          {
+            "path": "/3/installing/index.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/venv.html",
+            "status": 200
+          },
+          {
+            "path": "/3/using/index.html",
+            "status": 200
+          },
+          {
+            "path": "/3/using/cmdline.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/modules.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/index.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/controlflow.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/errors.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/stdlib.html",
+            "status": 200
+          }
+        ],
+        "slot": "A",
+        "sessionId": "a9f27b01-f8b7-44c7-a3a8-6cd8926cdc1c",
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "fileLogin": true,
+        "explicitUiConsent": true,
+        "spa": false,
+        "workerRestart": true,
+        "browserRestart": true,
+        "wrongPinRejected": true
+      },
+      "exportVerified": true,
+      "storedVisits": 10,
+      "tabSwitches": 1
+    },
+    {
+      "slot": "B",
+      "policyDigest": "8af39d4851d4a01e00d6ce87fe28e887207a862a9824d8127768175878c25c25",
+      "assignments": 53,
+      "chrome": {
+        "kind": "AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT",
+        "actualParticipantConsent": false,
+        "observedPages": [
+          {
+            "path": "/3/library/venv.html",
+            "status": 200
+          },
+          {
+            "path": "/3/installing/index.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/venv.html",
+            "status": 200
+          },
+          {
+            "path": "/3/using/index.html",
+            "status": 200
+          },
+          {
+            "path": "/3/using/cmdline.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/modules.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/index.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/controlflow.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/errors.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/stdlib.html",
+            "status": 200
+          }
+        ],
+        "slot": "B",
+        "sessionId": "b1fa7479-4510-47df-8284-8e52434e7fa0",
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "fileLogin": true,
+        "explicitUiConsent": true,
+        "spa": false,
+        "workerRestart": true,
+        "browserRestart": true,
+        "wrongPinRejected": true
+      },
+      "exportVerified": true,
+      "storedVisits": 10,
+      "tabSwitches": 1
+    },
+    {
+      "slot": "C",
+      "policyDigest": "8af39d4851d4a01e00d6ce87fe28e887207a862a9824d8127768175878c25c25",
+      "assignments": 53,
+      "chrome": {
+        "kind": "AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT",
+        "actualParticipantConsent": false,
+        "observedPages": [
+          {
+            "path": "/3/library/venv.html",
+            "status": 200
+          },
+          {
+            "path": "/3/installing/index.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/venv.html",
+            "status": 200
+          },
+          {
+            "path": "/3/using/index.html",
+            "status": 200
+          },
+          {
+            "path": "/3/using/cmdline.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/modules.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/index.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/controlflow.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/errors.html",
+            "status": 200
+          },
+          {
+            "path": "/3/tutorial/stdlib.html",
+            "status": 200
+          }
+        ],
+        "slot": "C",
+        "sessionId": "3f4e35f8-9b1c-41c0-a016-fc113e46ad2b",
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "fileLogin": true,
+        "explicitUiConsent": true,
+        "spa": false,
+        "workerRestart": true,
+        "browserRestart": true,
+        "wrongPinRejected": true
+      },
+      "exportVerified": true,
+      "storedVisits": 10,
+      "tabSwitches": 1
+    }
+  ],
+  "rawCompleted": 3,
+  "validVisits": 30,
+  "merge": "PARTIAL",
+  "duplicateImports": 3,
+  "osTrustInstallation": "NOT_TESTED_CERTIFICATE_SPKI_PIN_ONLY"
+}

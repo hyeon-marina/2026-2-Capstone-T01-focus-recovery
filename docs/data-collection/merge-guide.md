@@ -1,6 +1,6 @@
 # age Export/Import 및 데이터 통합
 
-공통 정책은 CONFIRMED·Plan revision1이다. 별도 records.json/policy-prepare 또는 로컬 관리자 발급은 필요 없다. [설치·로그인·본인 동의](individual-local-setup.md) 후 수집한 독립 로컬 DB의 데이터를 통합한다. 실제 기관 승인·면제는 미확인 상태이며 외부 요건을 충족한 데이터만 이용한다. 이번 검증의 합성 실적은 [실행 보고](enable-real-collection-validation.md)에 구분했다.
+공통 정책은 CONFIRMED·Plan revision1이다. 별도 records.json/policy-prepare 또는 로컬 관리자 발급은 필요 없다. [설치·로그인·본인 동의](individual-local-setup.md) 후 수집한 독립 로컬 DB의 데이터를 통합한다. 기관 비대상 판단은 NOT_REQUIRED로 반영됐다. 참여자 본인이 동의한 데이터만 이용하며 자동 E2E 자료는 실제 연구160세션에 합산하지 않는다. 이번 검증의 합성 실적은 [실행 보고](institution-not-required-validation.md)에 구분했다.
 
 Export 명령의 --recipient가 즉시 age 암호화를 수행한다. 별도 수동 암호화 단계는 없다. Source/Participant·Manifest/SHA·공통 Plan·중복·철회 재유입 검증을 유지한다. 아래의101/103 실행 예시는 당시 합성 이력이다. 현재 팀원 실행 명령은 마지막 절 또는 아래 절을 따른다. Windows 명령은 제공하되 전체 OS 실행은 NOT_TESTED다.
 

@@ -23,10 +23,11 @@ class TeamPolicyProposalTest {
         assertThat(validator.checksum(plan)).isEqualTo(n.path("planChecksum").asText());
         for(var slot:List.of("A","B","C")) assertThat(plan.assignments().stream().filter(a->a.slotId().equals(slot)).count()).isEqualTo(slot.equals("A")?54:53);
         assertThat(n.path("status").asText()).isEqualTo("CONFIRMED");
-        assertThat(n.path("institution").path("decision").asText()).isEqualTo("UNRESOLVED");
+        assertThat(n.path("institution").path("decision").asText()).isEqualTo("NOT_REQUIRED");
         for(String key:List.of("teamDecisionRef","retentionRef","privacyEvidenceRef","startAuthorizationRef"))assertThat(n.path(key).asText()).isEmpty();
         assertThat(validator.validate(n,Instant.now())).isEqualTo(plan);
-        assertThat(LocalCollectionPolicy.institutionCleared(n)).isFalse();
+        assertThat(LocalCollectionPolicy.institutionCleared(n)).isTrue();
+        assertThat(Files.isRegularFile(Path.of("..").resolve(n.path("institution").path("evidenceRef").asText()))).isTrue();
         assertThat(plan.goals()).allMatch(g->g.status().equals("CONFIRMED"));
         var sites=new CollectionSitePolicy(new org.springframework.mock.env.MockEnvironment(),null,java.time.Clock.systemUTC(),mapper).validateLocalSites(n);
         assertThat(sites).hasSize(15);

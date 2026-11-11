@@ -55,7 +55,8 @@ def main():
             d=root/slot;directories.append(d)
             cli(d,'setup','--slot',slot,'--db-port',str(33231+i),'--tls-port',str(19543+i))
             original=json.loads((d/'participant.json').read_text());owners.append(original['participantId'])
-            assert 'INSTITUTION_BLOCKED' in request(d,'/api/collection/local-status')['blockers']
+            assert 'INSTITUTION_BLOCKED' not in request(d,'/api/collection/local-status')['blockers']
+            assert 'CONSENT_REQUIRED' in request(d,'/api/collection/local-status')['blockers']
             assert request(d,'/api/collection/local-status')['planRevision']==1
             assigned=request(d,'/api/collection/assignments');assert len(assigned)==(54 if slot=='A' else 53)
             cli(d,'setup','--slot',slot);assert json.loads((d/'participant.json').read_text())==original

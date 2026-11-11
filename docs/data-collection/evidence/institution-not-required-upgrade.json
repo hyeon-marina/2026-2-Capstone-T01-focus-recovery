@@ -1,0 +1,11 @@
+{
+  "result": "PASS",
+  "kind": "AUTOMATED_UPGRADE_TEST_NOT_HUMAN_CONSENT",
+  "oldOfficialVersion": "2",
+  "newVersion": "3",
+  "sameSetupCommand": true,
+  "participantAndCredentialPreserved": true,
+  "institutionBlocked": false,
+  "oldConsentDoesNotAuthorizeNewPolicy": true,
+  "requiresPersonalReconsent": true
+}
