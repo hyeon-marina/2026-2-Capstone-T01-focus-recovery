@@ -22,7 +22,8 @@ public class RetractionDispatcher {
     private final AiProperties ai;
     private final Environment environment;
     private final JsonMapper mapper;
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).followRedirects(HttpClient.Redirect.NEVER).build();
+    // Uvicorn does not support cleartext HTTP/2 (h2c), including on the retraction route.
+    private final HttpClient http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(Duration.ofSeconds(2)).followRedirects(HttpClient.Redirect.NEVER).build();
     public RetractionDispatcher(V2StorageGate gate, RetractionTargetRepository targets, RetractionWorkService work,
         AiProperties ai, Environment environment, JsonMapper mapper) {
         this.gate = gate; this.targets = targets; this.work = work; this.ai = ai; this.environment = environment; this.mapper = mapper;

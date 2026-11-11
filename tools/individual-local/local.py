@@ -18,6 +18,8 @@ import urllib.request
 import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
+# Only the exact official #108 policy is upgraded automatically; custom pins remain unchanged.
+SUPERSEDED_TEAM_POLICY_SHA256 = "fb4c6fdd8e97e657d6d5f460dba75e96def2b532d41071a9e65dfaf524c8084e"
 
 
 def private(path, text):
@@ -123,6 +125,9 @@ def selected_policy(a, directory, config):
     raw = source.read_bytes()
     if len(raw) > 65536 or not expected or hashlib.sha256(raw).hexdigest() != expected:
         raise ValueError('LOCAL_POLICY_CHECKSUM: policy bytes differ from pinned SHA-256')
+    if not a.policy and config.get('policySha256') == SUPERSEDED_TEAM_POLICY_SHA256:
+        source = ROOT / 'docs/data-collection/TEAM_POLICY.json'
+        return selected_policy(argparse.Namespace(policy=source, policy_sha256=source.with_suffix('.sha256').read_text(encoding='utf-8').split()[0]), directory, config)
     return raw, expected
 
 

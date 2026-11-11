@@ -64,7 +64,7 @@ class RetractionLiveHttpTest {
         UUID compose = UUID.randomUUID(); var visits = List.of(new Composition.Visit(visit, 1));
         String fingerprint = canonical.fingerprint(Map.of("apiContractVersion", 2, "composeRequestId", compose, "sessionId", session.sessionId(), "afterSequence", 0, "visits", visits));
         var input = new Composition.Input(2, compose, session.sessionId(), 0, fingerprint, visits);
-        var denied = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create(System.getenv("FOCUS93_AI_URL") + "/api/ai/window-compositions"))
+        var denied = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build().send(HttpRequest.newBuilder(URI.create(System.getenv("FOCUS93_AI_URL") + "/api/ai/window-compositions"))
             .header("Content-Type", "application/json").header("Authorization", "Bearer synthetic-internal-service-token-95-0123456789").POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(input))).build(), HttpResponse.BodyHandlers.ofString());
         assertThat(denied.statusCode()).isEqualTo(409); assertThat(mapper.readTree(denied.body()).path("code").asString()).isEqualTo("PRIVACY_RETRACTED");
         Files.writeString(Path.of("/private/tmp/focus93-http-evidence/be-targets.json"), mapper.writeValueAsString(jobs.findAll().stream().filter(j -> j.getSessionId().equals(session.sessionId())).map(j -> Map.of("retractionId", j.getRetractionId(), "status", j.getProcessingStatus(), "targets", targets.findByIdRetractionId(j.getRetractionId()).stream().map(t -> Map.of("type", t.getId().targetType(), "status", t.getProcessingStatus(), "evidence", Objects.toString(t.getEvidenceCode(), ""))).toList())).toList()));

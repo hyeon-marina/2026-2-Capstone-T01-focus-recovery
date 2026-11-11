@@ -1,4 +1,4 @@
-// Opt-in SYNTHETIC fixture only. Actual local HTTPS/MySQL/extension, routed synthetic web pages.
+// Opt-in automated test identities only; never a real participant consent record.
 // Chrome trusts only this fixture's SPKI through a test launch flag; this does not test OS trust installation.
 import { chromium } from 'playwright';
 import { build } from 'vite';
@@ -10,8 +10,17 @@ const directory=process.env.FOCUS105_LOCAL_DIRECTORY;
 assert.ok(directory);
 const policyFile=join(directory,'site-policy.json');
 const policy=JSON.parse(await readFile(policyFile,'utf8'));
-assert.equal(policy.policyId,'SYNTHETIC-103');
-assert.deepEqual(policy.sites,[{origin:'https://example.org',pathPrefix:'/public'}]);
+const external=process.env.FOCUS105_AUTOMATED_EXTERNAL==='1';
+if (external) {
+  assert.equal(await readFile(join(directory,'AUTOMATED_TEST_ONLY'),'utf8'),'NO_HUMAN_PARTICIPANT_CONSENT');
+  assert.equal(policy.policyId,'focus-team-raw-v2');
+  assert.equal(policy.institution.decision,'NOT_REQUIRED');
+} else {
+  assert.equal(policy.policyId,'SYNTHETIC-103');
+  assert.deepEqual(policy.sites,[{origin:'https://example.org',pathPrefix:'/public'}]);
+}
+const publicPages=['/3/library/venv.html','/3/installing/index.html','/3/tutorial/venv.html','/3/using/index.html','/3/using/cmdline.html','/3/tutorial/modules.html','/3/tutorial/index.html','/3/tutorial/controlflow.html','/3/tutorial/errors.html','/3/tutorial/stdlib.html'];
+const observedPages=[];
 const config=JSON.parse(await readFile(join(directory,'config.json'),'utf8'));
 assert.ok([19543,19544,19545].includes(config.tlsPort));
 const server='https://localhost:'+config.tlsPort;
@@ -31,7 +40,7 @@ await build({configFile:resolve('vite.real.content.config.ts'),build:{outDir:ext
 let context,harness,page;
 const launch=async()=>{
   const c=await chromium.launchPersistentContext(join(directory,'https-chrome-profile'),{...options,args:['--ignore-certificate-errors-spki-list='+spki,`--disable-extensions-except=${extension}`,`--load-extension=${extension}`]});
-  await c.route('https://example.org/public/**',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>SYNTHETIC Git page</title><article>PRIVATE BODY MUST NEVER BE SENT. person@example.org</article>'}));
+  if (!external) await c.route('https://example.org/public/**',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>SYNTHETIC Git page</title><article>PRIVATE BODY MUST NEVER BE SENT. person@example.org</article>'}));
   return c;
 };
 const send=(action,extra={})=>harness.evaluate(({action,extra})=>chrome.runtime.sendMessage({type:'v2-'+action,...extra}),{action,extra});
@@ -54,14 +63,21 @@ async function login(id) {
 try {
   context=await launch();let worker=context.serviceWorkers()[0]||await context.waitForEvent('serviceworker');const id=worker.url().split('/')[2];
   await login(id);
-  const planned='PLAN-00'+({A:1,B:2,C:3}[config.slot]);
+  const assigned=external ? await send('assignments') : [];
+  const planned=external ? assigned.find(a=>a.goalId==='GOAL-003').plannedSessionId : 'PLAN-00'+({A:1,B:2,C:3}[config.slot]);
   await harness.getByLabel('배정 목표').selectOption(planned);
   await harness.getByRole('button',{name:'세션 시작',exact:true}).click();await wait(s=>s.lifecycle==='ACTIVE','start');
   page=await context.newPage();
   for(let n=1;n<=10;n++) {
-    if(n===2)await page.evaluate(()=>history.pushState({},'','/public/page?page=2'));
+    if (external) {
+      const response=await page.goto('https://docs.python.org'+publicPages[n-1],{waitUntil:'domcontentloaded',timeout:30000});
+      assert.equal(response.status(),200);
+      assert.equal(new URL(page.url()).origin,'https://docs.python.org');
+      observedPages.push({path:new URL(page.url()).pathname,status:response.status()});
+    } else if(n===2)await page.evaluate(()=>history.pushState({},'','/public/page?page=2'));
     else await page.goto('https://example.org/public/page?page='+n);
-    await page.bringToFront();await wait(s=>s.validVisits>=n,'visit '+n);console.log('SYNTHETIC HTTPS '+config.slot+' visit '+n+'/10');
+    await page.bringToFront();await wait(s=>s.validVisits>=n,'visit '+n);console.log((external?'AUTOMATED EXTERNAL HTTPS ':'SYNTHETIC HTTPS ')+config.slot+' visit '+n+'/10');
+    if(external && n===4) {await harness.bringToFront();await new Promise(r=>setTimeout(r,1200));await page.bringToFront();}
     if(n===3) {const cdp=await context.newCDPSession(harness);await cdp.send('ServiceWorker.enable');await cdp.send('ServiceWorker.stopAllWorkers');await cdp.detach();await wait(s=>s.validVisits>=3,'worker restart');}
     if(n===5) {await context.close();context=await launch();await login(id);await wait(s=>s.collectionAllowed,'reauthentication');page=await context.newPage();}
   }
@@ -73,5 +89,5 @@ try {
   await harness.bringToFront();await harness.getByRole('button',{name:'진행 상태 새로고침',exact:true}).click();
   await harness.getByText(/원본 RAW_COLLECTED/).waitFor();
   await harness.screenshot({path:join(directory,'https-metadata-complete.png'),fullPage:true});
-  await writeFile(join(directory,'https-chrome-summary.json'),JSON.stringify({kind:'SYNTHETIC_PINNED_HTTPS_NOT_OS_TRUST',slot:config.slot,sessionId:attempt.sessionId,visits:10,raw:'RAW_COLLECTED',ai:'NOT_RUN',fileLogin:true,explicitUiConsent:true,spa:true,workerRestart:true,browserRestart:true,wrongPinRejected:true},null,2),{flag:'wx'});
+  await writeFile(join(directory,'https-chrome-summary.json'),JSON.stringify({kind:external?'AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT':'SYNTHETIC_PINNED_HTTPS_NOT_OS_TRUST',actualParticipantConsent:false,observedPages,slot:config.slot,sessionId:attempt.sessionId,visits:10,raw:'RAW_COLLECTED',ai:'NOT_RUN',fileLogin:true,explicitUiConsent:true,spa:!external,workerRestart:true,browserRestart:true,wrongPinRejected:true},null,2),{flag:'wx'});
 } finally {await context?.close();}

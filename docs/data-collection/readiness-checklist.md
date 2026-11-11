@@ -1,6 +1,6 @@
 # 실제 수집 준비 체크리스트
 
-공통 정책은 CONFIRMED·Plan revision1이다. 목표20개·160배정·A54/B53/C53은 채택된 운영 계획이며 재승인 파일이 필요 없다. 실제 실행 근거와 테스트별 PASS/NOT_TESTED는 [이번 검증 보고](enable-real-collection-validation.md)에 기록한다.
+공통 정책은 CONFIRMED·Plan revision1이다. 목표20개·160배정·A54/B53/C53은 채택된 운영 계획이며 재승인 파일이 필요 없다. 실제 실행 근거와 테스트별 PASS/NOT_TESTED는 [이번 검증 보고](institution-not-required-validation.md)에 기록한다.
 
 | 항목 | 설치·수집 조건 |
 | --- | --- |
@@ -11,7 +11,7 @@
 | HTTPS | localhost 인증서 SAN·유효기간·신뢰 확인, TLS 검증 유지 |
 | 본인 인증 | participant.json 로그인·본인 슬롯 확인 |
 | 본인 동의 | 목적·항목·보존·철회를 읽고 Extension에서 직접 동의 |
-| 외부 개시 조건 | 기관 판단/필요한 승인 결과. 현재 UNRESOLVED이며 임의 승인하지 않음 |
+| 외부 개시 조건 | NOT_REQUIRED: 사용자가 직접 확인한 심의 비대상 판단 반영. REQUIRED_SATISFIED와 구분 |
 | 세션 | 본인 목표/시나리오·Session Scope·허용 사이트·민감 URL/DOM 검사 |
 | 완료 | 유효 Visit≥10, Queue0·END ACK·전송 확인·RAW_COLLECTED·AI NOT_RUN |
 | 전달 | age Export, Manifest/SHA·Source/Plan/FK 검사, 최신 privacy·중복/철회 재유입 차단 |
