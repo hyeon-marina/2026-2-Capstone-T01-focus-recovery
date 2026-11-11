@@ -24,14 +24,13 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--output',type=Path,required=True);p.add_argument('--synthetic-only',action='store_true',required=True);p.add_argument('--chrome')
     a=p.parse_args();os.umask(0o077);root=a.output.resolve();root.mkdir(mode=0o700,parents=True,exist_ok=False)
-    template=json.loads((local.ROOT/'docs/data-collection/local-policy.draft.json').read_text())
+    template=json.loads((local.ROOT/'docs/data-collection/TEAM_POLICY.json').read_text())
     now=datetime.now(timezone.utc)
     template.update(status='CONFIRMED',policyId='SYNTHETIC-103',policyVersion='1',buildId='synthetic-103',notBefore=(now-timedelta(minutes=2)).isoformat(),expiresAt=(now+timedelta(hours=2)).isoformat(),sites=[dict(origin='https://example.org',pathPrefix='/public')])
     for key in ['teamDecisionRef','retentionRef','privacyEvidenceRef','startAuthorizationRef','purpose','collectionItems','useScope','retentionPolicy','sensitivePageExclusions','textPrivacyPolicy','changePolicy','collectionScope']:
         template[key]='SYNTHETIC-TEST-ONLY-NOT-ACTUAL-APPROVAL'
     template['institution']=dict(decision='NOT_REQUIRED',evidenceRef='SYNTHETIC-TEST-ONLY')
     plan=template['plan'];plan['revision']=1
-    for g in plan['goals']:g.update(description='SYNTHETIC TEST TypeScript transaction research '+g['goalId'],status='CONFIRMED',evidenceRef='SYNTHETIC-TEST-ONLY')
     template['planChecksum']=hashlib.sha256(json.dumps(plan,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     policy=root/'SYNTHETIC-policy.json';local.private(policy,json.dumps(template,ensure_ascii=False,indent=2))
     digest=ds.digest(policy.read_bytes());directories=[];exports=[];privacy=[];owners=[];results=[]
@@ -56,7 +55,8 @@ def main():
             d=root/slot;directories.append(d)
             cli(d,'setup','--slot',slot,'--db-port',str(33231+i),'--tls-port',str(19543+i))
             original=json.loads((d/'participant.json').read_text());owners.append(original['participantId'])
-            assert 'LOCAL_POLICY_DRAFT' in request(d,'/api/collection/local-status')['blockers']
+            assert 'INSTITUTION_BLOCKED' in request(d,'/api/collection/local-status')['blockers']
+            assert request(d,'/api/collection/local-status')['planRevision']==1
             assigned=request(d,'/api/collection/assignments');assert len(assigned)==(54 if slot=='A' else 53)
             cli(d,'setup','--slot',slot);assert json.loads((d/'participant.json').read_text())==original
             if slot=='A':
@@ -71,8 +71,9 @@ def main():
             cli(d,'setup','--slot',slot,'--policy',str(policy),'--policy-sha256',digest)
             pid='PLAN-00'+str(i+1)
             request(d,'/api/collection/assignments/'+pid+'/start','POST',{},status=409,idem=uuid.uuid4().hex)
-            request(d,'/api/consent','POST',dict(requestId=str(uuid.uuid4()),policyId='SYNTHETIC-103',policyVersion='1',accepted=True))
-            assert request(d,'/api/collection/local-status')['ready']
+            if not a.chrome:
+                request(d,'/api/consent','POST',dict(requestId=str(uuid.uuid4()),policyId='SYNTHETIC-103',policyVersion='1',accepted=True))
+                assert request(d,'/api/collection/local-status')['ready']
             raw=(d/'site-policy.json').read_bytes();(d/'site-policy.json').write_bytes(raw+b' ')
             assert not request(d,'/api/collection/local-status')['ready'];(d/'site-policy.json').write_bytes(raw)
             expired=copy.deepcopy(template);expired['expiresAt']=(now-timedelta(seconds=1)).isoformat();(d/'site-policy.json').write_text(json.dumps(expired));assert 'LOCAL_POLICY_EXPIRED' in request(d,'/api/collection/local-status')['blockers'];(d/'site-policy.json').write_bytes(raw)

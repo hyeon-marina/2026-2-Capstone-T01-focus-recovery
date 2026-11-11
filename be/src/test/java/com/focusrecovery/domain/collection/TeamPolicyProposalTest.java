@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
 class TeamPolicyProposalTest {
-    @Test void proposalPreservesOriginalGoalsAssignmentsAndDoesNotFabricateApproval() throws Exception {
+    @Test void operationalPolicyPreservesPlanWithoutFabricatingInstitutionDecision() throws Exception {
         var mapper=JsonMapper.builder().build();var validator=new LocalCollectionPolicy(mapper);
         var root=Path.of("../docs/data-collection");byte[] bytes=Files.readAllBytes(root.resolve("TEAM_POLICY.json"));
         var n=mapper.readTree(bytes);
@@ -22,10 +22,12 @@ class TeamPolicyProposalTest {
         assertThat(plan.assignments()).isEqualTo(CollectionPlanService.draft().assignments());
         assertThat(validator.checksum(plan)).isEqualTo(n.path("planChecksum").asText());
         for(var slot:List.of("A","B","C")) assertThat(plan.assignments().stream().filter(a->a.slotId().equals(slot)).count()).isEqualTo(slot.equals("A")?54:53);
-        assertThat(n.path("status").asText()).isEqualTo("DRAFT");
+        assertThat(n.path("status").asText()).isEqualTo("CONFIRMED");
         assertThat(n.path("institution").path("decision").asText()).isEqualTo("UNRESOLVED");
-        for(String key:List.of("teamDecisionRef","retentionRef","privacyEvidenceRef","startAuthorizationRef","notBefore","expiresAt"))assertThat(n.path(key).asText()).isEmpty();
-        assertThatThrownBy(()->validator.validate(n,Instant.now())).hasMessageContaining("LOCAL_POLICY_DRAFT");
+        for(String key:List.of("teamDecisionRef","retentionRef","privacyEvidenceRef","startAuthorizationRef"))assertThat(n.path(key).asText()).isEmpty();
+        assertThat(validator.validate(n,Instant.now())).isEqualTo(plan);
+        assertThat(LocalCollectionPolicy.institutionCleared(n)).isFalse();
+        assertThat(plan.goals()).allMatch(g->g.status().equals("CONFIRMED"));
         var sites=new CollectionSitePolicy(new org.springframework.mock.env.MockEnvironment(),null,java.time.Clock.systemUTC(),mapper).validateLocalSites(n);
         assertThat(sites).hasSize(15);
         assertThat(sites.stream().map(CollectionSitePolicy.Site::origin)).doesNotContain("https://www.youtube.com","https://www.google.com","https://search.naver.com","https://blog.naver.com");

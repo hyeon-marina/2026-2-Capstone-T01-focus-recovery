@@ -82,8 +82,9 @@ public class LocalCollectionSetup implements ApplicationRunner {
             }
             if(jdbc.queryForObject("SELECT COUNT(*) FROM participant WHERE participant_id=? AND status='ACTIVE'",Integer.class,id)!=1)throw new IllegalStateException("LOCAL_OWNER_INACTIVE: 비활성 참여자를 재활성화하지 않습니다.");
             if(policy!=null) {
-                if(jdbc.queryForObject("SELECT COUNT(*) FROM participant WHERE participant_id=? AND withdrawn_at IS NOT NULL",Integer.class,id)>0)throw new IllegalStateException("PRIVACY_WITHDRAWN: 정책 재적용으로 철회를 해제하지 않습니다.");
-                install(id,policy,plan,digest);
+                if(jdbc.queryForObject("SELECT COUNT(*) FROM participant WHERE participant_id=? AND withdrawn_at IS NOT NULL",Integer.class,id)>0) {
+                    if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_local_owner WHERE participant_id=? AND policy_digest=?",Integer.class,id,digest)!=1)throw new IllegalStateException("PRIVACY_WITHDRAWN: 정책 재적용으로 철회를 해제하지 않습니다.");
+                } else install(id,policy,plan,digest);
             }
             String existing="";
             try { existing=mapper.readTree(Files.readString(output)).path("credential").asText(); } catch(Exception ignored) { }
@@ -120,9 +121,9 @@ public class LocalCollectionSetup implements ApplicationRunner {
             var previousDates=jdbc.queryForList("SELECT effective_at FROM consent_policy WHERE scope='SESSION_COLLECTION' ORDER BY effective_at DESC LIMIT 1",Timestamp.class);
             if(!previousDates.isEmpty() && !Instant.parse(n.path("notBefore").asText()).isAfter(previousDates.getFirst().toInstant()))throw new IllegalStateException("POLICY_EFFECTIVE_CONFLICT: 새 정책 적용 시점은 이전 정책 이후여야 합니다.");
             jdbc.update("UPDATE consent_policy SET status='RETIRED' WHERE scope='SESSION_COLLECTION'");
-            jdbc.update("INSERT INTO consent_policy VALUES(?,?,'SESSION_COLLECTION',?,?,?,?,?,'APPROVED',?)",policyId,version,n.path("purpose").asText(),n.path("collectionItems").asText(),n.path("useScope").asText(),n.path("retentionRef").asText(),n.path("teamDecisionRef").asText(),Timestamp.from(Instant.parse(n.path("notBefore").asText())));
+            jdbc.update("INSERT INTO consent_policy VALUES(?,?,'SESSION_COLLECTION',?,?,?,?,?,'APPROVED',?)",policyId,version,n.path("purpose").asText(),n.path("collectionItems").asText(),n.path("useScope").asText(),LocalCollectionPolicy.operationalRef(n)+":retention",LocalCollectionPolicy.operationalRef(n),Timestamp.from(Instant.parse(n.path("notBefore").asText())));
             jdbc.update("UPDATE collection_release SET revoked_at=? WHERE revoked_at IS NULL",Timestamp.from(Instant.now()));
-            jdbc.update("INSERT INTO collection_release VALUES(?,?,?,?,NULL)",digest,n.path("buildId").asText(),n.path("teamDecisionRef").asText(),Timestamp.from(Instant.now()));
+            jdbc.update("INSERT INTO collection_release VALUES(?,?,?,?,NULL)",digest,n.path("buildId").asText(),LocalCollectionPolicy.operationalRef(n),Timestamp.from(Instant.now()));
         }
         jdbc.update("UPDATE collection_local_owner SET policy_digest=?,plan_checksum=? WHERE owner_key=1",digest,checksum);
         audit(id,"LOCAL_APPLY_POLICY",digest);

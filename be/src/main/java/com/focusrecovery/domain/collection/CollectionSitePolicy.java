@@ -46,8 +46,8 @@ public class CollectionSitePolicy {
                 var validator=new LocalCollectionPolicy(mapper);var plan=validator.validate(n,clock.instant());
                 var sites=validateLocalSites(n);
                 if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_local_owner o JOIN participant p ON p.participant_id=o.participant_id JOIN collection_plan c ON c.plan_id=1 WHERE o.policy_digest=? AND o.plan_checksum=? AND c.revision=? AND p.status='ACTIVE' AND p.withdrawn_at IS NULL",Integer.class,digest,validator.checksum(plan),plan.revision())!=1) return null;
-                if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_release WHERE policy_digest=? AND build_id=? AND approval_ref=? AND revoked_at IS NULL",Integer.class,digest,build,n.path("teamDecisionRef").asText())!=1)return null;
-                return new Policy(digest,build,n.path("policyId").asText(),n.path("policyVersion").asText(),"APPROVED",Instant.parse(n.path("expiresAt").asText()),sites,true);
+                if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_release WHERE policy_digest=? AND build_id=? AND approval_ref=? AND revoked_at IS NULL",Integer.class,digest,build,LocalCollectionPolicy.operationalRef(n))!=1)return null;
+                return new Policy(digest,build,n.path("policyId").asText(),n.path("policyVersion").asText(),LocalCollectionPolicy.institutionCleared(n)?"APPROVED":"INSTITUTION_BLOCKED",Instant.parse(n.path("expiresAt").asText()),sites,true);
             }
             if(!(synthetic?status.equals("SYNTHETIC"):status.equals("APPROVED")) || !build.matches("[a-zA-Z0-9_.-]{1,100}"))return null;
             for(String k:List.of("approvalRef","contractApprovalRef","retentionRef","institutionRef","modelEvidenceRef","privacyEvidenceRef","startAuthorizationRef"))
@@ -81,7 +81,7 @@ public class CollectionSitePolicy {
         if(result.isEmpty() || result.size()>30)LocalCollectionPolicy.fail("LOCAL_POLICY_SITES: 최소 허용 사이트를 확정하세요.");
         return List.copyOf(result);
     }
-    public Policy require() { var p=current();if(p==null)throw blocked();return p; }
+    public Policy require() { var p=current();if(p==null)throw blocked();if(p.status().equals("INSTITUTION_BLOCKED"))throw new ConflictException("INSTITUTION_BLOCKED","정책 설치 완료. 학교·기관의 적용 여부 판단 또는 필요한 승인 결과가 등록되지 않아 실제 수집 개시는 차단됩니다.");return p; }
     public void bind(WorkSession s) {
         if(!realProfile() || !s.isV2())return;
         var p=require();

@@ -1,14 +1,8 @@
-# 데이터 통합 관리자 실습 매뉴얼 — Issue #101
+# age Export/Import 및 데이터 통합
 
-현재 운영 준비 절차는 [최종 Readiness](real-collection-final-readiness.md)를 따른다. 정책 내용과90일 보존을 채택하고 Plan revision1을 준비했다. 실제 기록이 없는 목표 승인/기관 판단은 DRAFT/UNRESOLVED로 남긴다. 실제 증거 입력 후 `local.py policy-prepare`가 Java 검증을 통과한 공통 파일/SHA를 생성한다. 아래 #105/#106의 기존 수치·제안/검증 내용은 당시 기록이며 최신 JSON은 접근 가능한15쌍으로 정리했다.
+공통 정책은 CONFIRMED·Plan revision1이다. 별도 records.json/policy-prepare 또는 로컬 관리자 발급은 필요 없다. [설치·로그인·본인 동의](individual-local-setup.md) 후 수집한 독립 로컬 DB의 데이터를 통합한다. 실제 기관 승인·면제는 미확인 상태이며 외부 요건을 충족한 데이터만 이용한다. 이번 검증의 합성 실적은 [실행 보고](enable-real-collection-validation.md)에 구분했다.
 
-#105의 현재 로컬 정책은 [공통 정책 권고안](real-collection-policy.md)과 [TEAM_POLICY.json](TEAM_POLICY.json)을 기준으로 한다. **DRAFT/UNRESOLVED·실제 개시 BLOCKED**는 유지한다. [정책 적용 절차](policy-application-guide.md), [목표20개 원문/완료 기준/시나리오](confirmed-goals-proposal.md), [사이트 검토](site-collection-review.md), [이번 실행 결과](issue105-validation.md)를 먼저 확인한다. 원본문장/검색어/제목 대신 행동·불투명 URL 식별자·고정 Topic만 저장한다. 기존 v1/AI 활성 경로의 본문 규격과 구분한다.
-
-
-#103에서도 `focus-raw-export/1` JSONL/Manifest/SHA-256/age·출처+원래ID 매핑·privacy freshness/rollback·멱등/충돌 검사는 그대로다. 셀프 초기화는 각 DB의 고유 Participant/Source UUID를 만들고 공통 Plan revision/목표/배정 checksum을 유지한다. `dataset.py privacy`에서 --participant를 생략하면 **본인 전용** 최신 상태를 받는다. 별도 로컬 관리자 발급은 필요 없다. [새 설치 명령](individual-local-setup.md)과 [검증 보고](local-self-setup-validation.md)를 참조한다.
-
-
-대상은 A/B/C의 **독립 로컬 DB에서 만든 불변 Export 파일**입니다. AI/FastAPI/MySQL dump 덮어쓰기를 통합에 사용하지 않습니다. 관리 도구는 Python 표준 라이브러리·SQLite 메타데이터 레지스트리·age를 사용합니다. **실제 참여자 데이터의 수집·공유 승인은 현재 BLOCKED**이며 아래 실제 형식 명령은 승인 후 사용합니다. 실행한 합성 예시는 16절에 별도로 기록했습니다.
+Export 명령의 --recipient가 즉시 age 암호화를 수행한다. 별도 수동 암호화 단계는 없다. Source/Participant·Manifest/SHA·공통 Plan·중복·철회 재유입 검증을 유지한다. 아래의101/103 실행 예시는 당시 합성 이력이다. 현재 팀원 실행 명령은 마지막 절 또는 아래 절을 따른다. Windows 명령은 제공하되 전체 OS 실행은 NOT_TESTED다.
 
 ## 1. 수신 영역과 수신키 준비
 

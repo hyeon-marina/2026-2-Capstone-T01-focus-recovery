@@ -28,11 +28,18 @@ class LocalCollectionPolicyTest {
         for(var slot:List.of("A","B","C"))assertThat(p.assignments().stream().filter(a->a.slotId().equals(slot)).count()).isEqualTo(slot.equals("A")?54:53);
         assertThat(fixture()).doesNotContainKey("modelEvidenceRef");
     }
-    @Test void rejectsDraftMissingEvidenceExpiryAiAndTampering() {
-        for(var change:List.of(Map.entry("status","DRAFT"),Map.entry("mode","AI_ACTIVE"),Map.entry("teamDecisionRef",""),Map.entry("retentionPolicy",""),Map.entry("planChecksum","0".repeat(64)),Map.entry("expiresAt",now.toString()))) {
+    @Test void rejectsDraftMissingPolicyContentExpiryAiAndTampering() {
+        for(var change:List.of(Map.entry("status","DRAFT"),Map.entry("mode","AI_ACTIVE"),Map.entry("retentionPolicy",""),Map.entry("planChecksum","0".repeat(64)),Map.entry("expiresAt",now.toString()))) {
             var n=fixture();n.put(change.getKey(),change.getValue());assertThatThrownBy(()->validator.validate(mapper.valueToTree(n),now)).isInstanceOf(RuntimeException.class);
         }
-        var n=fixture();n.put("institution",Map.of("decision","UNRESOLVED","evidenceRef",""));assertThatThrownBy(()->validator.validate(mapper.valueToTree(n),now)).hasMessageContaining("INSTITUTION");
+        var n=fixture();n.put("institution",Map.of("decision","UNRESOLVED","evidenceRef",""));assertThat(validator.validate(mapper.valueToTree(n),now)).isNotNull();assertThat(LocalCollectionPolicy.institutionCleared(mapper.valueToTree(n))).isFalse();
+    }
+    @Test void internalEvidenceIsNotAnInstallationRequirement() {
+        var n=fixture();for(String key:List.of("teamDecisionRef","retentionRef","privacyEvidenceRef","startAuthorizationRef"))n.remove(key);
+        assertThat(validator.validate(mapper.valueToTree(n),now).revision()).isEqualTo(1);
+        assertThat(LocalCollectionPolicy.institutionCleared(mapper.valueToTree(n))).isTrue();
+        n.put("institution",Map.of("decision","NOT_REQUIRED","evidenceRef",""));
+        assertThatThrownBy(()->validator.validate(mapper.valueToTree(n),now)).isInstanceOf(RuntimeException.class);
     }
     @Test void rejectsHttpWildcardAndEmptySites() {
         var sites=new CollectionSitePolicy(new MockEnvironment(),null,Clock.systemUTC(),mapper);

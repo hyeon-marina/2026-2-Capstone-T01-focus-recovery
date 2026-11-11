@@ -74,3 +74,27 @@ class RuntimeJarTest(unittest.TestCase):
                 runtime=local.runtime_jar(directory,'backend-runtime.jar')
             source.write_bytes(b'new-build')
             self.assertEqual(runtime.read_bytes(),b'old-build')
+
+class DefaultPolicyTest(unittest.TestCase):
+    def test_repository_policy_is_default_and_checksum_is_required(self):
+        from types import SimpleNamespace
+        import hashlib
+        with tempfile.TemporaryDirectory() as temp:
+            d=Path(temp);a=SimpleNamespace(policy=None,policy_sha256=None)
+            raw,digest=local.selected_policy(a,d,{})
+            value=json.loads(raw)
+            self.assertEqual(value['status'],'CONFIRMED')
+            self.assertEqual(value['plan']['revision'],1)
+            self.assertEqual(value['institution']['decision'],'UNRESOLVED')
+            self.assertEqual(hashlib.sha256(raw).hexdigest(),digest)
+            local.private(d/'site-policy.json',raw.decode())
+            self.assertEqual(local.selected_policy(a,d,dict(policySha256=digest)),(raw,digest))
+            (d/'site-policy.json').write_bytes(raw+b' ')
+            with self.assertRaisesRegex(ValueError,'LOCAL_POLICY_CHECKSUM'):
+                local.selected_policy(a,d,dict(policySha256=digest))
+    def test_custom_policy_cannot_skip_checksum(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as temp:
+            p=Path(temp)/'policy.json';p.write_text('{}')
+            with self.assertRaisesRegex(ValueError,'LOCAL_POLICY_CHECKSUM'):
+                local.selected_policy(SimpleNamespace(policy=p,policy_sha256=None),p.parent,{})

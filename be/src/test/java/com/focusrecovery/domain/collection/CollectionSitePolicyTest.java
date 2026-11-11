@@ -65,6 +65,14 @@ class CollectionSitePolicyTest {
         assertThat(new V2StorageGate(env,null,policy).enabled()).isFalse();
         env.setActiveProfiles("individual-local","test");assertThat(policy.realProfile()).isFalse();
     }
+    @Test void installedOperationalPolicyDoesNotInventInstitutionAuthorization() throws Exception {
+        setup("individual-local");
+        Files.copy(Path.of("../docs/data-collection/TEAM_POLICY.json"),dir.resolve("policy.json"),StandardCopyOption.REPLACE_EXISTING);
+        when(jdbc.queryForObject(anyString(),eq(Integer.class),any(),any(),any())).thenReturn(1);
+        assertThat(policy.current().status()).isEqualTo("INSTITUTION_BLOCKED");
+        assertThat(new V2StorageGate(env,null,policy).enabled()).isFalse();
+        assertThatThrownBy(()->policy.require()).hasFieldOrPropertyWithValue("code","INSTITUTION_BLOCKED");
+    }
     @Test void syntheticReleaseNeverEnablesRealProfile() throws Exception {
         setup("test");assertThat(policy.current()).isNotNull();env.setActiveProfiles("real-collection");assertThat(policy.current()).isNull();
     }

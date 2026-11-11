@@ -21,6 +21,7 @@ public final class LocalPolicyCheck {
         System.out.println("Plan revision="+plan.revision()+" goals="+plan.goals().size()+" sessions="+plan.assignments().size()+" sites="+sites.size());
         System.out.println("planChecksum="+validator.checksum(plan)+" policySHA256="+digest);
         validator.validate(n,Instant.now());
-        System.out.println("PASS: structural validation only; evidence references require human verification and individual consent is separate.");
+        System.out.println("institution="+n.path("institution").path("decision").asText());
+        System.out.println("PASS: operational policy installable; individual consent and institution start condition are separate.");
     }
 }

@@ -1,0 +1,322 @@
+{
+  "kind": "READ_ONLY_SITE_SMOKE_NOT_COLLECTION",
+  "rows": [
+    {
+      "origin": "https://docs.github.com",
+      "pathPrefix": "/en/pages",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://docs.github.com",
+      "finalPath": "/en/pages",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 2,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://developer.mozilla.org",
+      "pathPrefix": "/en-US/docs",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://developer.mozilla.org",
+      "finalPath": "/en-US/docs/Web",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 0,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://docs.python.org",
+      "pathPrefix": "/3",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://docs.python.org",
+      "finalPath": "/3/",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 2,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://git-scm.com",
+      "pathPrefix": "/docs",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://git-scm.com",
+      "finalPath": "/docs",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 1,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://www.w3.org",
+      "pathPrefix": "/WAI/",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://www.w3.org",
+      "finalPath": "/WAI/",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 1,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://science.nasa.gov",
+      "pathPrefix": "/",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://science.nasa.gov",
+      "finalPath": "/",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 1,
+        "editable": 10,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://www.epa.gov",
+      "pathPrefix": "/recycle",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://www.epa.gov",
+      "finalPath": "/recycle",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 1,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://www.metmuseum.org",
+      "pathPrefix": "/ko/art",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://www.metmuseum.org",
+      "finalPath": "/ko/art/collection",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 1,
+        "visibleForms": 1,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://www.hangeul.go.kr",
+      "pathPrefix": "/",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://www.hangeul.go.kr",
+      "finalPath": "/",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 2,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://philharmonia.co.uk",
+      "pathPrefix": "/resources/",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://philharmonia.co.uk",
+      "finalPath": "/resources/",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 1,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://www.noaa.gov",
+      "pathPrefix": "/jetstream",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://www.noaa.gov",
+      "finalPath": "/jetstream",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 2,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://notice.tistory.com",
+      "pathPrefix": "/",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://notice.tistory.com",
+      "finalPath": "/",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 0,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://d2.naver.com",
+      "pathPrefix": "/helloworld",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://d2.naver.com",
+      "finalPath": "/helloworld",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 2,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://ko.wikipedia.org",
+      "pathPrefix": "/wiki",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://ko.wikipedia.org",
+      "finalPath": "/wiki/%EA%B4%91%ED%95%A9%EC%84%B1",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 4,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    },
+    {
+      "origin": "https://en.wikipedia.org",
+      "pathPrefix": "/wiki",
+      "participantCollection": false,
+      "httpStatus": 200,
+      "finalOrigin": "https://en.wikipedia.org",
+      "finalPath": "/wiki/Public_transport",
+      "stillInScope": true,
+      "dom": {
+        "initialMetadataExcluded": false,
+        "html": true,
+        "hasTitle": true,
+        "metadataExcluded": false,
+        "passwordInputs": 0,
+        "emailInputs": 0,
+        "visibleForms": 4,
+        "editable": 0,
+        "historyAPI": true
+      },
+      "result": "COMPATIBLE_SMOKE"
+    }
+  ],
+  "checkedOn": "2026-11-11",
+  "actualParticipantSessions": 0
+}
