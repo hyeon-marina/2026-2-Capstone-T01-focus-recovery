@@ -3,121 +3,121 @@
   "goals": [
     {
       "goalId": "GOAL-001",
-      "description": null,
+      "description": "정적 웹사이트의 GitHub Pages 배포 절차와 사용자 지정 도메인 연결 방법을 조사하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-002",
-      "description": null,
+      "description": "웹 접근성에서 키보드 탐색과 이미지 대체 텍스트의 점검 방법을 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-003",
-      "description": null,
+      "description": "Python 가상환경 생성과 의존성 고정 방법을 조사해 재현 가능한 설치 절차를 작성하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-004",
-      "description": null,
+      "description": "Git의 merge와 rebase 차이 및 충돌 해결 절차를 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-005",
-      "description": null,
+      "description": "브라우저 HTTP 캐시의 Cache-Control과 ETag 사용 방법을 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-006",
-      "description": null,
+      "description": "종이·유리·플라스틱의 재활용 분리배출 원칙을 공개 안내에서 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-007",
-      "description": null,
+      "description": "태양광과 풍력 발전의 원리 및 설치 환경 제약을 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-008",
-      "description": null,
+      "description": "도시 열섬의 원인과 녹지·차열 포장의 완화 방법을 조사하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-009",
-      "description": null,
+      "description": "LED와 형광등의 작동 원리 및 에너지 사용 차이를 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-010",
-      "description": null,
+      "description": "음식 보관 용기의 유리·스테인리스·플라스틱 재질 특성을 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-011",
-      "description": null,
+      "description": "한글의 창제 배경과 자음·모음 구성 원리를 공개 교육 자료에서 조사하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-012",
-      "description": null,
+      "description": "인상주의와 후기 인상주의 회화의 특징을 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-013",
-      "description": null,
+      "description": "도서관의 십진분류와 온라인 목록 검색 방법을 공개 안내에서 조사하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-014",
-      "description": null,
+      "description": "박물관 디지털 아카이브의 공개 이용 조건과 작품 검색 기능을 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-015",
-      "description": null,
+      "description": "오케스트라의 현악·목관·금관·타악기 역할을 공개 교육 자료에서 조사하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-016",
-      "description": null,
+      "description": "화산과 지진의 발생 원리 및 판 경계와의 관계를 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-017",
-      "description": null,
+      "description": "태양계의 지구형 행성과 목성형 행성의 특성을 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-018",
-      "description": null,
+      "description": "강수량과 습도의 측정 방식 및 일기예보에서의 의미를 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-019",
-      "description": null,
+      "description": "철도와 버스의 일반적인 운송 특성과 환승 정보 확인 방법을 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     },
     {
       "goalId": "GOAL-020",
-      "description": null,
+      "description": "식물의 광합성과 호흡의 원리 및 환경 조건 차이를 비교하세요.",
       "status": "DRAFT",
       "evidenceRef": null
     }

@@ -22,8 +22,8 @@ env.update(FOCUS97_MYSQL_URL='jdbc:mysql://127.0.0.1:3397/focus97_synthetic?serv
 if a.chrome:
     env['CHROMIUM_PATH'] = a.chrome
 root = Path(__file__).resolve().parents[2]
-command = ['./gradlew', 'test', '--console=plain']
+command = ['./gradlew', 'test', '--rerun-tasks', '--console=plain']
 if not a.all:
-    command += ['--tests', '*Collection*Test', '--tests', '*V15MigrationTest']
+    command += ['--tests', '*Collection*Test', '--tests', '*V15MigrationTest', '--tests', '*V16MigrationTest']
 command += ['bootJar']
 raise SystemExit(subprocess.run(command, cwd=root / 'be', env=env).returncode)

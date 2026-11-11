@@ -1,6 +1,6 @@
 # 수집 관리자 운영 가이드
 
-현재 판정: **실제 사용자 수집 BLOCKED**. 이 저장소는 참여 준비 패키지, 통제된 합성 파일럿, 등록/발급·배정·진행률 도구를 제공합니다. 실제 사이트 v2 실행, 승인 정책·학교 절차·보존/전체 삭제, 운영 서버/TLS/실모델 검증은 완료되지 않았습니다. `enabled=true`나 이번 PR 병합으로 운영 Gate를 해제하지 않습니다. [Readiness](readiness-checklist.md)를 먼저 확인하세요.
+현재 판정: **실제 사용자 수집 BLOCKED**. #99에서 일반 사이트 Adapter·승인 배포 경로·운영 도구를 추가하고 통제된 일반 HTML Chrome E2E를 검증했습니다. 승인 정책·학교 절차·보존/전체 삭제, 공용 서버/TLS·실모델은 완료되지 않았습니다. 앞 절은 기존 #97 합성/등록 도구를 재사용하는 절차이며 실제 배포는 아래 “Issue #99” 절을 따릅니다. `enabled=true`나 이번 PR 병합으로 운영 Gate를 해제하지 않습니다. [Readiness](readiness-checklist.md)를 먼저 확인하세요.
 
 ## 1. 아키텍처와 환경
 
@@ -16,7 +16,7 @@
 | 개발 | 기존 `fe` build/dev, `application-local`, 기존 Compose | 기존 v1 보존. v2 storage/dispatch 기본 false |
 | 합성 테스트 | `test` 단일 프로필, loopback, 새 MySQL, Mock 모델 FastAPI, 닫힌 catalog | 테스트 계정·합성 정책만. 실제 160실적 제외 |
 | 참여 준비 | `participant` 빌드, `collection-preparation` 프로필·TLS | 인증/배정 확인용, 일반 페이지 접근 권한 없음, v2 Gate 닫힘 |
-| 실제 참여 수집 | 현재 제공하지 않음 | BLOCKED. 승인된 사이트/정책·기관/보존·회수·모델·배포 검증과 별도 Gate 변경 검토 필요 |
+| 실제 참여 수집 | #99 real-collection Adapter·승인 배포 경로 제공 | BLOCKED. 실제 계약/사이트/정책·기관/보존·회수·모델·배포 검증 및 독립 release 승인 필요 |
 
 운영 DB/볼륨/브라우저 프로필에 아래 검증 명령을 연결하지 마세요. 합성 서버를 인터넷이나 팀 공용 수집 서버로 노출하지 않습니다. 실제 팀 공용 주소·담당자·TLS 배포가 확정되었다는 가정을 하지 않았습니다.
 
@@ -146,7 +146,7 @@ python3 tools/collection/manage.py --server http://127.0.0.1:8097 \
 
 `ConsentService`의 현재 정책 선정·버전·적용 시각·보존/승인 참조 검증을 유지합니다. 일반 UI/환경변수는 APPROVED 정책을 만들지 않습니다. 파일럿의 SYNTHETIC 정책은 실제 동의가 아닙니다. 제품 동의 정책 변경은 신뢰된 정책 책임자/DBA의 검토·증거·Migration 밖의 통제된 관리 절차가 필요합니다. 최신 DRAFT/RETIRED·동일 적용시각 충돌은 이전 정책으로 fallback하지 않고 차단합니다. 승인·보존기간을 임의 Seed하지 마세요.
 
-`init`은 목표20/세션160을 **초안**으로 만듭니다. 기본 A/B/C는54/53/53, 각 목표에 네 시나리오 각2회입니다. `plan`으로 현재 revision을 `.collection/plan.json`에 저장하고 검토 후 `save-plan --input`으로 반영합니다. 공통 명령의 `--output .collection/plan.json`을 사용할 수 있습니다. [초안 파일](plan.draft.json)은 목표 원문과 참여자 UUID가 null인 공개 템플릿입니다. 실제 연결표는 Git에 넣지 않습니다.
+`init`은 목표20/세션160을 **초안**으로 만듭니다. 기본 A/B/C는54/53/53, 각 목표에 네 시나리오 각2회입니다. `plan`으로 현재 revision을 `.collection/plan.json`에 저장하고 검토 후 `save-plan --input`으로 반영합니다. 공통 명령의 `--output .collection/plan.json`을 사용할 수 있습니다. [초안 파일](plan.draft.json)은 목표 설명은 DRAFT 후보이고 참여자 UUID는 null인 공개 템플릿입니다. 실제 연결표는 Git에 넣지 않습니다.
 
 관리 절차:
 
@@ -253,3 +253,105 @@ macOS/Linux 위 환경변수 접두 문법과 달리 Windows PowerShell은 `$env
 
 
 실제 BE 알림까지 추가 검증하려면 test FastAPI에 `--drift-pages`를 지정하고 검증 명령에 `FE97_EXPECT_DRIFT_ALERT=1`을 주입합니다. 이 옵션은 합성 UNRELATED 라벨을 만드는 명시적 test fixture이며 실제 모델 추론이 아닙니다. Chrome은 실제 BE의 알림 표시·선택 ACK를 확인한 뒤 Worker를 재시작합니다. 일반 파일럿/제품 모델 설정과 혼용하지 않습니다.
+
+## Issue #99 — 실제 사이트 Adapter와 승인 배포 경로
+
+아래는 #97 당시의 ‘일반 사이트 경로 없음’을 대체하는 현재 구현입니다. 앞의 합성 등록·발급·CLI·배정·품질 도구는 그대로 사용합니다. **실제 수집은 여전히 BLOCKED**입니다. 실제 참여자/동의/공용 주소/가중치/기관·보존/사이트/수집 승인 기록은 제공되지 않았습니다. [#99 최종 검증](real-collection-validation.md), [실제 버튼별 절차](collection-procedure.md), [저장 구조](data-flow-and-storage.md), [검증 명령](data-verification.md)을 기준으로 인계합니다.
+
+### 새 배포 준비
+
+기존 docker-compose.yml/운영 DB/볼륨을 변경하지 않고 `deploy/collection/compose.yml`의 **새 project**를 사용합니다. DB/AI는 private network에만 있고 공용443만 proxy가 엽니다. proxy→BE도 HTTPS와 `be` SAN/CA 검증을 사용하므로 Spring 인증 Filter가 전달 헤더를 믿지 않고 TLS 자체를 검사합니다. 실제 DNS·방화벽·공용 인증서 발급/갱신은 운영자가 수행해야 합니다.
+
+```sh
+# 저장소 루트. 변수는 실제 승인된 신규 전용 경로로 지정. 값에 Secret을 넣지 않음.
+python3 tools/collection/prepare-secrets.py --output "$NEW_SECRET_DIRECTORY"
+python3 tools/collection/prepare-internal-tls.py \
+  --output "$NEW_TLS_DIRECTORY" --secrets "$NEW_SECRET_DIRECTORY"
+# 운영자가 확인한 공용 도메인의 fullchain.pem / privkey.pem을 TLS 디렉터리에 mode600으로 설치.
+# backend-ca.key/backend.key는 보호·분리 보관. 컨테이너에는 필요한 파일만 mount.
+mkdir -p "$NEW_STATE_DIRECTORY/ai-journal"
+chmod 700 "$NEW_STATE_DIRECTORY" "$NEW_STATE_DIRECTORY/ai-journal"
+```
+
+Secret 도구는 신규 디렉터리만 허용하고5개 mode600 파일을 만듭니다. MySQL root/app, BE TLS keystore, BE–AI/회수 서비스 키는 평문을 출력하지 않습니다. BE/AI는 별도 host UID/GID로 실행하고 해당 UID가 파일을 읽을 수 있어야 합니다. DB root 키는 BE/AI에 mount하지 않습니다. TLS 인증서 만료 확인/교체와 서비스 키 교체는 담당자가 종료·Queue drain·모든 서비스 동기 반영·재시작 검증 후 수행합니다. 기존 Credential TTL/재발급 절차는 위 절차를 재사용합니다.
+
+1. [실모델 준비](model-preparation.md)로 원래 두 Qwen의 검토된 revision을 다운로드·파일 hash 기록·strict smoke를 수행합니다. 모델 디렉터리는 read-only mount합니다. 실제 모델이 없으면 AI health가 READY가 되지 않고 BE의 depends_on도 충족되지 않습니다.
+2. `deploy/collection/site-policy.draft.json`을 Git 밖에 복사해 실제 승인 자료로 작성합니다. DRAFT를 승인처럼 채우지 않습니다. 필드는 status=APPROVED, buildId, policyId/version, notBefore/expiresAt, approvalRef, **contractApprovalRef(P1~P6 실제 승인)**, retentionRef, institutionRef(심의 적용 판단 포함), modelEvidenceRef, privacyEvidenceRef, startAuthorizationRef, sites(origin/pathPrefix)입니다. 현재 문서의 PROPOSED/BLOCKED를 임의 변경하지 않습니다.
+3. origin은 HTTPS 정확한 host/port이며 wildcard·사용자정보·query·fragment를 허용하지 않습니다. pathPrefix는 경로 단위입니다. `/guide`는 `/guides`를 포함하지 않습니다. 사이트의 공개 DOM/로그인·검색어·SPA·개인정보 안전성을 검토하고 정책에 명시된 범위만 사용합니다.
+4. 파일의 SHA-256을 계산합니다. 동일 바이트를 FE/BE/AI에 사용합니다. 설정 파일을 바꾸면 digest도 달라지므로 실행 중 수정하지 않습니다. 이전 세션의 미전송 데이터를 보존하고 정책 책임자에게 인계합니다. 새 scope로 이전 세션을 자동 재해석하지 않습니다.
+5. `deploy/collection/environment.example`을 Git 밖 mode600 파일로 복사해 절대경로, digest, UID/GID(`id -u`, `id -g`), 신규 state 경로를 넣습니다. 실제 서버 origin은 Extension 빌드에 별도 주입합니다. placeholder를 실제 주소로 주장하지 않습니다.
+
+```sh
+python3 tools/collection/check-deployment.py --env-file "$COLLECTION_ENV_FILE"
+docker compose -p "$COLLECTION_PROJECT" --env-file "$COLLECTION_ENV_FILE" \
+  -f deploy/collection/compose.yml config --quiet
+# COLLECTION_PROJECT는 새 focus-collection-* 이름. 기존 project/볼륨을 지정하지 않음.
+docker compose -p "$COLLECTION_PROJECT" --env-file "$COLLECTION_ENV_FILE" \
+  -f deploy/collection/compose.yml up -d --build
+```
+
+Preflight는 파일 조건만 검사하고 실제 DB 승인·TLS 접속·모델 추론·참여자 동의·파일럿을 NOT_TESTED로 남깁니다. exit0도 실제 수집 개시 허가가 아닙니다. public TLS/전체 이미지 부팅은 현재 NOT_TESTED입니다. AI는 `collection_main:app`, 단일 Worker/영속 Journal, v2 서비스 인증, offline 모델을 사용합니다. 기존 `main:app` v1은 보존합니다. 실제 상태는 `docker compose ... ps`, 내부 AI `/health`, 외부 HTTPS `/api/health`와 인증된 동의/정책 API로 확인합니다. access log는 끄고 Docker local log rotation10MB×3을 사용하며 Docker 소켓/호스트 로그 권한을 운영자에게만 줍니다. 로그에 request body·Bearer·query를 추가하지 않습니다.
+
+### 독립된 DB 승인·정책 등록
+
+Flyway V16은 승인/참여자/동의를 Seed하지 않습니다. 신뢰된 DBA는 실제 승인된 consent_policy를 기존 통제 절차로 등록하고, 배포 정책의 digest/buildId/approvalRef를 `collection_release`에 등록합니다. 다음은 **실행하지 않은 승인 후 SQL 형식**입니다. 승인 근거·SHA는 운영자가 정확히 치환하고 변경 이력을 별도 보관합니다. 일반 API/환경변수로 이 권한을 얻지 못합니다.
+
+```sql
+INSERT INTO collection_release(policy_digest,build_id,approval_ref,authorized_at,revoked_at)
+VALUES('<승인파일 SHA-256 64자리>','<승인 buildId>','<실제 approvalRef>',UTC_TIMESTAMP(3),NULL);
+-- 즉시 전송/신규 수집 차단: 지정한 배포만 폐기. 철회 API와는 별개.
+UPDATE collection_release SET revoked_at=UTC_TIMESTAMP(3)
+WHERE policy_digest='<중단할 승인파일 SHA-256 64자리>' AND revoked_at IS NULL;
+```
+
+확정된 배정만 실제 세션을 생성하고 X-Collection-Build를 검사합니다. 직접 v1/기본 POST sessions로 실제 수집 경계를 우회할 수 없습니다. storage flag·프로필·파일·독립 DB 승인·현재 승인 동의·소유자·배정·세션 scope·사이트가 함께 필요합니다. DB 승인 행을 추가하는 것은 기관/연구 승인 절차 그 자체가 아니며, 실제 증거 없이는 실행하지 않습니다.
+
+### Extension·목표·참여자 인계
+
+```sh
+npm ci --prefix fe
+COLLECTION_SITE_POLICY_FILE="$REVIEWED_POLICY_FILE" VITE_API_BASE_URL="$COLLECTION_SERVER" \
+  npm run build:real --prefix fe
+(cd fe && npm run package:collection -- real)
+```
+
+ZIP/개별 checksum/build-info에는 version/sourceCommit/dirty/mode/API/buildId/policyDigest/sites가 있습니다. HEAD 변경 뒤에는 재빌드해야 합니다. 승인 배포는 clean Commit의 패키지를 사용합니다. 현재 증거용 패키지는 DRAFT·빈 사이트·로컬 HTTPS 준비 origin으로만 만들며 실제 팀 서버 패키지가 아닙니다. Manifest에 전체 사이트 권한을 넣지 않습니다. Chrome host permission은 origin 단위이므로 path 제한은 Content Script match와 FE/BE 정책 검증을 함께 적용합니다.
+
+20개 후보의 상세 수행·종료 기준은 `goals.candidates.json`, plan.draft.json의 description은 DRAFT 후보입니다. `init`의 서버 기본 목표는 여전히 빈 DRAFT를 만들므로 최신 서버 plan을 내려받아 후보를 병합합니다.
+
+```sh
+# 앞 절의 manage.py ... plan --output으로 받은 최신 plan 사용.
+python3 tools/collection/prepare-plan.py --plan "$CURRENT_PLAN_FILE" --output "$NEW_DRAFT_PLAN_FILE"
+# 실제 팀 검토 후 목표 status=CONFIRMED/evidenceRef와 등록된 A/B/C UUID를 입력.
+# manage.py ... save-plan --input "$REVIEWED_PLAN_FILE" ; manage.py ... progress
+```
+
+160/20×4×2/54·53·53 구조를 유지합니다. 시나리오를 AI/사람의 정답으로 변환하지 않습니다. 관리자 bootstrap·실제 등록 권한 확보, enroll/issue/revoke, Credential 비공개 전달·인수 확인, 실제 정책 수락은 앞의 기존 도구로 진행하며 자동 등록하지 않습니다. 진행률은 기존 CLI/API와 참여자 UI를 사용합니다. 수집 종료만으로 완료하지 않습니다.
+
+### 백업·장애·철회·복원
+
+종료/전송 상태·인증 만료·구성/분석/품질·retraction_target 실패 코드를 [검증 문서](data-verification.md)로 확인합니다. 기존 retry/lease/revision/동의 철회 코드를 재사용하며 raw DB 값을 수동 고쳐 성공으로 만들지 않습니다. 장애 중 실제 승인 만료·폐기 시 Queue는 보존되지만 전송하지 않습니다. 재승인 범위와 기존 scope를 책임자가 검토해야 합니다. 중지는 proxy/BE/AI를 멈추거나 지정 release를 폐기하고 참여자는 종료/철회를 수행합니다. `down -v`는 사용하지 않습니다.
+
+```sh
+sh tools/collection/database-backup.sh "$COLLECTION_PROJECT" "$COLLECTION_ENV_FILE" "$NEW_BACKUP_SQL"
+# 별도 최신 철회 원장: 보호된 출력 파일을 먼저 새로 예약(mode600)하고 아래 stdout 저장.
+docker compose -p "$COLLECTION_PROJECT" --env-file "$COLLECTION_ENV_FILE" \
+  -f deploy/collection/compose.yml exec -T mysql sh -c \
+  'MYSQL_PWD="$(cat /run/secrets/mysql-root)"; export MYSQL_PWD; exec mysql -uroot --batch --raw --skip-column-names focus_collection' \
+  < tools/collection/retraction-ledger.sql > "$NEW_LEDGER_JSON"
+python3 tools/collection/restore-quarantine.py --ledger "$LATEST_LEDGER_JSON" --output "$NEW_RESTORE_SQL"
+```
+
+백업은 owner-only 로컬 파일이며 off-host 복사 전 승인된 암호화·접근통제·보존정책이 필요합니다. shell 출력 원장도 `umask 077`과 신규 파일 예약/덮어쓰기 금지로 보호합니다. 예시의 변수 파일을 기존 파일로 덮어쓰지 않습니다. 복원은 **새 private project의 MySQL만** 먼저 실행하고 외부 트래픽·BE/AI는 닫아 둡니다. 별도 복원 승인 후 아래 순서로 적용합니다.
+
+```sh
+# RESTORE_PROJECT는 신규 focus-collection-*; 원본/운영 project와 달라야 함.
+docker compose -p "$RESTORE_PROJECT" --env-file "$RESTORE_ENV_FILE" -f deploy/collection/compose.yml up -d mysql
+# 건강 상태 확인 후 동일 mysql 명령에 백업과 NEW_RESTORE_SQL을 각각 stdin으로 적용.
+docker compose -p "$RESTORE_PROJECT" --env-file "$RESTORE_ENV_FILE" -f deploy/collection/compose.yml exec -T mysql sh -c \
+  'MYSQL_PWD="$(cat /run/secrets/mysql-root)"; export MYSQL_PWD; exec mysql -uroot focus_collection' < "$APPROVED_BACKUP_SQL"
+docker compose -p "$RESTORE_PROJECT" --env-file "$RESTORE_ENV_FILE" -f deploy/collection/compose.yml exec -T mysql sh -c \
+  'MYSQL_PWD="$(cat /run/secrets/mysql-root)"; export MYSQL_PWD; exec mysql -uroot focus_collection' < "$NEW_RESTORE_SQL"
+```
+
+최신 철회 원장의 출처/누락·AI Journal/모든 사본·credential/정책 변경을 대조하고 verify.sql/progress/차단 replay를 확인합니다. restore SQL은 전체 release를 폐기하고 participant/세션 격리·Tombstone·Window/미표시 알림 무효화를 재적용합니다. payload/모델 영향/외부 사본 전체 삭제는 별도 BLOCKED이며 PURGED가 아닙니다. 원장이 없거나 최신 여부를 확인할 수 없으면 서비스를 재개하지 않습니다. #99의 새 합성 복사 DB에서는 SQL 적용·Gate폐기·격리/Tombstone를 검증했으나 실제 운영 복원 훈련·외부 암호화 백업은 NOT_TESTED입니다.

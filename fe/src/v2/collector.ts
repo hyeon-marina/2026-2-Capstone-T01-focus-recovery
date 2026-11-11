@@ -79,11 +79,6 @@ export class V2Collector {
       return;
     }
     if (o.snapshot && !validSnapshot(o.snapshot, s.session!.sessionId)) return;
-    if (o.extractionFailed) {
-      this.pause(o.tabId, o.stamp);
-      if (c && !c.post) { c.excluded = 'EXTRACTION_FAILED'; delete c.snapshot; }
-      return;
-    }
     // A delayed extraction in an inactive, unchanged document is not a return event.
     // It can complete the old measured visit even after its short-return cache expired.
     if (s.foreground !== o.tabId && o.snapshot) {
@@ -103,6 +98,7 @@ export class V2Collector {
       const returned = c.returned.mono >= c.left.mono && c.returned.epoch === c.left.epoch ? c.returned : o.stamp;
       if (!sameEpoch(c.left, returned) || returned.mono - c.left.mono >= RETURN_MS) c = undefined;
     }
+    if (c?.excluded && o.extractionFailed) return c;
     if (c?.excluded) c = undefined;
     if (!c) {
       const prior = s.candidates.filter(v => v.tabId === o.tabId && !v.closed && !v.excluded && v.target === o.target
@@ -118,6 +114,11 @@ export class V2Collector {
       s.candidates.push(c);
     }
     s.tabs[o.tabId] = c.id;
+    if (o.extractionFailed) {
+      if (c.post) this.pause(o.tabId, o.stamp);
+      else { c.cursor = undefined; c.excluded = 'EXTRACTION_FAILED'; delete c.snapshot; delete c.left; }
+      return c;
+    }
     if (s.foreground === o.tabId) {
       if (c.left) c.cursor = undefined;
       delete c.left;

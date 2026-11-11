@@ -17,7 +17,8 @@ public class ConsentService {
     private final JdbcTemplate jdbc;
     private final Clock clock;
     private final Environment environment;
-    public ConsentService(JdbcTemplate jdbc, Clock clock, Environment environment) { this.jdbc = jdbc; this.clock = clock; this.environment = environment; }
+    private final com.focusrecovery.domain.collection.CollectionSitePolicy sites;
+    public ConsentService(JdbcTemplate jdbc, Clock clock, Environment environment, com.focusrecovery.domain.collection.CollectionSitePolicy sites) { this.jdbc = jdbc; this.clock = clock; this.environment = environment; this.sites=sites; }
     public record Policy(String policyId, String policyVersion, String scope, String purpose, String collectionItems,
         String useScope, String retentionPolicyRef, String approvalRef, String status, Instant effectiveAt) {}
     public record State(UUID participantId, Policy policy, UUID consentId, boolean consentValid, boolean collectionEnabled, boolean withdrawn) {}
@@ -64,6 +65,8 @@ public class ConsentService {
     }
     public void requireSession(WorkSession session) {
         requireOwnership(session);
+        sites.check(session);
+        if(sites.realProfile() && session.isV2() && !releaseMatches())throw new ConflictException("COLLECTION_POLICY_BLOCKED","현재 배포 정책의 동의가 필요합니다.");
         if (session.getOwnerParticipantId() == null || session.getConsentId() == null
             || !session.getConsentId().equals(validConsent(session.getOwnerParticipantId())))
             throw new ConflictException("CONSENT_REQUIRED", "현재 정책의 유효한 동의가 필요합니다.");
@@ -71,8 +74,13 @@ public class ConsentService {
     @Transactional(readOnly=true) public State state() {
         UUID owner = AuthenticatedParticipant.required().participantId();
         UUID id = validConsent(owner);
-        // Even an approved policy cannot activate production: exact test profile remains necessary.
-        return new State(owner, policy(), id, id != null, id != null && synthetic() && environment.getProperty("focus-recovery.v2.storage.enabled", Boolean.class, false), withdrawn(owner));
+        // Approved consent alone cannot activate collection; an independently authorized release is required.
+        return new State(owner, policy(), id, id != null, id != null && (synthetic() || releaseMatches()) && environment.getProperty("focus-recovery.v2.storage.enabled", Boolean.class, false), withdrawn(owner));
+    }
+    public boolean deploymentConfigured() { return releaseMatches() && environment.getProperty("focus-recovery.v2.storage.enabled",Boolean.class,false) && environment.getProperty("focus-recovery.v2.dispatch.enabled",Boolean.class,false); }
+    private boolean releaseMatches() {
+        var release=sites.current();var p=policy();
+        return sites.realProfile() && release!=null && usable(p) && p.status().equals("APPROVED") && release.policyId().equals(p.policyId()) && release.policyVersion().equals(p.policyVersion());
     }
     @Transactional public State accept(Accept input) {
         UUID owner = AuthenticatedParticipant.required().participantId(); lockParticipant(owner);

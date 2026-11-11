@@ -76,3 +76,10 @@ WithdrawalReceipt:
 BE v2 HTTP는 별도의 서비스 Credential을 Bearer로 전달한다. BE `focus-recovery.v2.dispatch.service-token`과 AI `AI_V2_SERVICE_TOKEN`은 기본 비어 있으며 동일한 신뢰 경계에서 관리해야 한다. 사용자 Credential은 AI로 전달하지 않는다. AI는 v2 구성·분석 전에 상수시간 비교하고, 미설정/오류는401이다. 기존 합성 Gate도 계속 필요하다. 실제 내부 회수 Route는 제품 main에 설치하지 않으며 테스트 fixture에서만 별도 Journal/Secret으로 설치한다.
 
 운영 issuer/enrollment·Credential 전달/회전·TLS/프록시·서비스 Secret 배포·기관 절차는 아직 준비되지 않았다. 환경변수만으로 승인 정책·동의·제품 삭제 실행 권한을 만들 수 없다.
+
+
+## #99 승인된 배포 경로
+
+기존 합성 exact-test 경로는 유지합니다. `real-collection` 단일 프로필에서는 storage flag에 더해 read-only 승인 파일의 digest/build/기간·계약/기관/보존/모델/개인정보/시작 근거, 독립 `collection_release` 미폐기 DB승인, 현재 APPROVED 동의 정책 일치를 요구합니다. consent.collectionEnabled는 이 경로도 검증합니다. `GET /api/collection/site-policy`는 인증된 클라이언트에 digest/buildId/policyId/policyVersion/status/expiresAt/sites를 반환하며 FE는 빌드와 일치시킵니다. 실제 수집 신규 세션은 확정 배정에서만 시작하며 생성 요청의 X-Collection-Build를 session_collection_scope에 고정합니다. 실수집 프로필의 v1/일반 생성으로 우회하지 않습니다. 현재 실제 승인 기록은 없어 BLOCKED입니다.
+
+제품 AI 수집 엔트리 `collection_main:app`에는 서비스 인증된 영속 Journal 회수 경로가 있습니다. 단일 private Worker·동일 배포 정책·원래 모델의 offline 로딩을 요구합니다. 기존 v1 main과 합성 fixture는 유지합니다. QUARANTINED가 전체 삭제 완료는 아닙니다. [#99 저장 구조](../data-collection/data-flow-and-storage.md)와 [운영 가이드](../data-collection/operator-guide.md)를 따릅니다.

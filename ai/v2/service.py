@@ -7,8 +7,9 @@ from v2.contracts import V2Error, check, compose, request_dto
 
 
 def synthetic_enabled():
-    # No production opt-in until policy/privacy gates are approved and implemented.
-    return os.getenv("AI_V2_PROFILE") == "synthetic-test" and os.getenv("AI_V2_ENABLED") == "1"
+    # Existing synthetic gate or a separately mounted, reviewed deployment artifact.
+    from v2.deployment import approved_release
+    return os.getenv("AI_V2_PROFILE") == "synthetic-test" and os.getenv("AI_V2_ENABLED") == "1" or approved_release()
 
 
 class RequestRegistry:

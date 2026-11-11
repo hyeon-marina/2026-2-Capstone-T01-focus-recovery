@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CollectionProgressService {
     private final JdbcTemplate jdbc;
+    @org.springframework.beans.factory.annotation.Autowired private com.focusrecovery.domain.consent.ConsentService consent;
     private final CollectionAdministration admin;
     public CollectionProgressService(JdbcTemplate jdbc,CollectionAdministration admin){this.jdbc=jdbc;this.admin=admin;}
     public record Visit(String id,int sequence,boolean valid) {}
@@ -79,7 +80,7 @@ public class CollectionProgressService {
         var current=List.copyOf(latest.values());
         Map<String,Group> participants=groups(assignments,current,"slot_id"),goals=groups(assignments,current,"goal_id"),scenarios=groups(assignments,current,"scenario_type");
         var included=current.stream().filter(a->a.privacyStatus().equals("CLEAR") && a.status().equals("QUALITY_PASSED")).toList();
-        return new Progress(assignments.size(),actual.size(),(int)actual.stream().filter(a->a.sessionStatus().equals("ENDED")).count(),distinct(current,"QUALITY_PASSED"),(int)attempts.stream().filter(a->a.source().equals("SYNTHETIC")).count(),distinct(attempts.stream().filter(a->a.source().equals("SYNTHETIC")).toList(),"QUALITY_PASSED"),distinct(current,"IN_PROGRESS"),distinct(current,"FAILED"),distinct(current,"RECOLLECT_REQUIRED"),distinct(current,"QUARANTINED"),included.stream().mapToInt(a->a.quality().validVisits()).sum(),included.stream().mapToInt(a->a.quality().validWindows()).sum(),actual.stream().mapToInt(Attempt::extractionFailures).sum(),included.stream().mapToInt(a->a.quality().analysisSuccess()).sum(),actual.stream().mapToInt(a->a.quality().analysisFailure()).sum(),attempts,participants,goals,scenarios,true);
+        return new Progress(assignments.size(),actual.size(),(int)actual.stream().filter(a->a.sessionStatus().equals("ENDED")).count(),distinct(current,"QUALITY_PASSED"),(int)attempts.stream().filter(a->a.source().equals("SYNTHETIC")).count(),distinct(attempts.stream().filter(a->a.source().equals("SYNTHETIC")).toList(),"QUALITY_PASSED"),distinct(current,"IN_PROGRESS"),distinct(current,"FAILED"),distinct(current,"RECOLLECT_REQUIRED"),distinct(current,"QUARANTINED"),included.stream().mapToInt(a->a.quality().validVisits()).sum(),included.stream().mapToInt(a->a.quality().validWindows()).sum(),actual.stream().mapToInt(Attempt::extractionFailures).sum(),included.stream().mapToInt(a->a.quality().analysisSuccess()).sum(),actual.stream().mapToInt(a->a.quality().analysisFailure()).sum(),attempts,participants,goals,scenarios,!consent.deploymentConfigured());
     }
     private static String utc(Object value) {
         if(value instanceof java.sql.Timestamp t)return t.toInstant().toString();

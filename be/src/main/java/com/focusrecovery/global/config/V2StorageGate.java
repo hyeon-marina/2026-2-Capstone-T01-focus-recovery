@@ -7,21 +7,22 @@ import com.focusrecovery.domain.session.entity.WorkSession;
 import com.focusrecovery.global.exception.ConflictException;
 import com.focusrecovery.global.exception.InvalidRequestException;
 
-// 승인 전에는 test 프로필만 허용한다. 운영 설정에 enabled=true를 넣어도 열리지 않는다.
+// Exact test or independently authorized deployment. A flag alone cannot enable real collection.
 @Component
 public class V2StorageGate {
 	private final Environment environment;
+    private final com.focusrecovery.domain.collection.CollectionSitePolicy sites;
 	private final com.focusrecovery.domain.consent.ConsentService consent;
-    public V2StorageGate(Environment environment, com.focusrecovery.domain.consent.ConsentService consent) { this.environment = environment; this.consent = consent; }
+    public V2StorageGate(Environment environment, com.focusrecovery.domain.consent.ConsentService consent, com.focusrecovery.domain.collection.CollectionSitePolicy sites) { this.environment = environment; this.consent = consent; this.sites=sites; }
 
 	public boolean enabled() {
 		String[] profiles = environment.getActiveProfiles();
-		return profiles.length == 1 && Arrays.asList(profiles).contains("test")
+		return (profiles.length == 1 && Arrays.asList(profiles).contains("test") || sites.realProfile() && sites.current()!=null)
 			&& environment.getProperty("focus-recovery.v2.storage.enabled", Boolean.class, false);
 	}
 
 	public void requireEnabled() {
-		if (!enabled()) throw new ConflictException("V2_STORAGE_DISABLED", "v2 저장 기능은 합성 데이터 테스트에서만 사용할 수 있습니다.");
+		if (!enabled()) throw new ConflictException("V2_STORAGE_DISABLED", "v2 저장의 합성 테스트 또는 승인된 배포 조건이 필요합니다.");
 	}
 
 	public String version(String version) {
@@ -37,7 +38,8 @@ public class V2StorageGate {
 	}
 
 	public void checkAccess(WorkSession session) {
-		if (session.isV2()) requireEnabled();
+        if(sites.realProfile() && !session.isV2())throw new ConflictException("COLLECTION_VERSION_MISMATCH","실제 수집 배포는 v2 배정만 허용합니다.");
+		if (session.isV2()) { requireEnabled(); sites.check(session); }
         checkPrivacy(session);
 	}
 

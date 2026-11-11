@@ -8,16 +8,34 @@ import { describeUrl } from '../shared/url';
 import { serialExecutor } from '../background/serial';
 import { catalog, fixtureId } from '../../synthetic/catalog';
 import type { Stamp } from './state';
+import { allowedSite, validPolicy, publicText, type SitePolicy } from '../../real/policy';
+import { validSnapshot } from './contract';
+import type { PageSnapshot } from '../shared/types';
+declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string };
 
-export function installV2Browser(options: { uiPath: string; pilot: boolean; participant: boolean }) {
+export function installV2Browser(options: { uiPath: string; pilot: boolean; participant: boolean; real?: boolean }) {
 if (options.pilot && !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(API_BASE_URL)) throw new Error('V2_SYNTHETIC_ONLY');
+let sitePolicy: SitePolicy | undefined;
+const real = options.real === true;
+const build = real ? __COLLECTION_BUILD__ : undefined;
+const permits = (raw: string) => real ? !!sitePolicy && Date.parse(sitePolicy.expiresAt) > Date.now() && allowedSite(raw, sitePolicy.sites) : !!fixtureId(raw);
+async function collectionAccess() {
+  const a = await readCollectionAccess();
+  if (real) {
+    sitePolicy = undefined;
+    const p = await accessRequest('/api/collection/site-policy').catch(() => undefined);
+    // A closed collection policy must not hide authenticated consent/withdrawal controls.
+    if (p && validPolicy(p, build!, build!.mode === 'controlled-web')) sitePolicy = p;
+  }
+  return { ...a, collectionEnabled: (options.pilot || real && !!sitePolicy) && a.collectionEnabled };
+}
 const epoch = crypto.randomUUID();
 const stamp = (): Stamp => ({ epoch, mono: performance.now(), wall: Date.now() });
 let selectedAssignment: string | undefined;
 const runtime = new V2Runtime(new V2Repository(API_BASE_URL), { ...v2HttpTransport,
-  access: async () => { const a = await readCollectionAccess(); return { ...a, collectionEnabled: options.pilot && a.collectionEnabled }; },
+  access: collectionAccess,
   start: async (goal, key) => {
-    if (!options.pilot) throw new Error('PARTICIPANT_COLLECTION_BLOCKED');
+    if (!options.pilot && !real) throw new Error('PARTICIPANT_COLLECTION_BLOCKED');
     return options.participant
       ? postJson(`/api/collection/assignments/${selectedAssignment}/start`, {}, key)
       : v2HttpTransport.start(goal, key);
@@ -59,9 +77,9 @@ const ready = runtime.initialize();
 const statusClient = new V2StatusClient(() => runtime.snapshot());
 const serial = serialExecutor();
 async function captureAllowedTabs() {
-  if (!options.pilot) return;
+  if (!options.pilot && !real) return;
   const tabs = await chrome.tabs.query({});
-  await Promise.all(tabs.filter(t => t.id !== undefined && t.url && fixtureId(t.url)).map(t => chrome.tabs.sendMessage(t.id!, { type: 'v2-capture' }).catch(() => {})));
+  await Promise.all(tabs.filter(t => t.id !== undefined && t.url && permits(t.url)).map(t => chrome.tabs.sendMessage(t.id!, { type: 'v2-capture' }).catch(() => {})));
 }
 const boundaries = new Map<number, Stamp>();
 const documents = new Map<number, string>();
@@ -102,8 +120,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
           if (m.type === 'v2-logout') { try { await accessRequest('/api/auth/logout', {}); } finally { await setCredential(); } return {}; }
           if (m.type === 'v2-agree') await accessRequest('/api/consent', { requestId: crypto.randomUUID(), policyId: m.policyId, policyVersion: m.policyVersion, accepted: true });
           if (m.type === 'v2-withdraw') await runtime.withdrawAll(t.wall);
-          const rawAccess = await readCollectionAccess();
-          const access = { ...rawAccess, collectionEnabled: options.pilot && rawAccess.collectionEnabled };
+          const access = await collectionAccess();
           await runtime.verifyAccess(false, true).catch(() => {});
           if (m.type === 'v2-login') { await runtime.retry().catch(() => {}); await captureAllowedTabs(); }
           const id = runtime.snapshot().withdrawal?.ack?.withdrawalId;
@@ -114,7 +131,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       if (m?.type === 'v2-assignments') return accessRequest('/api/collection/assignments');
       if (m?.type === 'v2-progress') { await syncReport(); return accessRequest('/api/collection/progress'); }
       if (m?.type === 'v2-start') {
-        if (!options.pilot) throw new Error('PARTICIPANT_COLLECTION_BLOCKED');
+        if (!options.pilot && !real) throw new Error('PARTICIPANT_COLLECTION_BLOCKED');
         if (options.participant) {
           const assignments = await accessRequest('/api/collection/assignments');
           const assigned = assignments.find((a: { plannedSessionId: string }) => a.plannedSessionId === m.plannedSessionId);
@@ -137,9 +154,38 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     }
     const tabId = sender.tab?.id;
     if (tabId === undefined || sender.frameId !== 0 || !sender.documentId || sender.documentLifecycle !== 'active') return;
-    if (m?.type === 'v2-context') return { collecting: !!sender.url && !!fixtureId(sender.url) && runtime.collecting() };
+    if (m?.type === 'v2-context' && real) { await runtime.verifyAccess(); return { collecting: !!sender.url && permits(sender.url) && runtime.collecting() }; }
+    if (m?.type === 'v2-context') return { collecting: !!sender.url && permits(sender.url) && runtime.collecting() };
     if (m?.type === 'v2-leave') { await runtime.leave(tabId, t); return; }
-    if (m?.type !== 'v2-observation' || typeof m.raw !== 'string' || !fixtureId(m.raw) || fixtureId(m.raw) !== m.id) return;
+    if (real && m?.type === 'v2-observation') {
+      if (typeof m.raw !== 'string' || !permits(m.raw) || !runtime.collecting()) return { collecting: false };
+      // Refresh server consent/release before accepting any ordinary document content.
+      await runtime.verifyAccess();
+      if (!permits(m.raw)) return { collecting: false };
+      const frame = await chrome.webNavigation.getFrame({ tabId, frameId: 0 });
+      if (!frame || frame.documentId !== sender.documentId || frame.url !== m.raw) return;
+      const permitted = await chrome.permissions.contains({origins:[new URL(m.raw).origin + '/*']});
+      if (!permitted || m.safe !== true) { await runtime.quarantine('SENSITIVE_CONTENT', t.wall); return { collecting: false }; }
+      await focus(t);
+      if (!m.visible) { await runtime.leave(tabId, t); return { collecting: runtime.collecting() }; }
+      if (documents.get(tabId) !== sender.documentId) { documents.set(tabId, sender.documentId);boundaries.set(tabId,t); }
+      const description = await describeUrl(m.raw);
+      if (!description) return;
+      const s = m.snapshot as PageSnapshot | null;
+      if (s && (!validSnapshot(s, runtime.snapshot().session!.sessionId) || s.normalizedUrl !== description.normalizedUrl || s.identity !== description.identity
+        || s.searchQuery !== description.searchQuery || s.isSearchResultPage !== description.isSearchResultPage || !publicText(s.title,s.content,s.searchQuery ?? ''))) {
+        await runtime.quarantine('SENSITIVE_CONTENT', t.wall);return { collecting: false };
+      }
+      const generation = s ? [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s.title+'\n'+s.content)))].map(b=>b.toString(16).padStart(2,'0')).join('') : 'extracting';
+      const previous=contentGenerations.get(tabId);
+      if (previous && (previous.raw !== m.raw || previous.content !== generation)) boundaries.set(tabId,t);
+      contentGenerations.set(tabId,{raw:m.raw,content:generation});
+      if (arrivedRevision !== navigationRevision.get(tabId)) return { collecting: runtime.collecting() };
+      await runtime.observe({tabId,document:sender.documentId,target:description.identity,generation,stamp:t,enteredAt:boundaries.get(tabId) ?? t,
+        permitted,safe:true,snapshot:s,extractionFailed:m.extractionFailed === true});
+      await syncReport();await runtime.compact(t);return { collecting:runtime.collecting() };
+    }
+    if (m?.type !== 'v2-observation'  || typeof m.raw !== 'string' || !fixtureId(m.raw) || fixtureId(m.raw) !== m.id) return;
     const frame = await chrome.webNavigation.getFrame({ tabId, frameId: 0 });
     if (!frame || frame.documentId !== sender.documentId || frame.url !== m.raw) return;
     const permitted = await chrome.permissions.contains({ origins: ['http://127.0.0.1/*'] });
@@ -167,7 +213,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
   }).then(reply).catch(() => reply({ error: 'V2_BLOCKED' }));
   return true;
 });
-if (options.pilot) {
+if (options.pilot || real) {
 function event(operation: (t: Stamp) => Promise<void>) {
   const t = stamp();
   void serial(async () => { await ready; await operation(t); }).catch(() => {});

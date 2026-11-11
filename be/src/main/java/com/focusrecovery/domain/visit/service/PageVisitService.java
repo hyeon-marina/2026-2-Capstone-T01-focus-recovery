@@ -49,6 +49,7 @@ public class PageVisitService {
 	private final AnalysisWindowService analysisWindowService;
 	private final AnalysisRequestService analysisRequestService;
 	private final V2StorageGate v2Gate;
+    private final com.focusrecovery.domain.collection.CollectionSitePolicy sites;
 	private final VisitTombstoneRepository tombstones;
 	private final JsonMapper jsonMapper;
 	private final Validator validator;
@@ -57,7 +58,8 @@ public class PageVisitService {
 	public PageVisitService(WorkSessionRepository workSessionRepository, PageVisitRepository pageVisitRepository,
 		TransactionTemplate transactionTemplate, AnalysisWindowService analysisWindowService,
 		AnalysisRequestService analysisRequestService, V2StorageGate v2Gate,
-		VisitTombstoneRepository tombstones, JsonMapper jsonMapper, Validator validator, com.focusrecovery.domain.window.service.WindowDecisionService decisions) {
+		VisitTombstoneRepository tombstones, JsonMapper jsonMapper, Validator validator, com.focusrecovery.domain.window.service.WindowDecisionService decisions, com.focusrecovery.domain.collection.CollectionSitePolicy sites) {
+        this.sites=sites;
 		this.decisions = decisions; this.jsonMapper = jsonMapper; this.validator = validator;
 		this.v2Gate = v2Gate; this.tombstones = tombstones;
 		this.workSessionRepository = workSessionRepository;
@@ -96,6 +98,7 @@ public class PageVisitService {
 			if (tombstones.existsById(candidate.getVisitId())) throw privacyRetracted();
 			VisitJsonCapture.validateV2(jsonMapper);
 			request.validateV2();
+            sites.checkVisit(session,request.normalizedUrl());
 		} else if (request.extractionStatus() != null) {
 			throw new ConflictException("COLLECTION_VERSION_MISMATCH", "v2 방문을 v1 세션에 저장할 수 없습니다.");
 		}

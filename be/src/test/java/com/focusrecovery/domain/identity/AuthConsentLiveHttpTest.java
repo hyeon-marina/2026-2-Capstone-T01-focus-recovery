@@ -28,7 +28,7 @@ class AuthConsentLiveHttpTest {
     @DynamicPropertySource static void ai(DynamicPropertyRegistry p) { p.add("focus-recovery.ai.base-url",()->System.getenv("FOCUS95_AI_URL")); }
     @TestConfiguration static class SyntheticExecution {
         @Bean @Primary RetractionExecutionPolicy syntheticPolicy(JdbcTemplate jdbc) {
-            return new RetractionExecutionPolicy() {
+            return new RetractionExecutionPolicy(null,null) {
                 @Override public boolean permitsSyntheticExecution(UUID session) {
                     return jdbc.queryForObject("SELECT COUNT(*) FROM work_session s JOIN consent_record c ON c.consent_id=s.consent_id JOIN consent_policy p ON p.policy_id=c.policy_id AND p.policy_version=c.policy_version WHERE s.session_id=? AND p.status='SYNTHETIC'",Integer.class,session.toString())==1;
                 }

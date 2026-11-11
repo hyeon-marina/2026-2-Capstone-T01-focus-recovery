@@ -19,7 +19,7 @@ class V15MigrationTest {
   new V14MigrationTest().verify(url,user,password);
   var ds=new SingleConnectionDataSource(url,user,password,true);var j=new JdbcTemplate(ds);
   var before=new LinkedHashMap<String,List<Map<String,Object>>>();for(String t:List.of("work_session","page_visit","analysis_window","window_visit","analysis_result","notification","notification_response","participant","access_credential","consent_policy","consent_record","privacy_retraction","visit_tombstone","retraction_target"))before.put(t,new V2MigrationTest().normalize(j.queryForList("SELECT * FROM "+t)));
-  var flyway=Flyway.configure().dataSource(ds).load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+  var flyway=Flyway.configure().dataSource(ds).target("15").load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
   before.forEach((t,rows)->assertThat(new V2MigrationTest().normalize(j.queryForList("SELECT * FROM "+t))).containsExactlyInAnyOrderElementsOf(rows));
   assertThat(j.queryForObject("SELECT COUNT(*) FROM collection_operator",Integer.class)).isZero();assertThat(j.queryForObject("SELECT COUNT(*) FROM collection_attempt",Integer.class)).isZero();
   assertThat(flyway.migrate().migrationsExecuted).isZero();flyway.validate();ds.destroy();

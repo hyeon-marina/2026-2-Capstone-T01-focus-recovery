@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './client';
 // Credentials stay in MV3 trusted-context session storage, never IndexedDB/local/sync.
+declare const __COLLECTION_BUILD__: { mode: string; buildId?: string };
 const TOKEN_KEY = 'focus.accessCredential';
 let generation = 0;
 export class AccessError extends Error {
@@ -22,6 +23,7 @@ export async function authenticatedFetch(url: string, init?: RequestInit) {
   if (started !== generation) throw new AccessError('account');
   const token = stored[TOKEN_KEY];
   const headers = new Headers(init?.headers);
+  if (typeof __COLLECTION_BUILD__ !== 'undefined' && __COLLECTION_BUILD__.buildId) headers.set('X-Collection-Build', __COLLECTION_BUILD__.buildId);
   if (typeof token === 'string' && target.protocol !== 'https:' && !['localhost','127.0.0.1'].includes(target.hostname)) throw new AccessError('authentication');
   if (typeof token === 'string') headers.set('Authorization', `Bearer ${token}`);
   try {

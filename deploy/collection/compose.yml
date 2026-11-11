@@ -1,0 +1,93 @@
+# Dedicated NEW project/volumes only. Never apply to an existing DB/Compose project.
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: focus_collection
+      MYSQL_USER: focus_collection
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql-root
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql-app
+      TZ: UTC
+    secrets: [mysql-root, mysql-app]
+    volumes: [collection-db:/var/lib/mysql]
+    networks: [private]
+    healthcheck:
+      test: [CMD-SHELL, 'mysqladmin ping --silent']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    logging: &logging
+      driver: local
+      options: {max-size: "10m", max-file: "3"}
+  ai:
+    user: "${COLLECTION_SERVICE_UID:?Host UID required}:${COLLECTION_SERVICE_GID:?Host GID required}"
+    build: ../../ai
+    command: [uvicorn, collection_main:app, --host, 0.0.0.0, --port, "8000", --workers, "1", --no-access-log]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    environment:
+      AI_V2_PROFILE: real-collection
+      AI_V2_ENABLED: "1"
+      COLLECTION_SITE_POLICY_FILE: /run/policy/site-policy.json
+      COLLECTION_POLICY_SHA256: ${COLLECTION_POLICY_SHA256:?Reviewed policy digest required}
+      AI_RETRACTION_JOURNAL: /journal/retractions.sqlite
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    volumes:
+      - ${COLLECTION_MODEL_DIR:?Model directory required}:/models:ro
+      - ${COLLECTION_POLICY_FILE:?Policy file required}:/run/policy/site-policy.json:ro
+      - ${COLLECTION_SECRET_DIR:?Secret directory required}/focus-recovery.v2.dispatch.service-token:/run/collection-secrets/focus-recovery.v2.dispatch.service-token:ro
+      - ${COLLECTION_SECRET_DIR}/focus-recovery.v2.retraction.service-secret:/run/collection-secrets/focus-recovery.v2.retraction.service-secret:ro
+      - ${COLLECTION_STATE_DIR:?New state directory required}/ai-journal:/journal
+      - ../../docs/contracts/v2/v2.schema.json:/app/v2.schema.json:ro
+    networks: [private]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 20
+      start_period: 10m
+    logging: *logging
+  be:
+    user: "${COLLECTION_SERVICE_UID}:${COLLECTION_SERVICE_GID}"
+    build: ../../be
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    environment: {SPRING_PROFILES_ACTIVE: real-collection}
+    volumes:
+      - ${COLLECTION_POLICY_FILE}:/run/policy/site-policy.json:ro
+      - ${COLLECTION_SECRET_DIR}/spring.datasource.password:/run/collection-secrets/spring.datasource.password:ro
+      - ${COLLECTION_SECRET_DIR}/server.ssl.key-store-password:/run/collection-secrets/server.ssl.key-store-password:ro
+      - ${COLLECTION_SECRET_DIR}/focus-recovery.v2.dispatch.service-token:/run/collection-secrets/focus-recovery.v2.dispatch.service-token:ro
+      - ${COLLECTION_SECRET_DIR}/focus-recovery.v2.retraction.service-secret:/run/collection-secrets/focus-recovery.v2.retraction.service-secret:ro
+      - ${COLLECTION_TLS_DIR:?TLS directory required}/backend.p12:/run/tls/backend.p12:ro
+    depends_on:
+      mysql: {condition: service_healthy}
+      ai: {condition: service_healthy}
+    networks: [private, frontend]
+    logging: *logging
+  proxy:
+    image: nginx:stable
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/var/cache/nginx, /var/run, /tmp]
+    ports: ["443:443"]
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${COLLECTION_TLS_DIR}/fullchain.pem:/run/tls/fullchain.pem:ro
+      - ${COLLECTION_TLS_DIR}/privkey.pem:/run/tls/privkey.pem:ro
+      - ${COLLECTION_TLS_DIR}/backend-ca.pem:/run/tls/backend-ca.pem:ro
+    depends_on: [be]
+    networks: [frontend]
+    logging: *logging
+networks:
+  private: {internal: true}
+  frontend: {}
+volumes:
+  collection-db: {}
+secrets:
+  mysql-root: {file: "${COLLECTION_SECRET_DIR}/mysql-root"}
+  mysql-app: {file: "${COLLECTION_SECRET_DIR}/spring.datasource.password"}

@@ -393,8 +393,14 @@ try {
       return request;
     };
   });
-  const failed = await popup.evaluate(() => chrome.runtime.sendMessage({ type: 'status' }));
-  assert.equal(failed.ok, false, 'storage failure reaches the fail-closed handler');
+  // A queued observation can consume the injected abort before this diagnostic status request.
+  let failed;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    failed = await popup.evaluate(() => chrome.runtime.sendMessage({ type: 'status' }));
+    if (failed.status?.storage.phase === 'failed') break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.equal(failed.status.storage.phase, 'failed', 'storage failure reaches the fail-closed handler');
   assert.equal(failed.status.session, null);
   assert.equal(failed.status.sessionStartRecovery.kind, 'pending');
   const requestCount = apiRequests.length;

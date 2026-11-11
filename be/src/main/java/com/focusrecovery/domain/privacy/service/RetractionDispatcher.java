@@ -46,7 +46,7 @@ public class RetractionDispatcher {
                 String secret = environment.getProperty("focus-recovery.v2.retraction.service-secret", "");
                 URI uri = ai.baseUrl().resolve("/internal/v2/visit-retractions");
                 // Synthetic trust boundary: no redirects, no non-loopback cleartext service calls.
-                if (secret.length() < 32 || !"http".equals(uri.getScheme()) || !Set.of("127.0.0.1", "localhost").contains(uri.getHost())) throw new IllegalStateException();
+                if (secret.length() < 32 || !("https".equals(uri.getScheme()) || "http".equals(uri.getScheme()) && (Set.of("127.0.0.1", "localhost").contains(uri.getHost()) || java.util.Arrays.equals(environment.getActiveProfiles(),new String[]{"real-collection"}) && "ai".equals(uri.getHost())))) throw new IllegalStateException();
                 var request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(5))
                     .header("Content-Type", "application/json").header("Authorization", "Bearer " + secret)
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(Map.of("retractionId", id.retractionId(), "sessionId", claim.sessionId(), "visitId", claim.visitId())))).build();

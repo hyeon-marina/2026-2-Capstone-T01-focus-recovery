@@ -30,7 +30,7 @@ class CollectionLiveHttpTest {
   if(System.getenv("FOCUS97_MYSQL_URL")!=null){p.add("spring.datasource.url",()->System.getenv("FOCUS97_MYSQL_URL"));p.add("spring.datasource.username",()->"root");p.add("spring.datasource.password",()->System.getenv("FOCUS97_MYSQL_PASSWORD"));}
  }
  @TestConfiguration static class SyntheticExecution {
-  @Bean @Primary RetractionExecutionPolicy synthetic(JdbcTemplate jdbc){return new RetractionExecutionPolicy(){
+  @Bean @Primary RetractionExecutionPolicy synthetic(JdbcTemplate jdbc){return new RetractionExecutionPolicy(null,null){
    @Override public boolean permitsSyntheticExecution(UUID session){return jdbc.queryForObject("SELECT COUNT(*) FROM work_session s JOIN consent_record c ON c.consent_id=s.consent_id JOIN consent_policy p ON p.policy_id=c.policy_id AND p.policy_version=c.policy_version WHERE s.session_id=? AND p.status='SYNTHETIC'",Integer.class,session.toString())==1;}
   };}
  }
