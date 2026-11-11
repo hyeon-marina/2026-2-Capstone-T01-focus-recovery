@@ -99,6 +99,7 @@ public class PageVisitService {
 			VisitJsonCapture.validateV2(jsonMapper);
 			request.validateV2();
             sites.checkVisit(session,request.normalizedUrl());
+            sites.checkVisitData(request);
 		} else if (request.extractionStatus() != null) {
 			throw new ConflictException("COLLECTION_VERSION_MISMATCH", "v2 방문을 v1 세션에 저장할 수 없습니다.");
 		}

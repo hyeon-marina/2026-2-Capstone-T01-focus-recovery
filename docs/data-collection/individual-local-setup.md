@@ -1,5 +1,8 @@
 # A/B/C 로컬 셀프 초기화 — Issue #103
 
+#105의 현재 로컬 정책은 [공통 정책 권고안](real-collection-policy.md)과 [TEAM_POLICY.json](TEAM_POLICY.json)을 기준으로 한다. **DRAFT/UNRESOLVED·실제 개시 BLOCKED**는 유지한다. [정책 적용 절차](policy-application-guide.md), [목표20개 원문/완료 기준/시나리오](confirmed-goals-proposal.md), [사이트 검토](site-collection-review.md), [이번 실행 결과](issue105-validation.md)를 먼저 확인한다. 원본문장/검색어/제목 대신 행동·불투명 URL 식별자·고정 Topic만 저장한다. 기존 v1/AI 활성 경로의 본문 규격과 구분한다.
+
+
 각 PC의 전용 MySQL·Spring과 본인 Chrome 프로필로 원본을 수집한다. 공용 서버·사설망·FastAPI·Qwen·별도 Credential 발급 관리자는 필요 없다. **실제 팀 정책·목표·개인정보/기관 판단은 현재 BLOCKED**다. 설치·계정 준비와 실제 수집 개시를 구분한다. 실행 결과와 미검증 범위는 [검증 보고](local-self-setup-validation.md)에 기록한다.
 
 ## 1. 프로그램 준비
@@ -90,7 +93,7 @@ Chrome을 완전히 재시작하고 `https://localhost:9443/api/health`에 경�
 
 ## 5. 팀의 공통 정책 적용
 
-[local-policy.draft.json](local-policy.draft.json)은 **빈 DRAFT 입력 양식**이다. 팀의 실제 최종 목표20개·수집 목적/항목/이용·보존/삭제·민감페이지/본문/검색어 처리·변경/만료·정확한 HTTPS 사이트/경로·명시적 개시 범위·근거를 채운다. 기관 판단은 `REQUIRED_SATISFIED` 또는 실제 근거가 있는 `NOT_REQUIRED`와 `evidenceRef`다. 미확정은 `UNRESOLVED`로 남기며 수집은 차단된다. 모델 실행 증거 필드는 RAW_ONLY에 없다.
+[TEAM_POLICY.json](TEAM_POLICY.json)은 수집 기본안을 채운 DRAFT이며, [local-policy.draft.json](local-policy.draft.json)은 기존 빈 양식으로 보존한다. 같은 정책 선택을 다시 할 필요 없이 [실제 증거 입력 절차](policy-application-guide.md)를 따른다. 팀의 실제 최종 목표20개·수집 목적/항목/이용·보존/삭제·민감페이지/본문/검색어 처리·변경/만료·정확한 HTTPS 사이트/경로·명시적 개시 범위·근거를 채운다. 기관 판단은 `REQUIRED_SATISFIED` 또는 실제 근거가 있는 `NOT_REQUIRED`와 `evidenceRef`다. 미확정은 `UNRESOLVED`로 남기며 수집은 차단된다. 모델 실행 증거 필드는 RAW_ONLY에 없다.
 
 공통 Plan은 revision>=1, 목표 `CONFIRMED`와 실제 원문/evidenceRef, 160개 기존 배정, 빈 participantId 슬롯3개를 포함한다. 로컬 UUID는 setup이 자기 슬롯에만 연결한다. 다른 PC의 UUID를 공통 파일에 넣지 않는다. A54/B53/C53·목표별4유형×2회는 고정이다.
 

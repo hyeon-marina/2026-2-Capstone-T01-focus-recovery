@@ -1,4 +1,5 @@
-import { cleanText, extractMainContent, isExcludedDocument } from '../src/content/extraction';
+import { topicTitle } from '../src/shared/metadata';
+import { cleanText, extractMainContent, isExcludedDocument, isExcludedMetadataDocument } from '../src/content/extraction';
 import { extractSearchContent } from '../src/content/search';
 import { describeUrl, inspectUrl } from '../src/shared/url';
 import { publicText } from './policy';
@@ -10,12 +11,19 @@ async function pulse() {
   busy = true;
   try {
     const raw = location.href;
-    const context = await chrome.runtime.sendMessage({ type: 'v2-context' });
+    const context = await chrome.runtime.sendMessage({ type: 'v2-context', raw });
     // No title, DOM or search-query extraction before server policy + session authorization.
     if (context?.collecting !== true) { clearInterval(timer); return; }
-    const inspected = inspectUrl(raw);
-    const safe = !!inspected && !isExcludedDocument(document, inspected.isSearchResultPage ? inspected.url : undefined);
+    if (location.href !== raw) return;
+    const inspected = inspectUrl(raw, context.metadataOnly === true);
+    const safe = !!inspected && !(context.metadataOnly === true ? isExcludedMetadataDocument(document) : isExcludedDocument(document, inspected.isSearchResultPage ? inspected.url : undefined));
     if (!safe) { await chrome.runtime.sendMessage({ type: 'v2-observation', raw, safe: false }); return; }
+    if (context.metadataOnly === true) {
+      // Only fixed metadata leaves the document. No body, title, query, video, captions or comments.
+      await chrome.runtime.sendMessage({ type:'v2-observation', raw, safe:true, snapshot:context.description ? {...context.description, title:topicTitle(document.title)} : null,
+        visible:document.visibilityState === 'visible', extractionFailed:!context.description });
+      return;
+    }
     const description = await describeUrl(raw);
     const search = inspected!.isSearchResultPage ? extractSearchContent(document, raw) : null;
     const content = inspected!.isSearchResultPage ? search?.content ?? null : extractMainContent(document);

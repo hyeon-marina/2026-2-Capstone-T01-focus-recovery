@@ -1,0 +1,24 @@
+{
+  "kind": "SYNTHETIC_REGRESSION_NOT_ACTUAL_COLLECTION",
+  "backend": {
+    "tests": 1030,
+    "skipped": 78,
+    "failures": 0,
+    "errors": 0
+  },
+  "ai": {
+    "passed": 244
+  },
+  "frontend": {
+    "passed": 917,
+    "skipped": 2
+  },
+  "pythonLocal": {
+    "passed": 32
+  },
+  "pythonCollection": {
+    "passed": 5
+  },
+  "contract": "PASS",
+  "realModel": "NOT_TESTED"
+}

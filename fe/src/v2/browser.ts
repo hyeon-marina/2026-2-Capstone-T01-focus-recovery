@@ -1,3 +1,5 @@
+import { validMetadataTitle } from '../shared/metadata';
+import { describeMetadataUrl } from '../../real/url';
 import { UUID4 } from './contract';
 import { setCredential, AccessError } from '../api/auth-fetch';
 import { readCollectionAccess, accessRequest } from './access';
@@ -12,14 +14,26 @@ import type { Stamp } from './state';
 import { allowedSite, validPolicy, publicText, type SitePolicy } from '../../real/policy';
 import { validSnapshot } from './contract';
 import type { PageSnapshot } from '../shared/types';
-declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string };
+declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string; metadataOnly?: boolean };
 
 export function installV2Browser(options: { uiPath: string; pilot: boolean; participant: boolean; real?: boolean }) {
 if (options.pilot && !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(API_BASE_URL)) throw new Error('V2_SYNTHETIC_ONLY');
 let sitePolicy: SitePolicy | undefined;
 const real = options.real === true;
 const build = real ? __COLLECTION_BUILD__ : undefined;
-const permits = (raw: string) => real ? !!sitePolicy && Date.parse(sitePolicy.expiresAt) > Date.now() && allowedSite(raw, sitePolicy.sites) : !!fixtureId(raw);
+// Random local key is never exported or sent to content scripts. Keep it across worker/browser restarts.
+const metadataKey = real && build?.metadataOnly ? (async () => {
+  await chrome.storage.local.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'});
+  const stored = (await chrome.storage.local.get('metadataIdentityKey')).metadataIdentityKey;
+  if (typeof stored === 'string' && /^[a-f0-9]{64}$/.test(stored)) return Uint8Array.from(stored.match(/../g)!, b => parseInt(b,16));
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  await chrome.storage.local.set({metadataIdentityKey:[...bytes].map(b=>b.toString(16).padStart(2,'0')).join('')});
+  return bytes;
+})() : undefined;
+async function descriptionFor(raw: string) {
+  return build?.metadataOnly ? describeMetadataUrl(raw, sitePolicy?.sites ?? [], await metadataKey!, runtime.snapshot().session!.sessionId) : describeUrl(raw);
+}
+const permits = (raw: string) => real ? !!sitePolicy && Date.parse(sitePolicy.expiresAt) > Date.now() && allowedSite(raw, sitePolicy.sites, build?.metadataOnly === true) : !!fixtureId(raw);
 async function collectionAccess() {
   const a = await readCollectionAccess();
   if (real) {
@@ -156,7 +170,13 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     }
     const tabId = sender.tab?.id;
     if (tabId === undefined || sender.frameId !== 0 || !sender.documentId || sender.documentLifecycle !== 'active') return;
-    if (m?.type === 'v2-context' && real) { await runtime.verifyAccess(); return { collecting: !!sender.url && permits(sender.url) && runtime.collecting() }; }
+    if (m?.type === 'v2-context' && real) {
+      await runtime.verifyAccess();
+      // Chrome's sender.url can retain the document's initial URL after pushState.
+      const frame = await chrome.webNavigation.getFrame({tabId,frameId:0});
+      const collecting = typeof m.raw === 'string' && frame?.documentId === sender.documentId && frame.url === m.raw && permits(m.raw) && runtime.collecting();
+      return {collecting,metadataOnly:build?.metadataOnly === true,description:collecting && build?.metadataOnly ? await descriptionFor(m.raw) : undefined};
+    }
     if (m?.type === 'v2-context') return { collecting: !!sender.url && permits(sender.url) && runtime.collecting() };
     if (m?.type === 'v2-leave') { await runtime.leave(tabId, t); return; }
     if (real && m?.type === 'v2-observation') {
@@ -171,10 +191,11 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       await focus(t);
       if (!m.visible) { await runtime.leave(tabId, t); return { collecting: runtime.collecting() }; }
       if (documents.get(tabId) !== sender.documentId) { documents.set(tabId, sender.documentId);boundaries.set(tabId,t); }
-      const description = await describeUrl(m.raw);
+      const description = await descriptionFor(m.raw);
       if (!description) return;
       const s = m.snapshot as PageSnapshot | null;
       if (s && (!validSnapshot(s, runtime.snapshot().session!.sessionId) || s.normalizedUrl !== description.normalizedUrl || s.identity !== description.identity
+        || build?.metadataOnly && (!validMetadataTitle(s.title) || s.content !== ('content' in description ? description.content : ''))
         || s.searchQuery !== description.searchQuery || s.isSearchResultPage !== description.isSearchResultPage || !publicText(s.title,s.content,s.searchQuery ?? ''))) {
         await runtime.quarantine('SENSITIVE_CONTENT', t.wall);return { collecting: false };
       }

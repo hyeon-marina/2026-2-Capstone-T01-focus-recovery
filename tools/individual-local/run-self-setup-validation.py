@@ -22,7 +22,7 @@ import local
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--output',type=Path,required=True);p.add_argument('--synthetic-only',action='store_true',required=True)
+    p.add_argument('--output',type=Path,required=True);p.add_argument('--synthetic-only',action='store_true',required=True);p.add_argument('--chrome')
     a=p.parse_args();os.umask(0o077);root=a.output.resolve();root.mkdir(mode=0o700,parents=True,exist_ok=False)
     template=json.loads((local.ROOT/'docs/data-collection/local-policy.draft.json').read_text())
     now=datetime.now(timezone.utc)
@@ -79,19 +79,24 @@ def main():
             request(d,'/api/collection/admin/plan',status=403)
             request(d,'/api/collection/assignments/PLAN-160/start','POST',{},status=404 if slot!='A' else 201,idem=uuid.uuid4().hex) if slot!='A' else None
             request(d,'/api/collection/assignments/'+pid+'/start','POST',{},status=409,build='wrong-build',idem=uuid.uuid4().hex)
-            session=request(d,'/api/collection/assignments/'+pid+'/start','POST',{},status=201,idem='synthetic-'+slot)['sessionId']
-            first=None
-            for n in range(1,11):
-                visit=dict(visitId=str(uuid.uuid4()),sequence=n,browserTabKey='synthetic-test',normalizedUrl='https://example.org/public/page-'+str(n),domain='example.org',title='SYNTHETIC TEST',content='Controlled synthetic TypeScript transaction research text, no personal data, generated for API validation only.',searchQuery=None,isSearchResultPage=False,visitedAt=now.isoformat(timespec='milliseconds').replace('+00:00','Z'),activeDurationMs=5000,tabSwitchCount=0,behaviorVersion=0,extractionStatus='SUCCESS')
-                if n==1:
-                    blocked=copy.deepcopy(visit);blocked['normalizedUrl']='https://example.org/public/login';request(d,'/api/sessions/'+session+'/visits','POST',blocked,status=409)
-                    blocked['normalizedUrl']='https://other.example/public';blocked['domain']='other.example';request(d,'/api/sessions/'+session+'/visits','POST',blocked,status=409)
-                    first=visit['visitId']
-                request(d,'/api/sessions/'+session+'/visits','POST',visit,status=201)
-            request(d,'/api/sessions/'+session+'/visits/'+first+'/behavior','PATCH',dict(activeDurationMs=300000,tabSwitchCount=1,behaviorVersion=1))
-            request(d,'/api/sessions/'+session+'/end','POST',dict(finalBehaviors=[]))
-            attempt=request(d,'/api/collection/progress')['attempts'][0]
-            request(d,'/api/collection/attempts/'+attempt['attemptId']+'/delivered','POST',dict(visitCount=10,lastSequence=10),status=204)
+            if a.chrome:
+                env=os.environ.copy();env.update(FOCUS105_LOCAL_DIRECTORY=str(d),CHROMIUM_PATH=a.chrome)
+                with (d/'https-chrome.log').open('wb') as log:
+                    subprocess.run(['node',str(local.ROOT/'fe/scripts/local-https-browser-test.mjs')],cwd=local.ROOT/'fe',env=env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=240)
+            else:
+                session=request(d,'/api/collection/assignments/'+pid+'/start','POST',{},status=201,idem='synthetic-'+slot)['sessionId']
+                first=None
+                for n in range(1,11):
+                    visit=dict(visitId=str(uuid.uuid4()),sequence=n,browserTabKey='synthetic-test',normalizedUrl='https://example.org/public/__focus_page__/'+hashlib.sha256(('SYNTHETIC-'+str(n)).encode()).hexdigest(),domain='example.org',title='Topic: GIT',content='METADATA_ONLY: public browsing activity; page text, title and search terms were not collected.',searchQuery=None,isSearchResultPage=False,visitedAt=now.isoformat(timespec='milliseconds').replace('+00:00','Z'),activeDurationMs=5000,tabSwitchCount=0,behaviorVersion=0,extractionStatus='SUCCESS')
+                    if n==1:
+                        blocked=copy.deepcopy(visit);blocked['normalizedUrl']='https://example.org/public/login';request(d,'/api/sessions/'+session+'/visits','POST',blocked,status=409)
+                        blocked['normalizedUrl']='https://other.example/public';blocked['domain']='other.example';request(d,'/api/sessions/'+session+'/visits','POST',blocked,status=409)
+                        first=visit['visitId']
+                    request(d,'/api/sessions/'+session+'/visits','POST',visit,status=201)
+                request(d,'/api/sessions/'+session+'/visits/'+first+'/behavior','PATCH',dict(activeDurationMs=300000,tabSwitchCount=1,behaviorVersion=1))
+                request(d,'/api/sessions/'+session+'/end','POST',dict(finalBehaviors=[]))
+                attempt=request(d,'/api/collection/progress')['attempts'][0]
+                request(d,'/api/collection/attempts/'+attempt['attemptId']+'/delivered','POST',dict(visitCount=10,lastSequence=10),status=204)
             progress=request(d,'/api/collection/progress');assert progress['raw']['completed']==1 and progress['completed']==0
             assert progress['attempts'][0]['analysisState']=='NOT_RUN' and progress['attempts'][0]['rawStatus']=='RAW_COLLECTED'
             # Actual DB metadata proves no hidden operator or duplicate owner was provisioned.
@@ -136,7 +141,7 @@ def main():
         assert 'CONSENT_REQUIRED' in request(c,'/api/collection/local-status')['blockers']
         request(c,'/api/consent','POST',dict(requestId=str(uuid.uuid4()),policyId='SYNTHETIC-103',policyVersion='2',accepted=True))
         assert request(c,'/api/collection/local-status')['ready']
-        report=dict(result='PASS',kind='SYNTHETIC-103-NOT-ACTUAL-COLLECTION',sources=results,chrome='SEPARATE_TEST',merge='PARTIAL',duplicateImports=3,withdrawal='QUARANTINED',privacyReplay='REJECTED',actualParticipantSessions=0)
+        report=dict(result='PASS',kind='SYNTHETIC-103-NOT-ACTUAL-COLLECTION',sources=results,chrome='SYNTHETIC_SPKI_PINNED_HTTPS_NOT_OS_TRUST' if a.chrome else 'SEPARATE_TEST',merge='PARTIAL',duplicateImports=3,withdrawal='QUARANTINED',privacyReplay='REJECTED',actualParticipantSessions=0)
         (root/'summary.json').write_text(json.dumps(report,indent=2));print(json.dumps(report))
     finally:
         for d in directories:

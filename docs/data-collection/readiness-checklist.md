@@ -1,5 +1,8 @@
 # 수집 개시 Readiness
 
+#105의 현재 로컬 정책은 [공통 정책 권고안](real-collection-policy.md)과 [TEAM_POLICY.json](TEAM_POLICY.json)을 기준으로 한다. **DRAFT/UNRESOLVED·실제 개시 BLOCKED**는 유지한다. [정책 적용 절차](policy-application-guide.md), [목표20개 원문/완료 기준/시나리오](confirmed-goals-proposal.md), [사이트 검토](site-collection-review.md), [이번 실행 결과](issue105-validation.md)를 먼저 확인한다. 원본문장/검색어/제목 대신 행동·불투명 URL 식별자·고정 Topic만 저장한다. 기존 v1/AI 활성 경로의 본문 규격과 구분한다.
+
+
 ## #103 최신 판정
 
 - 기술 기능: 로컬 소유자 전용 setup/회전·공통 정책 설치·슬롯 자동 배정·로컬 상태/파일 로그인·본인 재수집/최신 privacy 조회. 실행 근거와 플랫폼별 PASS/NOT_TESTED는 [새 검증 보고](local-self-setup-validation.md)를 따른다.
@@ -84,3 +87,14 @@
 담당자는 실제 참여자 범위, 확정 목표 원문, 동의 정책/버전·수집/학습/제공 목적, 사이트 범위, 보존/회수·사본/백업 처리, 기관/심의 판단, 운영 인증/TLS/Secret·실모델·플랫폼 검증, 중단 책임자, 배포 Commit과 패키지 체크섬을 검토해야 한다. 승인자·위임 근거·승인 일시(KST 또는 UTC 명시)·증거 URL을 실제 기록으로 연결한다. 이 문서에 체크만 하거나 DB policy status를 APPROVED로 바꾸어 실제 수집을 열 수 없다.
 
 일반 페이지 Adapter와 승인 배포 경로는 구현했지만 모든 사이트의 안전성·실제 모델·공용 TLS·참여자 파일럿을 검증한 상태는 아니다. 운영 활성화에는 실제 계약·기관·보존·사이트·배포/모델 검증·시작 승인 근거를 갖춘 read-only 정책 파일, 독립 DBrelease, 현재 승인 동의·확정 배정과 일치하는 새 빌드가 필요하다. 현재 승인 기록이 없어 경로는 fail-closed다. 빈 DRAFT 패키지는 사이트 권한 없이 설치만 검증한다. 코드/PR 병합으로 P1~P6를 승인하지 않는다.
+
+## #105의 실제 개시 추가 점검
+
+- [ ] 실제 팀 의결·기관 판단·보존 기산일/삭제일/담당/연락·사본 회수 대장을 확보했다.
+- [ ] DRAFT 후보 중 권리/공개성/Chrome/최소10 의미 있는 Visit을 확인한 경로만 확정했다. 403/404/민감 DOM을 우회하지 않는다.
+- [ ] 20개 목표 원문·완료 기준·시나리오를 읽고 실제 목표별 검토 증거를 기록했다. 시나리오를 정답으로 복사하지 않는다.
+- [ ] Java policy-validate·별도 확인한 policy SHA·공통 Plan checksum을 A/B/C가 동일하게 확인했다.
+- [ ] 각 PC의 OS/Chrome TLS 신뢰와 실제 파일 로그인을 확인하고 본인이 직접 동의했다.
+- [ ] 실제 승인 사이트에서 10 Visit/POST·PATCH·END ACK·RAW_COLLECTED·NOT_RUN 및 age Export/Import 파일럿을 완료했다.
+
+위 실제 항목은 미확정이므로 체크하지 않았다. 합성 API/Chrome 성공과 별도 읽기 전용 사이트 smoke의 범위는 [#105 보고서](issue105-validation.md)에 기록한다. 테스트 인증서 pin은 사용자 OS 신뢰 설치의 성공 증거가 아니다. Windows/Linux는 NOT_TESTED다.

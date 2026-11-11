@@ -8,6 +8,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 const server=process.env.FOCUS101_SERVER,slot=process.env.FOCUS101_SLOT,evidence=process.env.FOCUS101_EVIDENCE;
 assert.match(server??'',/^http:\/\/127\.0\.0\.1:1810[123]$/);assert.match(slot??'',/^[ABC]$/);assert.ok(evidence);
+const metadataOnly = JSON.parse(await readFile(process.env.COLLECTION_SITE_POLICY_FILE,'utf8')).metadataOnly === true;
 const operator=JSON.parse(await readFile(join(evidence,'operator.json'),'utf8')).credential;
 async function api(token,path,method='GET',body,expected=200) {
   const r=await fetch(server+path,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
@@ -30,7 +31,7 @@ process.env.VITE_API_BASE_URL=server;
 await build({configFile:resolve('vite.real.config.ts'),mode:'controlled-web',build:{outDir:extension}});
 await build({configFile:resolve('vite.real.content.config.ts'),build:{outDir:extension}});
 const fixture=createServer((req,res)=>{
-  if(!/^\/public\/page-[0-9]+$/.test(req.url)){res.writeHead(404);res.end();return;}
+  if(!/^\/public\/page-[0-9]+(?:\?page=[0-9]+)?$/.test(req.url)){res.writeHead(404);res.end();return;}
   res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><title>SYNTHETIC public page ${req.url.split('-').at(-1)}</title><body><article>SYNTHETIC TEST ONLY. Controlled TypeScript transaction research with durable local observations and reliable browser storage. No participant or personal information is present. ${req.url}</article></body></html>`);
 });
 await new Promise((r,j)=>{fixture.once('error',j);fixture.listen(8911,'127.0.0.1',r);});
@@ -60,7 +61,7 @@ try {
     let page=await context.newPage();
     for(let n=1;n<=10;n++){
       if(n===2){worker=context.serviceWorkers()[0]||await context.waitForEvent('serviceworker');await worker.evaluate(()=>{const original=globalThis.fetch;globalThis.__rawNetworkFailure=true;globalThis.fetch=(input,init)=>globalThis.__rawNetworkFailure&&String(input).endsWith('/visits')?Promise.reject(new TypeError('Synthetic upload outage')):original(input,init);});}
-      await page.goto(`http://127.0.0.1:8911/public/page-${n}`);await page.bringToFront();
+      await page.goto(`http://127.0.0.1:8911/public/page-${metadataOnly ? '1?page='+n : n}`);await page.bringToFront();
       if(n===2){await wait(s=>s.pending>=1,'durable offline queue');await capture('network-recovery');await worker.evaluate(()=>{globalThis.__rawNetworkFailure=false;});await send('retry');await page.bringToFront();}
       await wait(s=>s.validVisits>=n,'measured visit '+n);
       if(n===3){const cdp=await context.newCDPSession(harness);await cdp.send('ServiceWorker.enable');await cdp.send('ServiceWorker.stopAllWorkers');await cdp.detach();await wait(s=>s.validVisits>=3,'service worker recovery');}
@@ -75,6 +76,7 @@ try {
     assert.equal(progress.attempts[0].rawQuality.theoreticalWindows,8);assert.equal(progress.attempts[0].quality.validVisits,10);
     await harness.getByRole('button',{name:'진행 상태 새로고침',exact:true}).click();await harness.getByText(/원본 RAW_COLLECTED/).waitFor();await capture('collection-complete');
     const snapshot=await api(owner.credential,'/api/collection/exports','POST',{});assert.equal(snapshot.files.visits.length,10);
+    if(metadataOnly) { for (const visit of snapshot.files.visits) { assert.match(visit.normalizedUrl,/\/__focus_page__\/[a-f0-9]{64}$/);assert.equal(visit.content,'METADATA_ONLY: public browsing activity; page text, title and search terms were not collected.');assert.equal(visit.searchQuery,null);assert.equal(visit.title,'Topic: OTHER');assert.ok(!JSON.stringify(visit).includes('Controlled TypeScript')); } assert.equal(new Set(snapshot.files.visits.map(v=>v.normalizedUrl)).size,10); }
     await writeFile(join(evidence,'snapshot.json'),JSON.stringify(snapshot),{mode:0o600});
     await api(operator,`/api/sessions/${progress.attempts[0].sessionId}`,'GET',undefined,404);
     console.log(JSON.stringify({result:'PASS',slot,actualChrome:true,actualSpring:true,actualMySQL:true,aiProcess:false,visits:10,generatedWindows:0,theoreticalWindows:8,workerRestart:true,browserRestart:true,networkRecovery:true,syntheticOnly:true}));

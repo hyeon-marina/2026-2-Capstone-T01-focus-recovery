@@ -28,6 +28,15 @@ export function isExcludedDocument(doc: Document, searchUrl?: URL): boolean {
   if (errorHeading.test(doc.title.trim()) || [...doc.querySelectorAll('h1')].some(heading => isVisible(heading) && errorHeading.test(heading.textContent?.trim() ?? ''))) return true;
   return false;
 }
+export function isExcludedMetadataDocument(doc: Document): boolean {
+  if (doc.contentType !== 'text/html' || doc.querySelector('input[type="password"],input[autocomplete^="cc-"],input[autocomplete="street-address"],input[autocomplete="one-time-code"],input[name*="password" i],input[name*="ssn" i],input[name*="card" i]')) return true;
+  // GitHub's public docs include an unsubmitted survey field. Never read it; other token fields block.
+  if ([...doc.querySelectorAll('input[name*="token" i]')].some(input => !(input.getAttribute('name') === 'survey-token' && doc.location?.origin === 'https://docs.github.com' && (doc.location.pathname === '/en/pages' || doc.location.pathname.startsWith('/en/pages/'))))) return true;
+  if (/login|sign in|로그인|결제|환자|진료|의료|medical|patient|diagnosis|password|^error|^404|^403|access denied/i.test(doc.title)) return true;
+  // Passive search/newsletter/comment controls cannot leak: this mode never reads their values or body text.
+  // Interacting with any editable control still stops the visit/session; auth/payment markers always block.
+  return !!doc.activeElement?.matches('input:not([type="hidden"]),textarea,select,[contenteditable="true"],[role="textbox"]');
+}
 export function cleanText(text: string): string {
   return text.replace(/\r\n?/g, '\n').split('\n').map(line => line.replace(/[\t\u00a0 ]+/g, ' ').trim()).filter(Boolean).join('\n').trim();
 }

@@ -65,7 +65,7 @@ Delivered는 클라이언트의 종료 ACK 후 전송 영수증이다. 서버 �
 
 ## #99 실제 사이트 배포
 
-`GET /api/collection/site-policy`: 인증 필요. `{digest,buildId,policyId,policyVersion,status,expiresAt,sites:[{origin,pathPrefix}]}` 또는409 COLLECTION_POLICY_BLOCKED. `POST assignments/{plannedId}/start`의 실수집 경로는 X-Collection-Build를 추가 검증하고 현재 승인 동의·독립 DB release·정책 digest를 session scope에 묶습니다. SYNTHETIC 정책으로 PARTICIPANT 실적을 만들지 않으며 APPROVED 문자열만으로 exact-test를 운영으로 바꾸지 않습니다. `Progress.actualCollectionBlocked`는 배포/서버 구성 상태이며 실제 참여자 동의·파일럿·기관 승인 사실을 대신하지 않습니다. 후보 설명을 병합하는 prepare-plan.py는 CONFIRMED로 바꾸지 않습니다.
+`GET /api/collection/site-policy`: 인증 필요. `{digest,buildId,policyId,policyVersion,status,expiresAt,sites:[{origin,pathPrefix}],metadataOnly}` 또는409 COLLECTION_POLICY_BLOCKED. `POST assignments/{plannedId}/start`의 실수집 경로는 X-Collection-Build를 추가 검증하고 현재 승인 동의·독립 DB release·정책 digest를 session scope에 묶습니다. SYNTHETIC 정책으로 PARTICIPANT 실적을 만들지 않으며 APPROVED 문자열만으로 exact-test를 운영으로 바꾸지 않습니다. `Progress.actualCollectionBlocked`는 배포/서버 구성 상태이며 실제 참여자 동의·파일럿·기관 승인 사실을 대신하지 않습니다. 후보 설명을 병합하는 prepare-plan.py는 CONFIRMED로 바꾸지 않습니다.
 
 
 ## #101 원본 품질·독립 로컬·Export API
@@ -97,3 +97,11 @@ Progress.raw는 `{completed,syntheticCompleted,validVisits,theoreticalWindows,ge
 `focus-local-policy/1` RAW_ONLY와 CONFIRMED 상태·실제 팀 근거/기관 판단·적용 기간·원문 정책·HTTPS 사이트·공통 확정 Plan을 검사한다. 원본에는 modelEvidenceRef를 요구하지 않는다. 전체 파일의 별도 신뢰 SHA-256 + 정렬 compact UTF-8 Plan checksum을 검증하고 DB Release를 설치한다. 내부 session_collection_scope와 빌드 digest 검증은 그대로다. 같은 policyId/version의 다른 bytes는 거절하며 변경 시 새 버전·재빌드·재동의가 필요하다. 기존 real-collection Artifact/독립 Release/AI 증거 계약은 변경하지 않는다.
 
 blockers: LOCAL_SETUP_REQUIRED, LOCAL_POLICY_MISSING, LOCAL_POLICY_DRAFT, LOCAL_POLICY_EXPIRED, LOCAL_POLICY_MISMATCH, GOAL_UNCONFIRMED, CONSENT_REQUIRED, PRIVACY_WITHDRAWN. 인증 없음/만료/폐기는 기존401을 유지하며 존재 여부를 노출하지 않는다. Chrome은 네트워크와 TLS 실패를 동일 TypeError로 받을 수 있어 `status`와 인증서 확인을 함께 안내한다.
+
+## #105 로컬 원본 메타데이터의 필드 의미
+
+`focus-local-policy/1`의 site-policy 응답은 `metadataOnly=true`다. Extension은 동일 정책 bytes/build의 원문 URL을 허용 범위/민감정보 검사 후 세션별 HMAC 식별자로 대체한다. 저장·POST·Export의 normalizedUrl은 실제 접근 URL이 아닌 `origin + 승인 prefix(끝 / 제거) + /__focus_page__/ + 64hex`이며 Query/Fragment/인증정보를 포함하지 않는다. Backend는 exact origin/prefix·현재 Build/Session scope·식별자 형식을 다시 검증하며 원래 URL이나 HMAC 비밀키를 받지 않는다.
+
+기존 v2/`focus-raw-export/1` 필드와 JSON Schema는 유지한다. title은 제한된 `Topic: ...` 분류, content는 `METADATA_ONLY: public browsing activity; page text, title and search terms were not collected.` 고정 표식, 검색 페이지의 searchQuery는 `[NOT_COLLECTED]`이고 나머지는 null이다. `extractionStatus=SUCCESS`는 이 모드의 메타데이터 생성 성공이며 본문/검색어 원문을 추출했다는 뜻이 아니다. Backend는 이 고정 tuple 밖의 원제목/본문/검색어를 거절한다. 과거 정책 Export·AI 활성 경로의 원문 필드 의미와 구분한다.
+
+본문/검색결과/블로그 글·영상/자막/댓글/추천·입력값은 전송하지 않는다. 공개 페이지 제목은 로컬에서 고정 주제로 분류 후 폐기한다. `metadataOnly=false`인 기존 독립 real-collection Artifact/AI 활성/합성 계약은 보존한다. 현재 팀 정책은 DRAFT로 실제 수집은 계속 차단된다. [상세 정책](../data-collection/real-collection-policy.md)과 [검증](../data-collection/issue105-validation.md)을 참조한다.
