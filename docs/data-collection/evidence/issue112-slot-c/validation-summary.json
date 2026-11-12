@@ -1,0 +1,110 @@
+{
+  "result": "PASS",
+  "kind": "AUTOMATED_TECHNICAL_TEST_NOT_HUMAN_CONSENT",
+  "humanResearchSessions": 0,
+  "chromeVersion": "151.0.7922.34",
+  "slot": "C",
+  "policyVersion": "6",
+  "policyDigest": "31db27f078c2c80223f3887e33d1853a378e6794098f32319769f01577c2c982",
+  "plan": "PLAN-018",
+  "observedPages": [
+    {
+      "url": "https://docs.python.org/3/",
+      "status": 200,
+      "observedAt": "2026-11-12T21:17:03.973Z"
+    },
+    {
+      "url": "https://docs.python.org/3/howto/",
+      "status": 200,
+      "observedAt": "2026-11-12T21:17:10.380Z"
+    },
+    {
+      "url": "https://docs.python.org/3/tutorial/",
+      "status": 200,
+      "observedAt": "2026-11-12T21:17:16.926Z"
+    },
+    {
+      "url": "https://docs.python.org/3/library/",
+      "status": 200,
+      "observedAt": "2026-11-12T21:17:23.258Z"
+    }
+  ],
+  "ended": {
+    "lifecycle": "ENDED",
+    "endPhase": "acked",
+    "pending": 0
+  },
+  "captures": [
+    {
+      "file": "01-slot-c-status.png",
+      "capturedAt": "2026-11-12T21:16:56.953Z",
+      "description": "Actual backend local-status JSON: C, policy SHA, ready",
+      "sha256": "079e2701b8329b61f62b396d00264bd753e7e7e367fd9a224cc104029a0197f8"
+    },
+    {
+      "file": "02-extension-ready.png",
+      "capturedAt": "2026-11-12T21:16:57.122Z",
+      "description": "Actual extension: assigned plan, v6, slot C, valid test consent",
+      "sha256": "129ca5c3832597b76279962ab48dc8baa88f10a804403028554df28009d450e8"
+    },
+    {
+      "file": "03-session-active.png",
+      "capturedAt": "2026-11-12T21:16:57.427Z",
+      "description": "Actual extension ACTIVE before public visits",
+      "sha256": "d75dddde07dfad0dca6afaf6224a323124c3151613b3dad1b42c3f1150bea10d"
+    },
+    {
+      "file": "04-public-page-visit.png",
+      "capturedAt": "2026-11-12T21:17:04.048Z",
+      "description": "Actual unmodified public Python documentation after active dwell",
+      "sha256": "25b98448ba68885990fac2c387b2134713a2fe7c49292e82c5b04537ce60696c"
+    },
+    {
+      "file": "05-visit-progress.png",
+      "capturedAt": "2026-11-12T21:17:23.391Z",
+      "description": "Actual extension ACTIVE with four server-received valid Visits",
+      "sha256": "bd7e424305a551f5cffc377c07817cfd6e9420094cba05576e29a2107081baf7"
+    },
+    {
+      "file": "06-session-ended.png",
+      "capturedAt": "2026-11-12T21:17:23.763Z",
+      "description": "Actual extension ENDED, acked, pending zero",
+      "sha256": "0b970ee5e6ea966734b3311e80275ffd99eb8a603504ff516970353be026dbb5"
+    },
+    {
+      "file": "07-collection-progress.png",
+      "capturedAt": "2026-11-12T21:17:23.950Z",
+      "description": "Actual extension: Visit 4, delivery confirmed, RECOLLECT_REQUIRED, NOT_RUN",
+      "sha256": "0b970ee5e6ea966734b3311e80275ffd99eb8a603504ff516970353be026dbb5"
+    },
+    {
+      "file": "08-server-validation.png",
+      "capturedAt": "2026-11-12T21:17:24.104Z",
+      "description": "Actual authenticated backend progress JSON, no raw page text",
+      "sha256": "301fadb196b18afb9d41c4eee8701ccf61ab13f1ed30cd23b7ecf864ae4ba10e"
+    }
+  ],
+  "attempt": {
+    "plannedSessionId": "PLAN-018",
+    "source": "PARTICIPANT",
+    "sessionStatus": "ENDED",
+    "privacyStatus": "CLEAR",
+    "reviewStatus": "PENDING",
+    "deliveryConfirmed": true,
+    "rawQuality": {
+      "validVisits": 4,
+      "theoreticalWindows": 2,
+      "referencesValid": true,
+      "reasons": [
+        "VISITS_BELOW_10"
+      ]
+    },
+    "rawStatus": "RECOLLECT_REQUIRED",
+    "analysisState": "NOT_RUN",
+    "analysisWindowCount": 0
+  },
+  "sessionPrefix": "7710f7c7",
+  "attemptPrefix": "cac088b5",
+  "sourcePrefix": "9159c1d7",
+  "sourceCommit": "83cc3d1d9967de8ce49b9948f353964763262b57"
+}

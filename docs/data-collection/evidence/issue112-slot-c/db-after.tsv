@@ -1,0 +1,25 @@
+table_name	rows_count
+work_session	1
+page_visit	4
+collection_attempt	1
+consent_record	1
+consent_event	1
+consent_withdrawal	0
+privacy_retraction	0
+visit_tombstone	0
+collection_source_instance	1
+slot_id	source_prefix	revision	assignments
+C	9159c1d7	1	53
+session_prefix	attempt_prefix	planned_session_id	started_at	ended_at	status	privacy_status	privacy_revision	review_status	delivered_visit_count	delivered_through_sequence	stored_visits	distinct_ids	distinct_sequences	min_active_ms	max_active_ms
+7710f7c7	cac088b5	PLAN-018	2026-11-12 21:16:57.281	2026-11-12 21:17:23.470	ENDED	CLEAR	0	PENDING	4	4	4	4	4	6196	6424
+sequence	domain	active_duration_ms	extraction_status	title_length	content_length
+1	docs.python.org	6286	SUCCESS	27	1478
+2	docs.python.org	6424	SUCCESS	43	1140
+3	docs.python.org	6285	SUCCESS	49	5000
+4	docs.python.org	6196	SUCCESS	57	5000
+email_pattern_hits
+0
+ai_windows
+0
+policy_id	policy_version	status
+focus-team-raw-v2	6	APPROVED
