@@ -14,7 +14,7 @@ import type { Stamp } from './state';
 import { allowedSite, validPolicy, publicText, type SitePolicy } from '../../real/policy';
 import { validSnapshot } from './contract';
 import type { PageSnapshot } from '../shared/types';
-declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string; metadataOnly?: boolean };
+declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string; metadataOnly?: boolean; publicWeb?: boolean };
 
 export function installV2Browser(options: { uiPath: string; pilot: boolean; participant: boolean; real?: boolean }) {
 if (options.pilot && !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(API_BASE_URL)) throw new Error('V2_SYNTHETIC_ONLY');
@@ -31,9 +31,9 @@ const metadataKey = real && build?.metadataOnly ? (async () => {
   return bytes;
 })() : undefined;
 async function descriptionFor(raw: string) {
-  return build?.metadataOnly ? describeMetadataUrl(raw, sitePolicy?.sites ?? [], await metadataKey!, runtime.snapshot().session!.sessionId) : describeUrl(raw);
+  return build?.metadataOnly ? describeMetadataUrl(raw, sitePolicy?.sites ?? [], await metadataKey!, runtime.snapshot().session!.sessionId, build?.publicWeb) : describeUrl(raw);
 }
-const permits = (raw: string) => real ? !!sitePolicy && Date.parse(sitePolicy.expiresAt) > Date.now() && allowedSite(raw, sitePolicy.sites, build?.metadataOnly === true) : !!fixtureId(raw);
+const permits = (raw: string) => real ? !!sitePolicy && Date.parse(sitePolicy.expiresAt) > Date.now() && allowedSite(raw, sitePolicy.sites, build?.metadataOnly === true, build?.publicWeb) : !!fixtureId(raw);
 async function collectionAccess() {
   const a = await readCollectionAccess();
   if (real) {
@@ -180,13 +180,15 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     if (m?.type === 'v2-context') return { collecting: !!sender.url && permits(sender.url) && runtime.collecting() };
     if (m?.type === 'v2-leave') { await runtime.leave(tabId, t); return; }
     if (real && m?.type === 'v2-observation') {
-      if (typeof m.raw !== 'string' || !permits(m.raw) || !runtime.collecting()) return { collecting: false };
+      if (typeof m.raw !== 'string' || !runtime.collecting()) return { collecting: false };
+      if (!permits(m.raw)) { await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()}; }
       // Refresh server consent/release before accepting any ordinary document content.
       await runtime.verifyAccess();
       if (!permits(m.raw)) return { collecting: false };
       const frame = await chrome.webNavigation.getFrame({ tabId, frameId: 0 });
       if (!frame || frame.documentId !== sender.documentId || frame.url !== m.raw) return;
       const permitted = await chrome.permissions.contains({origins:[new URL(m.raw).origin + '/*']});
+      if (build?.publicWeb && (!permitted || m.safe !== true)) { await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()}; }
       if (!permitted || m.safe !== true) { await runtime.quarantine('SENSITIVE_CONTENT', t.wall); return { collecting: false }; }
       await focus(t);
       if (!m.visible) { await runtime.leave(tabId, t); return { collecting: runtime.collecting() }; }
@@ -267,14 +269,16 @@ chrome.webNavigation.onCommitted.addListener(d => {
   navigationRevision.set(d.tabId, (navigationRevision.get(d.tabId) ?? 0) + 1);
   event(async t => { boundaries.set(d.tabId, t); documents.set(d.tabId, d.documentId); await runtime.leave(d.tabId, t, true); });
 });
-chrome.webNavigation.onHistoryStateUpdated.addListener(d => {
+const routeChanged = (d: {frameId:number;tabId:number}) => {
   if (d.frameId !== 0) return;
   navigationRevision.set(d.tabId, (navigationRevision.get(d.tabId) ?? 0) + 1);
   event(async t => {
     boundaries.set(d.tabId, t); await runtime.leave(d.tabId, t, true);
     await chrome.tabs.sendMessage(d.tabId, { type: 'v2-capture' }).catch(() => {});
   });
-});
+};
+chrome.webNavigation.onHistoryStateUpdated.addListener(routeChanged);
+chrome.webNavigation.onReferenceFragmentUpdated.addListener(routeChanged);
 chrome.permissions.onRemoved.addListener(() => event(t => runtime.quarantine('CONSENT_WITHDRAWN', t.wall)));
 chrome.alarms.onAlarm.addListener(() => event(async () => { runtime.wake(); }));
 }

@@ -30,7 +30,8 @@ class TeamPolicyProposalTest {
         assertThat(Files.isRegularFile(Path.of("..").resolve(n.path("institution").path("evidenceRef").asText()))).isTrue();
         assertThat(plan.goals()).allMatch(g->g.status().equals("CONFIRMED"));
         var sites=new CollectionSitePolicy(new org.springframework.mock.env.MockEnvironment(),null,java.time.Clock.systemUTC(),mapper).validateLocalSites(n);
-        assertThat(sites).hasSize(15);
+        assertThat(sites).isEmpty();
+        assertThat(n.path("siteScope").asText()).isEqualTo("PUBLIC_HTTP_HTTPS");
         assertThat(sites.stream().map(CollectionSitePolicy.Site::origin)).doesNotContain("https://www.youtube.com","https://www.google.com","https://search.naver.com","https://blog.naver.com");
         assertThat(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes))).isEqualTo(Files.readString(root.resolve("TEAM_POLICY.sha256")).split(" ")[0]);
     }

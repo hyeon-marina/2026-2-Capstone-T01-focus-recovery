@@ -47,6 +47,7 @@ def main():
             command([*base,'export','--server',server,'--ca-file',ca,'--credential-file',credential,'--recipient',recipient,'--output',bundle])
             command([*base,'verify',bundle,'--identity',key,'--sha256',ds.digest(bundle.read_bytes())])
             manifest,files,_=ds.load_bundle(bundle,key)
+            assert set(v['domain'] for v in files['visits'])=={'docs.python.org','blog.python.org','news.ycombinator.com','books.toscrape.com'}
             assert len(files['visits'])==10 and all(v['activeDurationMs']>=5000 for v in files['visits'])
             assert sum(v['tabSwitchCount'] for v in files['visits'])>=1
             assert all('?' not in v['normalizedUrl'] and '__focus_page__' in v['normalizedUrl'] for v in files['visits'])
@@ -62,7 +63,7 @@ def main():
         assert merged['rawCompleted']==3 and merged['validVisits']==30 and merged['status']=='PARTIAL'
         duplicate=ds.merge(bundles,privacy,root/'TEST-ONLY-registry.sqlite',root/'AUTOMATED-TEST-duplicate.age',key,recipient,bundle_hashes=hashes)
         assert duplicate['duplicateImports']==3
-        report=dict(result='PASS',kind='AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT',actualParticipantConsents=0,actualHumanResearchSessions=0,source='Real public Python Docs HTTPS; no mocking',sources=rows,rawCompleted=3,validVisits=30,merge='PARTIAL',duplicateImports=3,osTrustInstallation='NOT_TESTED_CERTIFICATE_SPKI_PIN_ONLY')
+        report=dict(result='PASS',kind='AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT',actualParticipantConsents=0,actualHumanResearchSessions=0,source='Real public Python Docs, Python Blog, Hacker News, Books to Scrape HTTPS; no mocking',sources=rows,rawCompleted=3,validVisits=30,merge='PARTIAL',duplicateImports=3,osTrustInstallation='NOT_TESTED_CERTIFICATE_SPKI_PIN_ONLY')
         (root/'summary.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
         print('PASS: real public-site automated technical path; human consent/actuals=0',flush=True)
     finally:

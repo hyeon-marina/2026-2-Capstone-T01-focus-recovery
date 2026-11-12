@@ -3,84 +3,23 @@
   "mode": "RAW_ONLY",
   "status": "CONFIRMED",
   "policyId": "focus-team-raw-v2",
-  "policyVersion": "3",
-  "buildId": "focus-105-operational-v3",
+  "policyVersion": "4",
+  "buildId": "focus-106-public-web-v4",
   "notBefore": "2026-11-11T00:00:01Z",
   "expiresAt": "2027-11-11T00:00:00Z",
   "purpose": "개발팀원 A/B/C 3명의 명시적으로 시작·종료한 웹 탐색 세션에서 목표 유지·이탈·복귀 행동을 분석한다. 공통 운영 정책 내용은 채택했으며 실제 참여자 동의와 기관 판단은 별도 기록한다.",
   "collectionItems": "가명 Participant/Goal/Scenario/Session/Visit ID, 도메인, 세션 범위 HMAC 페이지 식별자, 고정 어휘의 제목 주제(Topic), 방문 순서·시각·활성 체류·탭 전환·행동 누적·시작/종료·수집/전송/ACK 상태. title은 원제목이 아닌 Topic 분류이고 content는 METADATA_ONLY 고정 표식이다. 검색어는 [NOT_COLLECTED] 표식만 저장한다.",
   "useScope": "캡스톤 AI 모델 학습·평가와 탐색 행동 분석에 한정한다. 원본 공개·외부 배포를 금지한다. 통합 담당자에게 age 암호화한 가명 데이터만 전달하고 목적 외 이용을 금지한다. 계획된 시나리오를 관찰된 AI 정답 라벨로 자동 사용하지 않는다.",
   "retentionPolicy": "캡스톤 최종 평가 종료일부터 90일. 실제 평가 종료일과 삭제 예정일은 운영 시 삭제대장에 등록한다. 각 PC 소유자와 통합 담당자는 원본·통합·Export·백업 사본 및 삭제 실행·검증을 관리한다. 날짜 미등록은 정책 확정을 취소하지 않는다. 철회 시 즉시 신규 수집을 중단하고 기존 격리·회수·삭제 절차를 적용한다.",
-  "sensitivePageExclusions": "비밀번호·Cookie·인증 Token·로그인/인증·계정 설정·이메일/메신저/개인 문서·금융/결제·의료/건강·주민등록번호/연락처/주소·비공개 콘텐츠·폼 입력값·허용 밖 사이트 콘텐츠를 제외한다. YouTube 영상/음성/자막/댓글 원문·계정·추천정보는 수집하지 않는다. 민감 URL/DOM 감지 시 해당 Visit을 제외하거나 세션을 격리한다. 공개 여부만으로 안전을 보증하지 않는다.",
+  "sensitivePageExclusions": "비밀번호·Cookie·인증 Token·로그인/인증·계정 설정·이메일/메신저/개인 문서·금융/결제·의료/건강·주민등록번호/연락처/주소·비공개 콘텐츠·폼 입력값·내부망·사설 IP·localhost 및 민감 페이지를 제외한다. YouTube 영상/음성/자막/댓글 원문·계정·추천정보는 수집하지 않는다. 민감 URL/DOM 감지 시 해당 Visit을 제외하거나 세션을 격리한다. 공개 여부만으로 안전을 보증하지 않는다.",
   "textPrivacyPolicy": "focus-local-policy/1은 본문·검색결과/블로그 텍스트·원제목·검색어·Query/Fragment 원문을 저장하지 않는 METADATA_ONLY 모드로 처리한다. 제목은 제한된 Topic 어휘만 남긴다. 원문 URL은 허용 origin/path 검사와 민감키 검사 직후 세션별 HMAC 식별자로 대체한다. 원본 URL/HMAC key는 Export하지 않는다. 정규식은 완전한 개인정보 제거기가 아니며 사람이 승인된 공개 주제만 탐색하고 오탐/미탐은 중단·격리/철회 절차로 처리한다.",
   "changePolicy": "정책 내용·사이트·기관 개시 판단 변경 시 새 policyVersion/buildId·전체 SHA-256·Extension 재빌드·재동의를 요구한다. 운영 Plan revision 1 및 기존 실적을 보존한다. 만료·미동의·철회·무결성 불일치·미확인 기관 개시 조건은 수집을 차단한다.",
-  "collectionScope": "A/B/C 각자의 로컬 Spring Boot/MySQL과 Chrome Extension에서 명시적으로 시작한 세션만 수집한다. RAW_ONLY; RAW_COLLECTED / AI NOT_RUN. 목표20개·160세션·A54/B53/C53·Plan revision1 및 5초/4초/5분 계약을 유지한다. 이 정책은 확정 운영 설정이다. 사용자가 학교·기관에 직접 확인해 별도 심의·승인이 필요하지 않다고 전달한 판단을 NOT_REQUIRED로 반영했다. 참여자 본인의 명시적 동의는 별도로 필요하다.",
+  "collectionScope": "A/B/C 각자의 로컬 Spring Boot/MySQL과 Chrome Extension에서 명시적으로 시작한 세션만 수집한다. RAW_ONLY; RAW_COLLECTED / AI NOT_RUN. 목표20개·160세션·A54/B53/C53·Plan revision1 및 5초/4초/5분 계약을 유지한다. 이 정책은 확정 운영 설정이다. 사용자가 학교·기관에 직접 확인해 별도 심의·승인이 필요하지 않다고 전달한 판단을 NOT_REQUIRED로 반영했다. 참여자 본인의 명시적 동의는 별도로 필요하다. 일반 HTTP/HTTPS 공개 웹사이트 전체에서 탐색 메타데이터를 수집하며 민감 URL/DOM·내부망은 제외한다. 사이트별 허용 목록은 사용하지 않는다.",
   "institution": {
     "decision": "NOT_REQUIRED",
     "evidenceRef": "docs/data-collection/institution-not-required.md"
   },
-  "sites": [
-    {
-      "origin": "https://docs.github.com",
-      "pathPrefix": "/en/pages"
-    },
-    {
-      "origin": "https://developer.mozilla.org",
-      "pathPrefix": "/en-US/docs"
-    },
-    {
-      "origin": "https://docs.python.org",
-      "pathPrefix": "/3"
-    },
-    {
-      "origin": "https://git-scm.com",
-      "pathPrefix": "/docs"
-    },
-    {
-      "origin": "https://www.w3.org",
-      "pathPrefix": "/WAI/"
-    },
-    {
-      "origin": "https://science.nasa.gov",
-      "pathPrefix": "/"
-    },
-    {
-      "origin": "https://www.epa.gov",
-      "pathPrefix": "/recycle"
-    },
-    {
-      "origin": "https://www.metmuseum.org",
-      "pathPrefix": "/ko/art"
-    },
-    {
-      "origin": "https://www.hangeul.go.kr",
-      "pathPrefix": "/"
-    },
-    {
-      "origin": "https://philharmonia.co.uk",
-      "pathPrefix": "/resources/"
-    },
-    {
-      "origin": "https://www.noaa.gov",
-      "pathPrefix": "/jetstream"
-    },
-    {
-      "origin": "https://notice.tistory.com",
-      "pathPrefix": "/"
-    },
-    {
-      "origin": "https://d2.naver.com",
-      "pathPrefix": "/helloworld"
-    },
-    {
-      "origin": "https://ko.wikipedia.org",
-      "pathPrefix": "/wiki"
-    },
-    {
-      "origin": "https://en.wikipedia.org",
-      "pathPrefix": "/wiki"
-    }
-  ],
+  "sites": [],
   "planChecksum": "73ae8c69e16559c95c15f1d4f37a4e2a835dc19367a280285306a64da41238cf",
   "plan": {
     "revision": 1,
@@ -1342,5 +1281,6 @@
         "participantId": null
       }
     ]
-  }
+  },
+  "siteScope": "PUBLIC_HTTP_HTTPS"
 }

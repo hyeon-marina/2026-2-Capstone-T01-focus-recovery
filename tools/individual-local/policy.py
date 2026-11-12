@@ -36,7 +36,9 @@ def prepare(template, records, directory):
         raise ValueError('Actual institution decision required')
     n['institution'] = dict(decision=decision, evidenceRef=n.pop('institutionRef'))
     selected = records.get('sites')
-    if not isinstance(selected, list) or not selected or any(s not in template['sites'] for s in selected):
+    if template.get('siteScope') == 'PUBLIC_HTTP_HTTPS':
+        selected = []
+    elif not isinstance(selected, list) or not selected or any(s not in template['sites'] for s in selected):
         raise ValueError('Select only reviewed exact sites from the common policy')
     n['sites'] = selected
     n['status'] = 'CONFIRMED'

@@ -17,9 +17,9 @@ import com.focusrecovery.global.exception.ConflictException;
 public class CollectionSitePolicy {
     public record Site(String origin, String pathPrefix) {}
     public record Policy(String digest, String buildId, String policyId, String policyVersion, String status,
-        Instant expiresAt, List<Site> sites, boolean metadataOnly) {
+        Instant expiresAt, List<Site> sites, boolean metadataOnly, boolean publicWeb) {
         public Policy(String digest,String buildId,String policyId,String policyVersion,String status,Instant expiresAt,List<Site> sites) {
-            this(digest,buildId,policyId,policyVersion,status,expiresAt,sites,false);
+            this(digest,buildId,policyId,policyVersion,status,expiresAt,sites,false,false);
         }
     }
     private final Environment env;
@@ -47,7 +47,7 @@ public class CollectionSitePolicy {
                 var sites=validateLocalSites(n);
                 if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_local_owner o JOIN participant p ON p.participant_id=o.participant_id JOIN collection_plan c ON c.plan_id=1 WHERE o.policy_digest=? AND o.plan_checksum=? AND c.revision=? AND p.status='ACTIVE' AND p.withdrawn_at IS NULL",Integer.class,digest,validator.checksum(plan),plan.revision())!=1) return null;
                 if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_release WHERE policy_digest=? AND build_id=? AND approval_ref=? AND revoked_at IS NULL",Integer.class,digest,build,LocalCollectionPolicy.operationalRef(n))!=1)return null;
-                return new Policy(digest,build,n.path("policyId").asText(),n.path("policyVersion").asText(),LocalCollectionPolicy.institutionCleared(n)?"APPROVED":"INSTITUTION_BLOCKED",Instant.parse(n.path("expiresAt").asText()),sites,true);
+                return new Policy(digest,build,n.path("policyId").asText(),n.path("policyVersion").asText(),LocalCollectionPolicy.institutionCleared(n)?"APPROVED":"INSTITUTION_BLOCKED",Instant.parse(n.path("expiresAt").asText()),sites,true,n.path("siteScope").asText().equals("PUBLIC_HTTP_HTTPS"));
             }
             if(!(synthetic?status.equals("SYNTHETIC"):status.equals("APPROVED")) || !build.matches("[a-zA-Z0-9_.-]{1,100}"))return null;
             for(String k:List.of("approvalRef","contractApprovalRef","retentionRef","institutionRef","modelEvidenceRef","privacyEvidenceRef","startAuthorizationRef"))
@@ -69,6 +69,10 @@ public class CollectionSitePolicy {
         } catch(Exception e) { return null; }
     }
     List<Site> validateLocalSites(tools.jackson.databind.JsonNode n) {
+        if (n.path("siteScope").asText().equals("PUBLIC_HTTP_HTTPS")) {
+            if (!n.path("sites").isArray() || !n.path("sites").isEmpty()) LocalCollectionPolicy.fail("PUBLIC_WEB_SCOPE: sites must be empty");
+            return List.of();
+        }
         List<Site> result=new ArrayList<>();
         for(var s:n.path("sites")) {
             String origin=s.path("origin").asText(),prefix=s.path("pathPrefix").asText();URI u=URI.create(origin);
@@ -102,13 +106,17 @@ public class CollectionSitePolicy {
             URI u=URI.create(url);String path=u.getPath().toLowerCase(Locale.ROOT);
             if(u.getHost()==null || u.getHost().toLowerCase(Locale.ROOT).matches(".*(?:^|[.-])(bank|banking|paypal|stripe|accounts|login|auth|finance|wallet|medical|health|clinic|hospital|mail)(?:[.-]|$).*") || path.matches(".*(?:^|[/_.-])(login|logon|signin|sign-in|signup|sign-up|register|registration|password|reset-password|auth|oauth|callback|sso|checkout|payment|billing|banking|bank|wallet|account|profile|settings|myaccount|finance|financial|pay|verify|verification|medical|health|private|mail|inbox|messages|patient|records|history|orders)(?:[/_.-]|$).*")
                 || u.getRawQuery()!=null || u.getRawFragment()!=null || u.getUserInfo()!=null)throw blocked();
+            if (require().publicWeb()) {
+                if (!MetadataPage.matches(url,require().sites(),true)) throw blocked();
+                return;
+            }
             boolean allowed=require().sites().stream().anyMatch(site->url.startsWith(site.origin()+"/") && (site.pathPrefix().equals("/") || u.getPath().equals(site.pathPrefix()) || u.getPath().startsWith(site.pathPrefix().endsWith("/")?site.pathPrefix():site.pathPrefix()+"/")));
             if(!allowed)throw blocked();
             if(require().metadataOnly() && !MetadataPage.matches(url,require().sites()))throw blocked();
         } catch(IllegalArgumentException e) { throw blocked(); }
     }
     public void checkVisitData(com.focusrecovery.domain.visit.dto.CreatePageVisitRequest request) {
-        if(realProfile() && require().metadataOnly())MetadataPage.validate(request,require().sites());
+        if(realProfile() && require().metadataOnly())MetadataPage.validate(request,require().sites(),require().publicWeb());
     }
     private static ConflictException blocked() { return new ConflictException("COLLECTION_POLICY_BLOCKED","배포 버전·허용 사이트·승인 정책을 확인하세요."); }
 }

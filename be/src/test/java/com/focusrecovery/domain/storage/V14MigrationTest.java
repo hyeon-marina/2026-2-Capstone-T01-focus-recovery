@@ -13,7 +13,7 @@ class V14MigrationTest {
     @Test void h2PreservesV13RowsAndNeverBackfillsOwnerOrConsent() {
         verify("jdbc:h2:mem:migration95_"+UUID.randomUUID()+";MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","sa","");
     }
-    @Test @EnabledIfEnvironmentVariable(named="FOCUS95_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:3393/focus95.*")
+    @Test @EnabledIfEnvironmentVariable(named="FOCUS95_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/focus95.*")
     void actualMysqlPreservesLegacyPayloadAndEnforcesOwnershipConsentFk() throws Exception {
         String base=System.getenv("FOCUS95_MYSQL_URL"), schema="focus95_migration_"+UUID.randomUUID().toString().replace("-","");
         try(var conn=DriverManager.getConnection(base,"root","synthetic-test-only");var stmt=conn.createStatement()) {

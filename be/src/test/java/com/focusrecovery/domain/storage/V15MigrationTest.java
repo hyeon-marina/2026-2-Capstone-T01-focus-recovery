@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 class V15MigrationTest {
  @Test void h2AdditiveMigrationPreservesEveryV14Row(){verify("jdbc:h2:mem:migration97_"+UUID.randomUUID()+";MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","sa","");}
- @Test @EnabledIfEnvironmentVariable(named="FOCUS97_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:3397/focus97.*")
+ @Test @EnabledIfEnvironmentVariable(named="FOCUS97_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/focus97.*")
  void actualMysqlV14ToV15AndIdempotentValidation(){
   String base=System.getenv("FOCUS97_MYSQL_URL"),password=System.getenv("FOCUS97_MYSQL_PASSWORD"),schema="focus97_migration_"+UUID.randomUUID().toString().replace("-","");
   var ds=new SingleConnectionDataSource(base,"root",password,true);var j=new JdbcTemplate(ds);j.execute("CREATE DATABASE "+schema+" CHARACTER SET utf8mb4");

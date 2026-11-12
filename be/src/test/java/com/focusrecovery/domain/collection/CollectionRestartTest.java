@@ -23,7 +23,7 @@ class CollectionRestartTest {
   return new SpringApplicationBuilder(FocusRecoveryApplication.class).profiles("test").web(WebApplicationType.NONE).initializers(c->c.getEnvironment().getPropertySources().addFirst(new MapPropertySource("collection-restart-test",p))).run();
  }
  @Test void h2ProcessContextRestartKeepsRegistrationCredentialsAndPlan(){verify("jdbc:h2:file:"+directory.resolve("restart97")+";MODE=MySQL;DATABASE_TO_LOWER=TRUE","");}
- @Test @EnabledIfEnvironmentVariable(named="FOCUS97_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:3397/focus97.*")
+ @Test @EnabledIfEnvironmentVariable(named="FOCUS97_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/focus97.*")
  void actualMysqlNewSpringContextKeepsOperationsMetadata(){verify(System.getenv("FOCUS97_MYSQL_URL"),System.getenv("FOCUS97_MYSQL_PASSWORD"));}
  void verify(String url,String password){
   String operator=UUID.randomUUID().toString(),token=Base64.getUrlEncoder().withoutPadding().encodeToString(java.security.SecureRandom.getSeed(32));CollectionAdministration.IssuedCredential issued;

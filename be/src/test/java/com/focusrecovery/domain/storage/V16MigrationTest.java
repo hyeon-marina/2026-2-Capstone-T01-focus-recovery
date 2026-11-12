@@ -8,7 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 class V16MigrationTest {
  @Test void h2PreservesV15AndSeedsNoApproval(){verify("jdbc:h2:mem:migration99_"+UUID.randomUUID()+";MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","sa","");}
- @Test @EnabledIfEnvironmentVariable(named="FOCUS97_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:3397/focus97.*")
+ @Test @EnabledIfEnvironmentVariable(named="FOCUS97_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/focus97.*")
  void actualMysqlV15ToV16() {
   String base=System.getenv("FOCUS97_MYSQL_URL"),password=System.getenv("FOCUS97_MYSQL_PASSWORD"),schema="focus97_issue99_"+UUID.randomUUID().toString().replace("-","");
   var ds=new SingleConnectionDataSource(base,"root",password,true);new JdbcTemplate(ds).execute("CREATE DATABASE "+schema+" CHARACTER SET utf8mb4");ds.destroy();

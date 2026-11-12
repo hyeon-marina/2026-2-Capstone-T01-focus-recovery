@@ -5,7 +5,7 @@ import type { CollectionAccess } from '../src/v2/access';
 import type { V2Alert } from '../src/v2/status';
 import './style.css';
 import candidates from '../../docs/data-collection/goals.candidates.json';
-declare const __COLLECTION_BUILD__: { version: string; sourceCommit: string; dirty: boolean; mode: string; apiOrigin: string; policyDigest?: string; sites?: { origin: string; pathPrefix: string }[] };
+declare const __COLLECTION_BUILD__: { version: string; sourceCommit: string; dirty: boolean; mode: string; apiOrigin: string; policyDigest?: string; publicWeb?: boolean; sites?: { origin: string; pathPrefix: string }[] };
 const build = __COLLECTION_BUILD__;
 const pilot = build.mode === 'collection-pilot';
 const real = ['real-collection','controlled-web'].includes(build.mode);
@@ -59,9 +59,9 @@ function Participant() {
   const localBuildMismatch = !!access?.local?.policyDigest && access.local.policyDigest !== build.policyDigest;
   const canStart = !localBuildMismatch && (!access?.local || access.local.ready) && (pilot || real) && access?.collectionEnabled && access.consentValid && !access.withdrawn && assigned?.goalStatus === 'CONFIRMED' && ['IDLE','START_PENDING','ENDED'].includes(local?.lifecycle ?? '');
   return <main><header><p className="eyebrow">FOCUS RECOVERY / FIELD COLLECTION</p><h1>탐색을 시작하기 전에.</h1><p>내 배정과 전송 상태를 한곳에서 확인합니다.</p></header>
-    <div className="gate" role="status"><strong>{real ? access?.collectionEnabled ? '서버 수집 Gate 유효' : '실제 사용자 수집 BLOCKED' : '실제 사용자 수집 BLOCKED'}</strong><span>{real ? '설치 패키지와 서버 정책의 허용 사이트에서만 수집합니다. 승인·동의·세션 상태를 계속 확인합니다.' : pilot ? '통제된 카탈로그 합성 파일럿만 실행할 수 있습니다.' : '인증·배정 확인용 패키지입니다. 웹페이지 접근 권한과 수집 시작 권한이 없습니다.'}</span></div>
+    <div className="gate" role="status"><strong>{real ? access?.collectionEnabled ? '서버 수집 Gate 유효' : '실제 사용자 수집 BLOCKED' : '실제 사용자 수집 BLOCKED'}</strong><span>{real ? '설치 패키지와 서버의 수집 범위·민감 페이지 제외 정책을 적용합니다. 승인·동의·세션 상태를 계속 확인합니다.' : pilot ? '통제된 카탈로그 합성 파일럿만 실행할 수 있습니다.' : '인증·배정 확인용 패키지입니다. 웹페이지 접근 권한과 수집 시작 권한이 없습니다.'}</span></div>
     {localBuildMismatch && <p role="alert">빌드/정책 불일치 · local.py build 후 chrome://extensions에서 본인 패키지를 새로고침하고 재로그인하세요.</p>}
-    {real && <details><summary>이 패키지의 허용 사이트</summary>{build.sites?.length ? <ul>{build.sites.map(s => <li key={s.origin+s.pathPrefix}>{s.origin}{s.pathPrefix}</li>)}</ul> : <p>허용 사이트가 없습니다. 승인된 정책과 새 빌드가 필요합니다.</p>}</details>}
+    {real && <details><summary>이 패키지의 수집 범위</summary>{build.publicWeb ? <p>일반 HTTP/HTTPS 웹사이트의 탐색 메타데이터를 수집합니다. 민감 페이지·사설 IP·내부망은 제외합니다. 원제목·본문·입력값·검색어는 저장하지 않습니다.</p> : build.sites?.length ? <ul>{build.sites.map(s => <li key={s.origin+s.pathPrefix}>{s.origin}{s.pathPrefix}</li>)}</ul> : <p>허용 사이트가 없습니다. 승인된 정책과 새 빌드가 필요합니다.</p>}</details>}
     <div className="layout"><div><AuthConsentPanel command={send} onAccess={onAccess} context={real ? 'real' : pilot ? 'synthetic' : 'participant'} /></div>
     <section className="work" aria-labelledby="work-title"><p className="eyebrow">MY ASSIGNMENTS</p><h2 id="work-title">오늘의 수집</h2>
       <label>배정 목표<select value={selected} onChange={e => setSelected(e.target.value)} disabled={busy || ['ACTIVE','END_PENDING'].includes(local?.lifecycle ?? '')}><option value="">목표를 선택하세요</option>{assignments.map(a => <option key={a.plannedSessionId} value={a.plannedSessionId}>{a.plannedSessionId} · {a.goalText ?? `${a.goalId} 미확정`}</option>)}</select></label>
