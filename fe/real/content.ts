@@ -39,5 +39,7 @@ async function pulse() {
 }
 chrome.runtime.onMessage.addListener(m => { if (m?.type === 'v2-capture') activate(); });
 document.addEventListener('visibilitychange', () => void pulse());
+window.addEventListener('pageshow',activate);
+window.addEventListener('popstate',activate);
 window.addEventListener('pagehide', () => { void chrome.runtime.sendMessage({ type: 'v2-leave' }).catch(() => {}); });
 activate();

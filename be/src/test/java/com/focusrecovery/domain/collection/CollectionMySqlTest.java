@@ -2,7 +2,7 @@ package com.focusrecovery.domain.collection;
 
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.test.context.*;
-@EnabledIfEnvironmentVariable(named="FOCUS97_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:3397/focus97.*")
+@EnabledIfEnvironmentVariable(named="FOCUS97_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/focus97.*")
 class CollectionMySqlTest extends CollectionOperationsTest {
     @DynamicPropertySource static void mysql(DynamicPropertyRegistry p) {
         p.add("spring.datasource.url",()->System.getenv("FOCUS97_MYSQL_URL"));

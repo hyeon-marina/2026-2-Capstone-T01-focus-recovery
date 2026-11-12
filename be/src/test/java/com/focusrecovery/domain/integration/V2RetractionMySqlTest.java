@@ -7,7 +7,7 @@ import org.springframework.test.context.*;
 @SpringBootTest(properties={"focus-recovery.v2.storage.enabled=true", "focus-recovery.v2.storage.recovery-interval=1h", "focus-recovery.v2.retraction.interval=1h"})
 @org.springframework.context.annotation.Import({V2IntegrationContract.TimeConfiguration.class, com.focusrecovery.domain.privacy.SyntheticRetractionConfiguration.class})
 @AutoConfigureMockMvc @ActiveProfiles("test")
-@EnabledIfEnvironmentVariable(named="FOCUS93_MYSQL_URL", matches="jdbc:mysql://127\\.0\\.0\\.1:3393/focus93.*")
+@EnabledIfEnvironmentVariable(named="FOCUS93_MYSQL_URL", matches="jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/focus93.*")
 class V2RetractionMySqlTest extends V2RetractionContract {
     @DynamicPropertySource static void mysql(DynamicPropertyRegistry p) {
         p.add("spring.datasource.url", () -> System.getenv("FOCUS93_MYSQL_URL"));

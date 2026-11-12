@@ -1,5 +1,7 @@
 # 참여자 실행 안내
 
+일반 HTTP/HTTPS 전체 탐색 수집은 [버전 4 범위·갱신 가이드](public-web-navigation.md)를 확인합니다.
+
 [15단계 설치·수집 명령](individual-local-setup.md)을 순서대로 수행한다. A/B/C는 자신의 PC와 Chrome 프로필만 사용한다. 공통 정책은 CONFIRMED, Plan revision1이며 본인 슬롯은54/53/53개다. `records.json` 또는 `policy-prepare`는 필요 없다.
 
 1. 필수 프로그램 설치 후 공식 main을 받는다.

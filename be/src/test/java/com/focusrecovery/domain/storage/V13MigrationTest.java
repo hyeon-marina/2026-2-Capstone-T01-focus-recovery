@@ -11,7 +11,7 @@ class V13MigrationTest {
     @Test void h2V12UpgradePreservesPayloadAndAddsOnlyEvidenceMetadata() {
         verify("jdbc:h2:mem:migration93_" + UUID.randomUUID() + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
     }
-    @Test @EnabledIfEnvironmentVariable(named="FOCUS93_MYSQL_URL", matches="jdbc:mysql://127\\.0\\.0\\.1:3393/focus93.*")
+    @Test @EnabledIfEnvironmentVariable(named="FOCUS93_MYSQL_URL", matches="jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/focus93.*")
     void mysqlV12UpgradePreservesPayloadAndConstraints() throws Exception {
         String base = System.getenv("FOCUS93_MYSQL_URL"), schema = "focus93_migration_" + UUID.randomUUID().toString().replace("-", "");
         try (var conn = DriverManager.getConnection(base, "root", "synthetic-test-only"); var stmt = conn.createStatement()) {

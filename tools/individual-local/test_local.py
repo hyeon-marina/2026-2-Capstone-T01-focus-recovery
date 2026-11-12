@@ -112,3 +112,18 @@ class DefaultPolicyTest(unittest.TestCase):
                 (d/'site-policy.json').write_bytes(old+b' ')
                 with self.assertRaisesRegex(ValueError,'LOCAL_POLICY_CHECKSUM'):
                     local.selected_policy(a,d,dict(policySha256=pin))
+
+class PublicWebPolicyUpgradeTest(unittest.TestCase):
+    def test_only_verified_v3_bytes_upgrade_to_v4_without_changing_plan(self):
+        from types import SimpleNamespace
+        import hashlib
+        with tempfile.TemporaryDirectory() as temp:
+            d=Path(temp);old=b'{"policyVersion":"3","testOnly":true}'
+            pin=hashlib.sha256(old).hexdigest();local.private(d/'site-policy.json',old.decode())
+            a=SimpleNamespace(policy=None,policy_sha256=None)
+            with patch.object(local,'PREVIOUS_TEAM_POLICY_SHA256',pin):
+                raw,digest=local.selected_policy(a,d,dict(policySha256=pin))
+                n=json.loads(raw);self.assertEqual(n['policyVersion'],'4');self.assertEqual(n['siteScope'],'PUBLIC_HTTP_HTTPS')
+                self.assertEqual(n['institution']['decision'],'NOT_REQUIRED');self.assertEqual(len(n['plan']['assignments']),160)
+                self.assertEqual(hashlib.sha256(raw).hexdigest(),digest)
+            self.assertEqual(local.selected_policy(a,d,dict(policySha256=pin)),(old,pin))

@@ -1,5 +1,7 @@
 # A/B/C 실제 로컬 수집 실행 가이드
 
+일반 HTTP/HTTPS 전체 탐색 수집은 [버전 4 범위·갱신 가이드](public-web-navigation.md)를 확인합니다.
+
 공통 운영 정책은 [TEAM_POLICY.json](TEAM_POLICY.json)의 CONFIRMED 버전이다. 목표20개·160배정·A54/B53/C53·Plan revision1을 사용한다. `records.json`, `policy-prepare`, 관리자 Credential, 수동 DB Release는 기본 설치에 필요 없다. 학교·기관 직접 확인 결과를 전달받아 NOT_REQUIRED로 반영했다. 기관 조건에 따른 차단은 해제되며 본인 동의는 계속 필요하다. [검증 결과](institution-not-required-validation.md)를 확인한다.
 
 ## 1. 필수 프로그램 설치
@@ -143,7 +145,7 @@ Chrome에서 `https://localhost:9443/api/health`가 인증서 경고 없이 열�
 
 기관 비대상 판단은 저장소 정책에 이미 반영됐다. 본인 동의를 완료하고 화면의 수집 준비가 유효할 때 세션 시작을 누른다. Extension에 표시된 정확한 Origin/Path Prefix 안의 공개 페이지를 탐색한다. 403/404·로그인·접근 제한은 우회하지 않는다. 사이트·민감 URL/DOM 검사는 계속 적용된다.
 
-활성 창·탭에서 의미 있는 페이지를5초 이상 읽는다. 유효 Visit10개 이상, 권장12~15개를 수집한다. 일반 페이지의 page/p 숫자 Query·알려진 추적 파라미터·일반 anchor는 정책에 따라 처리하며 검색어·Query/Fragment 원문은 저장하지 않는다. Hash SPA 라우트·알 수 없는 Query·민감 파라미터는 차단한다. 추적 Query만 바꿔 Visit을 채우지 않는다.
+활성 창·탭에서 의미 있는 페이지를5초 이상 읽는다. 유효 Visit10개 이상, 권장12~15개를 수집한다. 일반 HTTP/HTTPS 공개 웹사이트에서 수집한다. Query/Fragment는 HMAC 입력과 저장 데이터에서 제거하고, 민감 파라미터 이름·URL/DOM·사설 IP·내부망은 차단한다. SPA·뒤로 가기·탭 전환에서도 같은 활성 세션을 이어간다. 추적 Query만 바꿔 Visit을 채우지 않는다.
 
 ## 12. 세션 종료
 

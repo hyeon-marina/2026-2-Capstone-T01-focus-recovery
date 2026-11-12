@@ -53,3 +53,16 @@ it('excludes private/edit namespaces on reviewed encyclopedia origins',()=>{
   const wiki=[{origin:'https://ko.wikipedia.org',pathPrefix:'/wiki'}];
   for(const path of ['User:someone','Talk:Public_transport','특수:로그인','의료']) expect(inspectPublicUrl('https://ko.wikipedia.org/wiki/'+encodeURIComponent(path),wiki)).toBeNull();
 });
+it('collects general public HTTP/HTTPS domains using the unchanged session HMAC and Topic contract',async()=>{
+  for(const raw of ['https://docs.python.org/3/','https://blog.python.org/','http://news.ycombinator.com/','https://books.toscrape.com/','https://www.google.com/search?q=private#section']){
+    expect(allowedSite(raw,[],true,true)).toBe(true);
+    const s=(await describeMetadataUrl(raw,[],key,session,true))!;
+    expect(s).not.toBeNull();expect(validSnapshot({...s,title:topicTitle('Python tutorial')},session)).toBe(true);
+    expect(s.content).toMatch(/^METADATA_ONLY:/);expect(s.normalizedUrl).not.toMatch(/[?#]/);
+  }
+  const a=await describeMetadataUrl('https://blog.python.org/a?q=secret#route',[],key,session,true);
+  expect(a).toEqual(await describeMetadataUrl('https://blog.python.org/a?q=other#other',[],key,session,true));
+});
+it('fails closed for sensitive and private destinations in broad public scope',()=>{
+  for(const raw of ['http://127.0.0.1/','http://192.168.1.1/','https://localhost/','https://[::1]/','https://internal/','https://site.local/','https://mail.google.com/','https://docs.google.com/','https://site.com/account','https://site.com/private','https://site.com/checkout','https://site.com/medical','https://site.com/?token=secret','https://site.com/%2561ccount']) expect(inspectPublicUrl(raw,[],true),raw).toBeNull();
+});

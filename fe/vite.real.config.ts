@@ -12,21 +12,22 @@ export default defineConfig(({ mode }) => {
   if (!api || !(synthetic ? /^http:\/\/127\.0\.0\.1:\d+$/.test(api) : /^https:\/\/[^/?#@:]+(?::\d+)?$/.test(api))) throw new Error('Explicit API origin required');
   const bytes = readFileSync(env.COLLECTION_SITE_POLICY_FILE || '');
   const policy = JSON.parse(bytes.toString());
-  if (!/^[a-zA-Z0-9_.-]{1,100}$/.test(policy.buildId) || !Array.isArray(policy.sites) || !policy.sites.length && policy.status !== 'DRAFT' || policy.sites.length > 30) throw new Error('Build ID and exact sites required');
-  const matches = policy.sites.flatMap((s: {origin: string;pathPrefix: string}) => {
+  if (!/^[a-zA-Z0-9_.-]{1,100}$/.test(policy.buildId) || !Array.isArray(policy.sites) || !policy.sites.length && policy.status !== 'DRAFT' && policy.siteScope !== 'PUBLIC_HTTP_HTTPS' || policy.sites.length > 30) throw new Error('Build ID and exact sites required');
+  const publicWeb = policy.siteScope === 'PUBLIC_HTTP_HTTPS';
+  const matches = publicWeb ? ['http://*/*','https://*/*'] : policy.sites.flatMap((s: {origin: string;pathPrefix: string}) => {
     const u = new URL(s.origin);
     if (u.origin !== s.origin || !(u.protocol === 'https:' || synthetic && u.protocol === 'http:' && u.hostname === '127.0.0.1') || s.origin.includes('*') || !/^\/[a-zA-Z0-9_./-]*$/.test(s.pathPrefix) || s.pathPrefix.includes('..')) throw new Error('Exact public origin and path required');
     return contentMatches(s);
   });
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   const dirty = !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim();
-  const metadata = { version: '0.3.0', sourceCommit, dirty, mode, apiOrigin: api, actualCollection: 'REQUIRES_SERVER_APPROVAL',
-    metadataOnly: policy.schemaVersion === 'focus-local-policy/1' || synthetic && policy.metadataOnly === true, buildId: policy.buildId, policyDigest: createHash('sha256').update(bytes).digest('hex'), sites: policy.sites };
+  const metadata = { version: '0.4.0', sourceCommit, dirty, mode, apiOrigin: api, actualCollection: 'REQUIRES_SERVER_APPROVAL',
+    publicWeb, metadataOnly: policy.schemaVersion === 'focus-local-policy/1' || synthetic && policy.metadataOnly === true, buildId: policy.buildId, policyDigest: createHash('sha256').update(bytes).digest('hex'), sites: policy.sites };
   return { base: './', publicDir: false, define: { __COLLECTION_PILOT__: false, __COLLECTION_REAL__: true, __COLLECTION_BUILD__: JSON.stringify(metadata) },
     plugins: [{ name: 'real-manifest', generateBundle() {
       this.emitFile({type:'asset',fileName:'build-info.json',source:JSON.stringify(metadata,null,2)});
-      this.emitFile({type:'asset',fileName:'manifest.json',source:JSON.stringify({ manifest_version:3, name: synthetic ? 'Focus v2 Controlled HTML — SYNTHETIC' : 'Focus Recovery v2 — 승인 사이트 수집', version:metadata.version,
-        minimum_chrome_version:'106', permissions:['storage','alarms','webNavigation'], host_permissions:[...new Set([`${api}/*`,...policy.sites.map((s:{origin:string})=>`${s.origin}/*`)])],
+      this.emitFile({type:'asset',fileName:'manifest.json',source:JSON.stringify({ manifest_version:3, name: synthetic ? 'Focus v2 Controlled HTML — SYNTHETIC' : 'Focus Recovery v2 — 웹 탐색 메타데이터', version:metadata.version,
+        minimum_chrome_version:'106', permissions:['storage','alarms','webNavigation','tabs'], host_permissions:[...new Set([`${api}/*`,...(publicWeb ? ['http://*/*','https://*/*'] : policy.sites.map((s:{origin:string})=>`${s.origin}/*`))])],
         action:{default_title:'수집 상태 열기'}, background:{service_worker:'background.js',type:'module'},
         ...(matches.length ? {content_scripts:[{matches:[...new Set(matches)],js:['content.js'],run_at:'document_idle',all_frames:false}]} : {})
       },null,2)});

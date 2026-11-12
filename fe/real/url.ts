@@ -1,8 +1,38 @@
-import { inspectUrl } from '../src/shared/url';
+import { inspectUrl, searchEngine } from '../src/shared/url';
 import { PAGE_MARKER, METADATA_TITLE, METADATA_CONTENT, OMITTED_QUERY } from '../src/shared/metadata';
 import type { Site } from './policy';
 
-export function inspectPublicUrl(raw: string, sites: Site[]) {
+const privateHost = /(?:^|\.)(?:localhost|local|internal|intranet|lan|home|corp|private|test|invalid|example|onion|admin|mail|webmail|outlook|gmail|whatsapp|telegram|chat|messages|messenger|slack|discord|teams|bank|banking|finance|paypal|stripe|health|medical|hospital|clinic)(?:\.|$)/i;
+const sensitive = /(?:^|[\/_.-])(?:login|logon|signin|sign-in|signup|register|password|auth|oauth|callback|sso|accounts|account|myaccount|profile|settings|private|direct|calendar|documents|admin|dashboard|console|inbox|mail|chat|messages|checkout|payment|payments|billing|orders|receipt|invoice|verify|verification|bank|banking|wallet|finance|financial|medical|health|patient|prescription|records)(?:[\/_.-]|$)/i;
+export function publicWebUrl(raw: string): URL | null {
+  try {
+    if (raw.length > 8192) return null;
+    const u = new URL(raw);
+    // Reject IP literals, private host names and nonstandard service ports.
+    if (!['http:', 'https:'].includes(u.protocol) || u.username || u.password || u.port || u.hostname.length > 253
+      || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}$/.test(u.hostname)
+      || privateHost.test(u.hostname) || sensitive.test(u.hostname) || /^(?:(?:docs|drive|calendar|contacts)\.google\.com|.*\.sharepoint\.com|onedrive\.live\.com)$/.test(u.hostname)) return null;
+    if ([...u.searchParams.keys()].some(k => /token|password|secret|credential|authorization|^(code|session|sessionid|sid|email|phone|address|card)$/.test(k.toLowerCase()))) return null;
+    let path = u.pathname;
+    for (let i = 0; i < 3; i++) { const decoded = decodeURIComponent(path); if (decoded === path) break; path = decoded; }
+    if (/%|[\\@\u0000-\u001f\u007f]/.test(path) || sensitive.test(path)
+      || /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\d{6}-[1-4]\d{6}/i.test(path)
+      || /\.(?:pdf|mp4|webm|mp3|wav|ogg|m4a)$/i.test(path)) return null;
+    // Query values and fragment are never read, hashed, sent or stored.
+    u.search = ''; u.hash = '';
+    return u;
+  } catch { return null; }
+}
+
+export function inspectPublicUrl(raw: string, sites: Site[], publicWeb = false) {
+  if (publicWeb) {
+    const url = publicWebUrl(raw);
+    if (!url || url.pathname.includes(PAGE_MARKER)) return null;
+    if (/(?:^|\.)wikipedia\.org$/.test(url.hostname) && /^\/wiki\/(?:Special|User|User_talk|Talk|Wikipedia|File|Help|특수|사용자|사용자토론|토론|위키백과|파일|도움말):/i.test(decodeURIComponent(url.pathname))) return null;
+    const search = searchEngine(url);
+    const site = {origin:url.origin,pathPrefix:search ? url.pathname : '/'};
+    return {url,site,isSearchResultPage:search !== null,searchQuery:null,canonical:url.href};
+  }
   if (raw.length > 8192 || /[\\\s\u0000-\u001f\u007f]/.test(raw) || /%(?:2f|5c|25)/i.test(raw.split(/[?#]/)[0])) return null;
   const inspected = inspectUrl(raw, true);
   if (!inspected) return null;
@@ -35,8 +65,8 @@ export function inspectPublicUrl(raw: string, sites: Site[]) {
   return { ...inspected, site, canonical: u.origin + u.pathname + '?' + functional.toString() };
 }
 
-export async function describeMetadataUrl(raw: string, sites: Site[], keyBytes: Uint8Array<ArrayBuffer>, session: string) {
-  const p = inspectPublicUrl(raw, sites);
+export async function describeMetadataUrl(raw: string, sites: Site[], keyBytes: Uint8Array<ArrayBuffer>, session: string, publicWeb = false) {
+  const p = inspectPublicUrl(raw, sites, publicWeb);
   if (!p) return null;
   const key = await crypto.subtle.importKey('raw', keyBytes, {name:'HMAC',hash:'SHA-256'}, false, ['sign']);
   const hash = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(session + '\n' + p.canonical));

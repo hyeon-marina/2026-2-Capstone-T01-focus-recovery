@@ -3,7 +3,7 @@ package com.focusrecovery.domain.identity;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.test.context.*;
 
-@EnabledIfEnvironmentVariable(named="FOCUS95_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:3393/focus95.*")
+@EnabledIfEnvironmentVariable(named="FOCUS95_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/focus95.*")
 class AuthConsentMySqlTest extends AuthConsentTest {
     @DynamicPropertySource static void mysql(DynamicPropertyRegistry p) {
         p.add("spring.datasource.url",()->System.getenv("FOCUS95_MYSQL_URL"));
