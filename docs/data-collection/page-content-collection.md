@@ -1,8 +1,10 @@
 # 실제 제목·본문·검색어 수집 — 정책 v6
 
+팀원별 최초 설치/기존 백업, macOS/Windows 명령, 실제 장비 결과표는 [A/B/C 현장 검증](team-field-validation.md)을 먼저 따릅니다. 아래는 수집 기준과 예외 복구·학습 검수의 상세 설명입니다.
+
 현재 기준은 TEAM_POLICY.json의 `pageContent=true`, 버전 6, RAW_ONLY다. 기관 판단 NOT_REQUIRED, Plan revision1, 20목표·160세션·A54/B53/C53은 그대로다. #105~#110 문서의 METADATA_ONLY/Topic 설명은 **과거 버전의 필드 의미**이며 새 수집의 의미가 아니다.
 
-기존 v5의 정상 세션은 종료 ACK와 미전송 0건을 확인한다. 격리 중이면 동일한 로컬 디렉터리와 Chrome 프로필을 보존한 채 업그레이드 후 아래 마감 절차를 따른다. 기존 데이터가 있으면 먼저 local.py backup에 새 .age 출력 경로와 별도로 확인한 수신자 공개키를 지정한다. 본인 PC에서 다음 명령을 실행한다. B/C는 자신의 슬롯을 사용한다.
+기존 v5의 정상 세션은 종료 ACK와 미전송 0건을 확인한다. 격리 중이면 동일한 로컬 디렉터리와 Chrome 프로필을 보존하고, 아래 예외 복구와 [현장 검증 §6](team-field-validation.md)을 먼저 확인한다. 특히 서버 ACTIVE/CLEAR인 v5의 0 Visit 격리는 같은 v5 정책으로 마감한 뒤 v6로 갱신한다. 기존 데이터가 있으면 먼저 local.py backup에 새 .age 출력 경로와 별도로 확인한 수신자 공개키를 지정한다. 본인 PC에서 다음 macOS 명령을 실행한다(기본 `.collection/local` 예시). B/C는 자신의 슬롯을 사용하고 별도 디렉터리는 모든 local.py 명령에 `--directory`를 지정한다. Windows 및 기존 환경의 안전한 순서는 [현장 검증 §1~4](team-field-validation.md)를 따른다.
 
 ```sh
 npm ci --prefix fe
@@ -49,17 +51,38 @@ v5에서 첫 Visit 전에 격리되어 서버가 아직 ACTIVE / CLEAR로 표시
 
 통합된 `.age` 파일로부터 다음 명령으로 **암호화된 검수 JSONL**을 만든다. 실제 값은 본인 비공개 전달 경로에서 받은 SHA/키/경로를 넣는다. A/B/C privacy를 모두 전달한다.
 
+macOS(merge-guide의 경로와 변수 사용):
+
 ```sh
-python3 tools/individual-local/dataset.py training-review merged.tar.age \
-  --sha256 "$MERGED_SHA256" --identity merge.agekey --recipient "$AGE_RECIPIENT" \
-  --privacy A-privacy.json "$A_PRIVACY_SHA256" \
-  --privacy B-privacy.json "$B_PRIVACY_SHA256" \
-  --privacy C-privacy.json "$C_PRIVACY_SHA256" \
-  --output review.tar.age
-python3 tools/individual-local/dataset.py verify review.tar.age --identity merge.agekey
+MERGED_SHA256=$(shasum -a 256 .collection/merge/dataset-001.tar.age | cut -d ' ' -f 1)
+AGE_RECIPIENT=$(age-keygen -y .collection/merge/identity.agekey)
+python3 tools/individual-local/dataset.py training-review .collection/merge/dataset-001.tar.age \
+  --sha256 "$MERGED_SHA256" --identity .collection/merge/identity.agekey --recipient "$AGE_RECIPIENT" \
+  --privacy .collection/merge/incoming/A-privacy-001.json "$A_PRIVACY_SHA256" \
+  --privacy .collection/merge/incoming/B-privacy-001.json "$B_PRIVACY_SHA256" \
+  --privacy .collection/merge/incoming/C-privacy-001.json "$C_PRIVACY_SHA256" \
+  --output .collection/merge/review-001.tar.age
+python3 tools/individual-local/dataset.py verify .collection/merge/review-001.tar.age --identity .collection/merge/identity.agekey
 ```
 
-평문 파일은 생성하지 않는다. 복호화·JSONL 생성·age 암호화는 메모리에서 수행하며 크기는 기존256MiB 한도를 따른다. 원문 로그를 켜지 않는다. `review.tar.age`는 review.jsonl·manifest.json·checksums.sha256을 포함한다.
+Windows PowerShell(**전체 실행 NOT_TESTED**):
+
+```powershell
+$mergedHash = (Get-FileHash .collection/merge/dataset-001.tar.age -Algorithm SHA256).Hash.ToLowerInvariant()
+$mergeRecipient = age-keygen -y .collection/merge/identity.agekey
+python tools/individual-local/dataset.py training-review .collection/merge/dataset-001.tar.age `
+  --sha256 $mergedHash --identity .collection/merge/identity.agekey --recipient $mergeRecipient `
+  --privacy .collection/merge/incoming/A-privacy-001.json $aPrivacyHash `
+  --privacy .collection/merge/incoming/B-privacy-001.json $bPrivacyHash `
+  --privacy .collection/merge/incoming/C-privacy-001.json $cPrivacyHash `
+  --output .collection/merge/review-001.tar.age
+if ($LASTEXITCODE -ne 0) { throw '학습 검수 생성 실패. 원본을 보존하세요' }
+python tools/individual-local/dataset.py verify .collection/merge/review-001.tar.age --identity .collection/merge/identity.agekey
+```
+
+privacy의 확인된 SHA 변수는 merge-guide §8에서 준비한다. 15분이 지났다면 각 source에서 **새 파일명**으로 privacy를 다시 받고 위 경로·확인된 해시를 함께 바꾼다. 검증 실패 시 다음 명령으로 진행하지 않는다.
+
+평문 파일은 생성하지 않는다. 복호화·JSONL 생성·age 암호화는 메모리에서 수행하며 크기는 기존256MiB 한도를 따른다. 원문 로그를 켜지 않는다. `review-001.tar.age`는 review.jsonl·manifest.json·checksums.sha256을 포함한다.
 
 `focus-training-review/1`은 session당1행이다. sourceInstanceId/participantId/sessionId/goalId/goalText/scenarioType, 전체 goal/session, 순서대로 정렬한 원본 visits, 관련 attempts/sessionFailures를 보존한다. visit에는 원래 title/content/searchQuery/extractionStatus/sequence/visitedAt/행동 필드와 원본ID/통합ID가 모두 남는다. 중복·누락·실패 본문은 거절한다. 세션 전체가 과거의 정확한 METADATA_ONLY 표식이면 기존 Import에 보존하고 학습 검수에서 제외하며 manifest.legacyMetadataSessionsExcluded로 수를 기록한다. 혼합/잘못된 표식은 거절한다. 원래 실패 진단은 sessionFailures 및 manifest의 extractionFailures로 별도 검수한다.
 
