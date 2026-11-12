@@ -127,3 +127,33 @@ class PublicWebPolicyUpgradeTest(unittest.TestCase):
                 self.assertEqual(n['institution']['decision'],'NOT_REQUIRED');self.assertEqual(len(n['plan']['assignments']),160)
                 self.assertEqual(hashlib.sha256(raw).hexdigest(),digest)
             self.assertEqual(local.selected_policy(a,d,dict(policySha256=pin)),(old,pin))
+
+class ShutdownTest(unittest.TestCase):
+    def run_stop(self, state, backend=False):
+        from contextlib import redirect_stdout
+        import io
+        with tempfile.TemporaryDirectory() as temp:
+            d=Path(temp);(d/'config.json').write_text(json.dumps(dict(project='focus-local-synthetic',dbPort=33101,tlsPort=9443)))
+            if backend:(d/'backend.json').write_text(json.dumps(dict(pid=123,nonce='expected')))
+            events=[];output=io.StringIO()
+            def compose(*args,**kwargs):
+                events.append(args[2:])
+                return subprocess.CompletedProcess([],0,stdout='test-mysql\n' if args[2]=='ps' else '')
+            def kill(*args):events.append(('backend-terminate',))
+            with patch.object(local,'compose',side_effect=compose),patch.object(local,'run',return_value=subprocess.CompletedProcess([],0,stdout=json.dumps(state))),patch('local.os.kill',side_effect=kill),patch('local.subprocess.run',side_effect=[subprocess.CompletedProcess([],0,stdout='focus.local.instance=expected\n'),subprocess.CompletedProcess([],1,stdout='')]),patch('local.time.sleep'),redirect_stdout(output):
+                try:local.main(['--directory',str(d),'stop'])
+                except ValueError:
+                    self.assertNotIn('Stopped.',output.getvalue());raise
+            return events,output.getvalue()
+    def test_backend_stops_before_mysql_and_shutdown_is_verified(self):
+        events,output=self.run_stop(dict(Status='exited',ExitCode=0,OOMKilled=False,Error=''),backend=True)
+        self.assertEqual(events,[('backend-terminate',),('stop','--timeout','60','mysql'),('ps','--all','--quiet','mysql')])
+        self.assertIn('MySQL shutdown verified',output)
+    def test_nonzero_oom_running_and_engine_error_never_report_success(self):
+        for state in [dict(Status='exited',ExitCode=137,OOMKilled=False,Error=''),dict(Status='exited',ExitCode=0,OOMKilled=True,Error=''),dict(Status='running',ExitCode=0,OOMKilled=False,Error=''),dict(Status='exited',ExitCode=0,OOMKilled=False,Error='test-error')]:
+            with self.subTest(state=state),self.assertRaisesRegex(ValueError,'MYSQL_SHUTDOWN_UNCLEAN'):self.run_stop(state)
+    def test_stop_without_a_mysql_container_preserves_noop_behavior(self):
+        with tempfile.TemporaryDirectory() as temp:
+            d=Path(temp);(d/'config.json').write_text(json.dumps(dict(project='focus-local-synthetic',dbPort=33101,tlsPort=9443)))
+            with patch.object(local,'compose',return_value=subprocess.CompletedProcess([],0,stdout='')),patch.object(local,'run') as inspect:
+                local.main(['--directory',str(d),'stop']);inspect.assert_not_called()

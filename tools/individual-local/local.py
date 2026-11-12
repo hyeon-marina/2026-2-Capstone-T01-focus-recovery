@@ -302,7 +302,18 @@ def main(argv=None):
             else:
                 raise ValueError('Backend still stopping; DB kept running')
             (d / 'backend.json').unlink()
-        compose(c, env, 'stop', 'mysql')
+        # Existing containers can retain an unsafe stop timeout from an older configuration.
+        compose(c, env, 'stop', '--timeout', '60', 'mysql')
+        containers = compose(c, env, 'ps', '--all', '--quiet', 'mysql', capture_output=True, text=True).stdout.split()
+        if containers:
+            if len(containers) != 1:
+                raise ValueError('MYSQL_SHUTDOWN_UNVERIFIED: expected one local MySQL container; volumes retained')
+            state = json.loads(run(['docker', 'inspect', '--format', '{{json .State}}', containers[0]], capture_output=True, text=True).stdout)
+            if state.get('Status') != 'exited' or state.get('ExitCode') != 0 or state.get('OOMKilled') is not False or state.get('Error'):
+                raise ValueError('MYSQL_SHUTDOWN_UNCLEAN: exit=' + str(state.get('ExitCode')) + '; inspect Docker/MySQL logs before restart; volumes retained')
+            print('MySQL shutdown verified: exit=0, OOMKilled=false, no engine error.')
+        else:
+            print('No local MySQL container exists; files retained.')
         print('Stopped. Database volume and files retained; no down -v command is provided.')
     elif a.command == 'status':
         compose(c, env, 'ps')
