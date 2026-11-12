@@ -1,0 +1,237 @@
+{
+  "result": "PASS",
+  "kind": "AUTOMATED_TECHNICAL_TEST_NOT_HUMAN_CONSENT",
+  "humanResearchSessions": 0,
+  "chromeVersion": "151.0.7922.34",
+  "slot": "C",
+  "policyDigest": "31db27f078c2c80223f3887e33d1853a378e6794098f32319769f01577c2c982",
+  "plan": "PLAN-018",
+  "observedPages": [
+    {
+      "url": "https://docs.python.org/3/",
+      "status": 200,
+      "observedAt": "2026-11-12T22:13:59.701Z"
+    },
+    {
+      "url": "https://docs.python.org/3/howto/",
+      "status": 200,
+      "observedAt": "2026-11-12T22:14:05.396Z"
+    },
+    {
+      "url": "https://docs.python.org/3/tutorial/",
+      "status": 200,
+      "observedAt": "2026-11-12T22:14:11.800Z"
+    },
+    {
+      "url": "https://docs.python.org/3/library/",
+      "status": 200,
+      "observedAt": "2026-11-12T22:14:18.437Z"
+    },
+    {
+      "url": "https://docs.python.org/3/reference/",
+      "status": 200,
+      "observedAt": "2026-11-12T22:14:23.946Z"
+    },
+    {
+      "url": "https://docs.python.org/3/faq/",
+      "status": 200,
+      "observedAt": "2026-11-12T22:14:29.466Z"
+    },
+    {
+      "url": "https://docs.python.org/3/tutorial/venv.html",
+      "status": 200,
+      "observedAt": "2026-11-12T22:14:35.044Z"
+    },
+    {
+      "url": "https://docs.python.org/3/library/venv.html",
+      "status": 200,
+      "observedAt": "2026-11-12T22:14:41.567Z"
+    },
+    {
+      "url": "https://docs.python.org/3/installing/index.html",
+      "status": 200,
+      "observedAt": "2026-11-12T22:14:46.902Z"
+    },
+    {
+      "url": "https://docs.python.org/3/tutorial/modules.html",
+      "status": 200,
+      "observedAt": "2026-11-12T22:14:53.073Z"
+    }
+  ],
+  "oldAttempt": {
+    "plannedSessionId": "PLAN-018",
+    "goalId": "GOAL-003",
+    "scenarioType": "GOAL_MAINTENANCE",
+    "source": "PARTICIPANT",
+    "sessionStatus": "ENDED",
+    "privacyStatus": "CLEAR",
+    "reviewStatus": "RECOLLECT_REQUIRED",
+    "reasonCode": "INSUFFICIENT_VISITS",
+    "collectedAt": "2026-11-12T21:16:57.312Z",
+    "quality": {
+      "validVisits": 4,
+      "expectedWindows": 2,
+      "validWindows": 0,
+      "analysisSuccess": 0,
+      "analysisFailure": 0,
+      "referencesValid": true,
+      "reasons": [
+        "VISITS_BELOW_10",
+        "WINDOW_COUNT_MISMATCH",
+        "ANALYSIS_OR_STATE_INCOMPLETE"
+      ]
+    },
+    "extractionFailures": 0,
+    "collectionFailures": 0,
+    "deliveryConfirmed": true,
+    "status": "RECOLLECT_REQUIRED",
+    "rawQuality": {
+      "validVisits": 4,
+      "theoreticalWindows": 2,
+      "referencesValid": true,
+      "reasons": [
+        "VISITS_BELOW_10"
+      ]
+    },
+    "rawStatus": "RECOLLECT_REQUIRED",
+    "analysisState": "NOT_RUN",
+    "analysisWindowCount": 0,
+    "attemptPrefix": "cac088b5",
+    "sessionPrefix": "7710f7c7"
+  },
+  "newAttempt": {
+    "plannedSessionId": "PLAN-018",
+    "goalId": "GOAL-003",
+    "scenarioType": "GOAL_MAINTENANCE",
+    "source": "PARTICIPANT",
+    "sessionStatus": "ENDED",
+    "privacyStatus": "CLEAR",
+    "reviewStatus": "PENDING",
+    "reasonCode": null,
+    "collectedAt": "2026-11-12T22:13:52.903Z",
+    "quality": {
+      "validVisits": 10,
+      "expectedWindows": 8,
+      "validWindows": 0,
+      "analysisSuccess": 0,
+      "analysisFailure": 0,
+      "referencesValid": true,
+      "reasons": [
+        "WINDOW_COUNT_MISMATCH",
+        "ANALYSIS_OR_STATE_INCOMPLETE"
+      ]
+    },
+    "extractionFailures": 0,
+    "collectionFailures": 0,
+    "deliveryConfirmed": true,
+    "status": "RECOLLECT_REQUIRED",
+    "rawQuality": {
+      "validVisits": 10,
+      "theoreticalWindows": 8,
+      "referencesValid": true,
+      "reasons": []
+    },
+    "rawStatus": "RAW_COLLECTED",
+    "analysisState": "NOT_RUN",
+    "analysisWindowCount": 0,
+    "attemptPrefix": "4d497df5",
+    "sessionPrefix": "da18fc7e"
+  },
+  "raw": {
+    "completed": 1,
+    "syntheticCompleted": 0,
+    "validVisits": 10,
+    "theoreticalWindows": 8,
+    "generatedWindows": 0,
+    "analysisCompletedWindows": 0,
+    "participants": {
+      "C": 1
+    },
+    "goals": {
+      "GOAL-001": 0,
+      "GOAL-002": 0,
+      "GOAL-003": 1,
+      "GOAL-004": 0,
+      "GOAL-005": 0,
+      "GOAL-006": 0,
+      "GOAL-007": 0,
+      "GOAL-008": 0,
+      "GOAL-009": 0,
+      "GOAL-010": 0,
+      "GOAL-011": 0,
+      "GOAL-012": 0,
+      "GOAL-013": 0,
+      "GOAL-014": 0,
+      "GOAL-015": 0,
+      "GOAL-016": 0,
+      "GOAL-017": 0,
+      "GOAL-018": 0,
+      "GOAL-019": 0,
+      "GOAL-020": 0
+    },
+    "scenarios": {
+      "CLEAR_DRIFT": 0,
+      "GOAL_MAINTENANCE": 1,
+      "GRADUAL_DRIFT": 0,
+      "JUSTIFIED_DETOUR": 0
+    }
+  },
+  "ended": {
+    "lifecycle": "ENDED",
+    "endPhase": "acked",
+    "pending": 0
+  },
+  "captures": [
+    {
+      "file": "09-before-recollection.png",
+      "capturedAt": "2026-11-12T22:13:52.548Z",
+      "description": "Same C profile: preserved four-Visit Attempt before recollect",
+      "sha256": "0b970ee5e6ea966734b3311e80275ffd99eb8a603504ff516970353be026dbb5"
+    },
+    {
+      "file": "10-recollect-authorized.png",
+      "capturedAt": "2026-11-12T22:13:52.763Z",
+      "description": "Existing Attempt retained with INSUFFICIENT_VISITS; same plan can start again",
+      "sha256": "b949ade93e2ba84478333cd2f651735642431d59f269e476735574e9b5524dca"
+    },
+    {
+      "file": "11-new-session-active.png",
+      "capturedAt": "2026-11-12T22:13:53.046Z",
+      "description": "Same PLAN-018 with a distinct new Session and Attempt, ACTIVE",
+      "sha256": "752e82430f28bd2d9c773d7099e1837ff52159ccb2264302464c0e99eba7f15d"
+    },
+    {
+      "file": "12-public-page-visit.png",
+      "capturedAt": "2026-11-12T22:13:59.780Z",
+      "description": "Actual public Python documentation in recollected session",
+      "sha256": "25b98448ba68885990fac2c387b2134713a2fe7c49292e82c5b04537ce60696c"
+    },
+    {
+      "file": "13-ten-visits-active.png",
+      "capturedAt": "2026-11-12T22:14:53.233Z",
+      "description": "ACTIVE and ten valid Visits before END",
+      "sha256": "f66dd7bd94f15f467a34a6113e68af18b0fe36733a96a2dce77cebf20c35c66b"
+    },
+    {
+      "file": "14-raw-collected.png",
+      "capturedAt": "2026-11-12T22:14:53.726Z",
+      "description": "ENDED/acked, RAW_COLLECTED, both old and new Attempts visible, completion 1/53",
+      "sha256": "4a265b9b4f23c89400e7251edf30beba4cb346533ed34aa2a25351188054f826"
+    },
+    {
+      "file": "15-server-two-attempts.png",
+      "capturedAt": "2026-11-12T22:14:53.894Z",
+      "description": "Actual Backend JSON: two preserved Attempts, ten valid Visits counted once",
+      "sha256": "2c1cde93acbf4accfccf7cc1ff9ae6040389fbc8adc68fd1dc42b489fa145ac7"
+    },
+    {
+      "file": "16-mysql-preservation.png",
+      "capturedAt": "2026-11-12T22:15:51.167Z",
+      "description": "Actual saved read-only MySQL CLI output, opened as plain text in Chrome; not a SQL GUI or Terminal screenshot",
+      "sha256": "3e1bbc251919799b99d4ca6ca5ad10342ed0542cded176afc8658de887d67583"
+    }
+  ],
+  "sourcePrefix": "9159c1d7",
+  "runtimeSourceCommit": "83cc3d1d9967de8ce49b9948f353964763262b57",
+  "repositoryBaseCommit": "1c83c6cf2e908f16fe7cbff62ad95238bc60daa2"
+}

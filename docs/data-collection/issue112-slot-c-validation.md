@@ -1,6 +1,6 @@
 # Issue #112 / PR #113 슬롯 C 후속 검증
 
-> 코드·회귀·슬롯 C 기술 검증 PASS. 실제 팀원 장비·직접 동의 및 운영 데이터 현장 검증은 NOT_TESTED이므로 전체 현장 준비 판정은 PARTIAL이다. 자동화 테스트 동의는 실제 팀원 C의 동의가 아니며 연구용 160세션 실적은 0건이다.
+> 코드·회귀·슬롯 C 기술 검증 PASS. 후속 PLAN-018 재수집에서 10 Visit·RAW_COLLECTED 및 기존 Attempt 보존을 확인했다 (§11). 실제 팀원 장비·직접 동의 및 운영 데이터 현장 검증은 NOT_TESTED이므로 전체 현장 준비 판정은 PARTIAL이다. 자동화 테스트 동의는 실제 팀원 C의 동의가 아니며 연구용 160세션 실적은 0건이다.
 
 ## 1. 검증 개요
 
@@ -10,7 +10,7 @@
 - JDK: Temurin 21.0.10. Node: 25.9.0. Python: 3.11.16. MySQL: Docker 8.4.
 - 브라우저: Chrome for Testing 151.0.7922.34, 실제 확장 번들을 로드한 headless Chromium. OS 인증서 신뢰 설치는 검증하지 않고 신규 테스트 인증서의 SPKI만 고정한다.
 - 정책: `focus-team-raw-v2/6`, RAW_ONLY. SHA-256: `31db27f078c2c80223f3887e33d1853a378e6794098f32319769f01577c2c982`.
-- 시작 코드: `930b349d96e9d954b688985b51d73c040a487611`. 실행 코드 SHA: `83cc3d1d9967de8ce49b9948f353964763262b57` (Push 확인 후 재빌드한 서버·확장)..
+- 시작 코드: `930b349d96e9d954b688985b51d73c040a487611`. 실행 코드 SHA: `83cc3d1d9967de8ce49b9948f353964763262b57` (Push 확인 후 재빌드한 서버·확장).
 - 검증 유형: 자동화 기술 테스트. 실제 참여자의 직접 동의·실제 연구 세션은 검증하지 않는다.
 - 초기 Git: 작업 트리 clean, detached `bb3cb46375fcc97be946d69b2b6a9a1f22b174f3`. GitHub PR 및 origin fetch로 최신 HEAD가 `930b349`임을 확인하고 해당 커밋으로 전환했다. 대상 로컬 브랜치가 다른 워크트리에서 사용 중이므로 현재 워크트리의 detached HEAD를 기존 원격 `fix/112/collection-stability`에 fast-forward Push한다. 기존 워크트리와 커밋 이력은 변경하지 않는다.
 
@@ -75,7 +75,7 @@ chmod 600 "$C_DIR/AUTOMATED_TEST_ONLY"
 
 수집 사이트는 Python 공식 문서 `/3/`, `/3/howto/`, `/3/tutorial/`, `/3/library/`다. [문서 라이선스](https://docs.python.org/3/copyright.html), [robots.txt](https://docs.python.org/robots.txt), [PSF 개인정보 안내](https://policies.python.org/python.org/Privacy-Notice/)를 확인했다. 선택 경로는 robots 제외 경로가 아니며 로그인·폼·검색어 없이 소량 문서만 연다. 이는 모든 사이트에 대한 포괄적 수집 허용 판단이 아니다.
 
-## 5. 슬롯 C 실제 수집 결과
+## 5. 슬롯 C 초회 4 Visit 수집 결과
 
 |항목|결과|
 |---|---|
@@ -167,3 +167,86 @@ Export/Import·암호화·SHA·중복·최신 Privacy/Revision·학습 검수는
 - 첫 Push: origin `fix/112/collection-stability`에 일반 fast-forward 성공. `git ls-remote` 및 GitHub PR API의 head_sha가 위 SHA와 일치함을 확인했다.
 - 최종 증거·보고서는 후속 문서 커밋으로 같은 원격 브랜치에 반영한다. 해당 문서 커밋의 원격 SHA 재확인 결과는 PR 댓글과 최종 작업 응답에 기록한다 (보고서 자체의 SHA 자기참조는 하지 않는다).
 - `git diff --check`와 변경 목록을 확인하고 개인정보·키·Credential·로컬 DB·프로필·원본 데이터·서버 로그를 제외했다. 기존 `collection-stability-validation.md`는 수정하지 않았다.
+
+
+## 11. PLAN-018 동일 환경 재수집 — 10 Visit / RAW_COLLECTED
+
+### 11.1. 범위와 실행 코드
+
+2026-11-13 KST에 초회 4 Visit을 수집했던 **동일한** 슬롯 C Project `focus-local-3ea05155201b`, MySQL Volume, Source `9159c1d7…`, Participant, Credential, 정책 v6, Extension 디렉터리, Chrome 프로필을 다시 사용했다. `init`·`setup`·DB 초기화·프로필 재생성·IndexedDB 삭제·동의 재등록은 수행하지 않았다. 기존 동의와 인증이 유효함을 확인했다.
+
+작업 시작 시 GitHub PR #113 및 origin HEAD는 `1c83c6cf2e908f16fe7cbff62ad95238bc60daa2`로 같았고 작업 트리는 clean이었다. 실행한 Backend JAR의 `build.sourceCommit`과 기존 Extension footer는 모두 `83cc3d1d9967de8ce49b9948f353964763262b57`이다. 애플리케이션 코드는 추가 수정하지 않았다. 이번 변경은 재수집 검증 스크립트·증거·보고서 추가다.
+
+테스트용 자동화 동의는 이전 기록 1건을 그대로 사용했다. 실제 팀원 C의 동의 또는 연구용 160세션 실적으로 합산하지 않으며, 연구 실적은 계속 0건이다. 이 Source의 API `PARTICIPANT`·완료 1/53 표시는 독립된 기술 테스트 DB의 값이다.
+
+### 11.2. 실제 실행 과정과 검증
+
+1. 같은 DB와 Backend만 재시작하고 새 age 테스트 키로 기존 DB의 암호화 백업을 보존했다. 키·백업·원본 데이터는 비공개 로컬에만 남겼다.
+2. 시작 전 읽기 전용 SQL로 Session 1·Visit 4·Attempt 1·Consent 1을 확인했다. 기존 Session·Visit·Attempt·동의·Source·Credential·정책·배정의 행을 메모리에서 정규화 JSON SHA-256으로 비교할 기준을 저장했다. 본문은 로그에 출력하지 않았다.
+3. 기존 Chrome 프로필의 실제 참가자 화면에서 `PLAN-018`, 재수집 사유 `INSUFFICIENT_VISITS`를 선택하고 **사유 기록 후 재수집 허용**을 눌렀다. 기존 Attempt의 review_status·reason_code를 정식 API가 갱신하고 LOCAL_RECOLLECT 감사 이벤트 1건을 추가했다.
+4. 같은 배정을 시작해 기존과 다른 Session/Attempt를 생성했다. 공개 Python 문서 10페이지를 실제 HTTPS로 방문했고 모두 200을 받았다. 모의 네트워크·가짜 DOM·수집 품질 완화는 사용하지 않았다.
+5. 유효 Visit 10개를 확인한 뒤 UI로 종료했다. END ACK acked·pending 0·전송 확인 10·RAW_COLLECTED·AI NOT_RUN을 확인했다.
+6. 읽기 전용 SQL과 전체 행 해시로 이전 Session·4 Visit의 불변성과 이전 Attempt 보존을 검증했다. 기존 Attempt는 재수집에 필요한 두 필드(review_status, reason_code)만 비교에서 제외했고, 그 외 필드는 모두 보존됐다. 기존 Consent·Credential·Source·Plan·정책 행은 전부 동일했다. 저장된 14 Visit의 제목·본문·검색어는 기존 개인정보 검수기로 메모리 내 검사해 모두 PASS했다.
+
+### 11.3. MySQL과 Backend 최종 결과
+
+|항목|기존 Attempt|신규 재수집 Attempt|
+|---|---|---|
+|Plan|PLAN-018|PLAN-018|
+|Session prefix|7710f7c7|da18fc7e|
+|Attempt prefix|cac088b5|4d497df5|
+|시작 KST|06:16:57.281|07:13:52.879|
+|종료 KST|06:17:23.470|07:14:53.321|
+|Session / Privacy / revision|ENDED / CLEAR / 0|ENDED / CLEAR / 0|
+|MySQL Visit|4 (기존 전체 행 해시 일치)|10 (새 Visit ID 10개)|
+|Sequence|1~4|1~10, 중복 0|
+|Delivered / through sequence|4 / 4|10 / 10|
+|Review / reason|RECOLLECT_REQUIRED / INSUFFICIENT_VISITS|PENDING / NULL|
+|RAW|RECOLLECT_REQUIRED / VISITS_BELOW_10|RAW_COLLECTED / 사유 없음|
+|AI|NOT_RUN|NOT_RUN|
+
+신규 Visit의 active_duration_ms는 순서대로 **6568, 5356, 6458, 6515, 5446, 5419, 5488, 6225, 5442, 5498**이며 전부 5초 이상, extraction_status=SUCCESS다. 방문 주소·HTTP 결과는 [요약 JSON](evidence/issue112-slot-c/recollect-10/validation-summary.json)에 기록했다.
+
+최종 MySQL은 **Session 2, Attempt 2, Visit 14, Consent 1, Consent Event 1, Source 1**이다. Withdrawal·Retraction·Tombstone·AI Window는 각각 0이며 LOCAL_RECOLLECT 감사 이벤트는 1건이다. 소스·슬롯 C·배정 53개·Plan revision 1은 유지됐다. 최신 Attempt 기준 RAW 집계는 **완료 1/53, 유효 Visit 10, 이론상 Window 8, 생성 AI Window 0**이다. 이전 4 Visit을 합쳐 14 Visit 완료로 세지 않았다.
+
+- [실제 MySQL 출력](evidence/issue112-slot-c/recollect-10/mysql-verification.txt)
+- [실행한 읽기 전용 SQL](evidence/issue112-slot-c/recollect-10/verification.sql)
+- [행 보존·개인정보 검사 요약](evidence/issue112-slot-c/recollect-10/preservation-summary.json)
+
+화면의 AI 포함 status=RECOLLECT_REQUIRED와 RAW_COLLECTED는 서로 다른 품질 지표다. RAW_ONLY에서 AI를 실행하지 않아 AI 포함 Window/분석 품질은 미완료지만, 원본 10 Visit·참조·종료·전송 조건은 충족했다.
+
+### 11.4. 추가 실제 캡처 8장
+
+시각은 모두 2026-11-13 KST다. 09~15는 실제 Extension·공개 웹·Backend 응답 화면이며, 원본 페이지나 값을 증거용으로 수정하지 않았다.
+
+|파일|캡처 시각|확인 내용|
+|---|---|---|
+|[09-before-recollection.png](evidence/issue112-slot-c/recollect-10/09-before-recollection.png)|07:13:52.548|Same C profile: preserved four-Visit Attempt before recollect|
+|[10-recollect-authorized.png](evidence/issue112-slot-c/recollect-10/10-recollect-authorized.png)|07:13:52.763|Existing Attempt retained with INSUFFICIENT_VISITS; same plan can start again|
+|[11-new-session-active.png](evidence/issue112-slot-c/recollect-10/11-new-session-active.png)|07:13:53.046|Same PLAN-018 with a distinct new Session and Attempt, ACTIVE|
+|[12-public-page-visit.png](evidence/issue112-slot-c/recollect-10/12-public-page-visit.png)|07:13:59.780|Actual public Python documentation in recollected session|
+|[13-ten-visits-active.png](evidence/issue112-slot-c/recollect-10/13-ten-visits-active.png)|07:14:53.233|ACTIVE and ten valid Visits before END|
+|[14-raw-collected.png](evidence/issue112-slot-c/recollect-10/14-raw-collected.png)|07:14:53.726|ENDED/acked, RAW_COLLECTED, both old and new Attempts visible, completion 1/53|
+|[15-server-two-attempts.png](evidence/issue112-slot-c/recollect-10/15-server-two-attempts.png)|07:14:53.894|Actual Backend JSON: two preserved Attempts, ten valid Visits counted once|
+|[16-mysql-preservation.png](evidence/issue112-slot-c/recollect-10/16-mysql-preservation.png)|07:15:51.167|Actual saved read-only MySQL CLI output, opened as plain text in Chrome; not a SQL GUI or Terminal screenshot|
+
+16은 실제 `mysql --table` 출력 파일을 Chrome의 일반 텍스트 보기로 열어 찍은 화면이다. 네이티브 Terminal 앱은 Computer Use 접근 제한으로 캡처할 수 없었으며 Terminal/MySQL GUI 캡처는 **NOT_CAPTURED**다. 이를 우회하지 않고 SQL stdout 자체와 SQL 파일을 함께 제공했다. HTML로 만든 SQL UI나 이미지 합성은 사용하지 않았다. SQL에는 테스트 식별자 prefix·수량·상태·길이만 기록했다. 캡처에도 Credential·개인키·본문 원문은 없으며, 15에 보이는 UUID는 기존 독립 테스트 Source의 가명 식별자다. 모든 캡처의 원본 SHA-256은 요약 JSON에 있다. 기존 01~08 캡처와 초회 SQL 결과는 그대로 보존했다.
+
+### 11.5. 실행 명령·문제·판정
+
+```bash
+# 기존 C_DIR, 기존 JDK21 및 CHROME을 그대로 사용. init/setup/build/동의 등록 없음.
+python3 tools/individual-local/local.py --directory "$C_DIR" db
+python3 tools/individual-local/local.py --directory "$C_DIR" start
+# age-keygen으로 신규 테스트 키 생성 후 공개 recipient로 기존 DB를 암호화 백업.
+python3 tools/individual-local/local.py --directory "$C_DIR" backup --recipient "$TEST_RECIPIENT" --output "$PRIVATE_OUT/before-recollect.sql.age"
+node --check fe/scripts/slot-c-recollect-validation.mjs
+(cd fe && FOCUS_SLOT_C_DIRECTORY="$C_DIR" CHROMIUM_PATH="$CHROME" node scripts/slot-c-recollect-validation.mjs)
+# verification.sql은 SET TRANSACTION READ ONLY / CONSISTENT SNAPSHOT / COMMIT 사용.
+# 같은 Project의 MySQL에서 --default-character-set=utf8mb4 --table로 실행하고 출력 보존.
+python3 tools/individual-local/local.py --directory "$C_DIR" stop
+```
+
+신규 스크립트의 node 문법 검사와 실제 브라우저 검증의 모든 assert가 PASS했다. 이번에는 FE/BE/AI 제품 코드가 바뀌지 않아 §3의 전체 단위·통합 테스트를 재실행하지 않았다. §3 수치는 앞선 실행 결과다. 재수집 중 오류는 없었다. 증거 SQL 초안에서 예약어 stored를 별칭으로 사용해 오류 1064가 났고 stored_visits로 바꿔 읽기 전용 조회를 재실행했다. JAR 메타데이터 확인도 실제 ZIP 내 경로 META-INF/build-info.properties로 정정했다. 이들은 증거 확인 명령의 문제로 수집 데이터나 애플리케이션을 변경하지 않았다.
+
+**이번 재수집 범위: PASS. 전체 현장 준비 판정: PARTIAL 유지.** 실제 팀원 장비·직접 동의·운영 DB 검증은 여전히 NOT_TESTED다. 검증 후 이번 C Backend·컨테이너만 정지하고 DB Volume·두 Session/Attempt·14 Visit·동의·Chrome 프로필을 보존했다. Export/Import나 실제 연구 Registry 등록은 수행하지 않았다. PR 자동 병합과 Issue 종료도 수행하지 않는다.
