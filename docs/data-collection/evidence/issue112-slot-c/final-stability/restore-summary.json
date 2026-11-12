@@ -1,0 +1,12 @@
+{
+  "activeReleases": 0,
+  "exportAudits": 2,
+  "kind": "SYNTHETIC-101-RESTORE",
+  "purged": false,
+  "quarantinedSessions": 1,
+  "result": "PASS",
+  "schema": "focus101_restore_588794cf9d644a9ca8bbf39087f907c5",
+  "sourceRowsPreserved": true,
+  "visits": 10,
+  "withdrawnParticipants": 1
+}

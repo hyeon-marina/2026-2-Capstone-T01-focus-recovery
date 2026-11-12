@@ -1,0 +1,26 @@
+{
+  "result": "PASS",
+  "humanResearchSessions": 0,
+  "beforeUpgrade": {
+    "work_session": 1,
+    "page_visit": 10,
+    "collection_attempt": 1,
+    "consent_record": 1,
+    "privacy_retraction": 0,
+    "visit_tombstone": 0,
+    "collection_failure": 0,
+    "collection_export_audit": 1
+  },
+  "after": {
+    "work_session": 5,
+    "page_visit": 23,
+    "collection_attempt": 5,
+    "consent_record": 2,
+    "privacy_retraction": 2,
+    "visit_tombstone": 2,
+    "collection_failure": 1,
+    "collection_export_audit": 2
+  },
+  "exportedVisits": 21,
+  "reviewWindows": 16
+}

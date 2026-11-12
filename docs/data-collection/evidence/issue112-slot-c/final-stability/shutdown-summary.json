@@ -1,0 +1,29 @@
+{
+  "historicalExit137": "ROOT_CAUSE_CONFIRMED",
+  "directCause": "Docker daemon forced termination after SIGTERM exceeded the retained 1-second container stop timeout",
+  "beforeFixReplay": "NOT_REPRODUCED: one stop exited 0; timing-dependent historical failure is proved by retained daemon logs",
+  "fix": "FIX_VERIFIED",
+  "data": "DATA_PRESERVED",
+  "unknowns": [
+    "Origin of the legacy 1-second StopTimeout setting",
+    "Historical OOMKilled snapshot not retained; current false does not establish historical OOM state"
+  ],
+  "codeCommit": "b5248e09e5f9de00b24c3b4d805511c4896c8d11",
+  "currentCHumanResearchSessions": 0,
+  "protectedCounts": {
+    "sessions": 2,
+    "attempts": 2,
+    "visits": 14,
+    "consents": 1,
+    "consentEvents": 1,
+    "tombstones": 0,
+    "retractions": 0
+  },
+  "sameSourcePrefix": "9159c1d7",
+  "cycles": [
+    "fixed-legacy-stop",
+    "fixed-cycle-2-stop",
+    "fixed-cycle-3-stop",
+    "final-stop"
+  ]
+}

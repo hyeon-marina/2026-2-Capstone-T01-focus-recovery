@@ -1,0 +1,44 @@
+{
+  "executionKind": "FINAL_RUN_AFTER_SHUTDOWN_FIX",
+  "codeCommit": "b5248e09e5f9de00b24c3b4d805511c4896c8d11",
+  "frontend": {
+    "passed": 932,
+    "skipped": 2,
+    "failed": 0,
+    "typecheck": "PASS",
+    "realBuild": "PASS"
+  },
+  "backend": {
+    "classes": 57,
+    "tests": 1141,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "pythonLocal": {
+    "passed": 42,
+    "failed": 0
+  },
+  "pythonCollection": {
+    "passed": 5,
+    "failed": 0
+  },
+  "ai": {
+    "passed": 251,
+    "failed": 0,
+    "warnings": 1
+  },
+  "actualBrowserCollectionAndRecollection": "PASS in isolated new A technical source",
+  "currentCReadOnlyBrowser": "PASS; no new session/visit/consent",
+  "backupRestore": "PASS with populated explicitly SYNTHETIC-101 source; first empty fixture attempt failed precondition, no successful restore claimed",
+  "logSha256": {
+    "fe-build": "b919591eb19327c2b9344bc60d6259cc481c5deb28d9ed566214067c34ab8707",
+    "fe-tests": "cedbca07966061382002b9b826801f2392a484ba203baec15137492c2e47593a",
+    "be-tests": "7cf73e3651fd217156e5ddcfd02a2058103ad601a4d021c9266f828cc8343daa",
+    "python-local": "e0c8d53197bbcd48bd3053774b0be3873f915a2f433db1ebf3a2bd308c147a8e",
+    "python-collection": "1eb8c76751caebe28f921b72d909525610b1e3a7e7ca3295b8f7c4575c8f65d6",
+    "ai": "ba0f4d4b8e0e9869ed900db1969ef9c5f03878729d0cfa7ad84578a56a60e7e9",
+    "upgrade": "3165f2832d7a307aa4c10f26d225c81db0ce5713ce85ccfdcb206fca5695098d",
+    "restore": "2fe8d9b1c291ec28b33edd44faa1a1f3f292d901a75ef93f719be9640d4e6631"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "label": "fixed-legacy-stop",
+  "startedAt": "2026-11-12T22:45:28.452035+00:00",
+  "finishedAt": "2026-11-12T22:45:30.463900+00:00",
+  "elapsedSeconds": 2.057,
+  "command": "python3 tools/individual-local/local.py --directory C_DIR stop",
+  "returncode": 0,
+  "stdout": "MySQL shutdown verified: exit=0, OOMKilled=false, no engine error.\nStopped. Database volume and files retained; no down -v command is provided.\n",
+  "stderr": " Container focus-local-3ea05155201b-mysql-1 Stopping \n Container focus-local-3ea05155201b-mysql-1 Stopped \n",
+  "before": {
+    "id": "c0d266442906",
+    "state": {
+      "Status": "running",
+      "ExitCode": 0,
+      "OOMKilled": false,
+      "Error": "",
+      "StartedAt": "2026-11-12T22:45:24.021581844Z",
+      "FinishedAt": "2026-11-12T22:44:57.897222888Z"
+    },
+    "stopTimeout": 1,
+    "stopSignal": null,
+    "memoryLimit": 0
+  },
+  "after": {
+    "id": "c0d266442906",
+    "state": {
+      "Status": "exited",
+      "ExitCode": 0,
+      "OOMKilled": false,
+      "Error": "",
+      "StartedAt": "2026-11-12T22:45:24.021581844Z",
+      "FinishedAt": "2026-11-12T22:45:30.219879041Z"
+    },
+    "stopTimeout": 1,
+    "stopSignal": null,
+    "memoryLimit": 0
+  },
+  "events": [
+    {
+      "timeNano": 1794523529218104389,
+      "action": "kill",
+      "signal": "15",
+      "exitCode": null
+    },
+    {
+      "timeNano": 1794523530366431125,
+      "action": "stop",
+      "signal": null,
+      "exitCode": null
+    },
+    {
+      "timeNano": 1794523530372462166,
+      "action": "die",
+      "signal": null,
+      "exitCode": "0"
+    }
+  ],
+  "mysqlShutdownLog": [
+    "2026-11-12T22:45:29.217741Z 0 [System] [MY-013172] [Server] Received SHUTDOWN from user <via user signal>. Shutting down mysqld (Version: 8.4.9).",
+    "2026-11-12T22:45:30.188697Z 0 [System] [MY-010910] [Server] /usr/sbin/mysqld: Shutdown complete (mysqld 8.4.9)  MySQL Community Server - GPL."
+  ]
+}
