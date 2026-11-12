@@ -17,7 +17,7 @@ export function isContentMessage(value: unknown): value is ContentMessage {
   if (!(typeof s.normalizedUrl === 'string' && s.normalizedUrl.length <= 8192 && typeof s.domain === 'string' && s.domain.length <= 253 && typeof s.identity === 'string' && /^[a-f0-9]{64}$/.test(s.identity) && typeof s.title === 'string' && [...s.title].length <= 500 && typeof s.content === 'string' && [...s.content].length <= 5000 && typeof s.isSearchResultPage === 'boolean')) return false;
   const url = inspectUrl(s.normalizedUrl);
   if (!url || normalizeUrl(s.normalizedUrl) !== s.normalizedUrl || url.url.hostname !== s.domain || url.isSearchResultPage !== s.isSearchResultPage) return false;
-  if (metadataPath(url.url.pathname)) return validMetadataTitle(s.title as string) && s.content === METADATA_CONTENT && s.searchQuery === (s.isSearchResultPage ? OMITTED_QUERY : null) && s.organicResultCount === undefined;
+  if (metadataPath(url.url.pathname) && s.content === METADATA_CONTENT) return validMetadataTitle(s.title as string) && s.content === METADATA_CONTENT && s.searchQuery === (s.isSearchResultPage ? OMITTED_QUERY : null) && s.organicResultCount === undefined;
   if (!s.isSearchResultPage) return s.searchQuery == null && s.organicResultCount === undefined;
   return validSearchQuery(s.searchQuery) && Number.isSafeInteger(s.organicResultCount) && (s.organicResultCount as number) > 0 && (s.organicResultCount as number) <= 100 && s.content.trim().length > 0;
 }

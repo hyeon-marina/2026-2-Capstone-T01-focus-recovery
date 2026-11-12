@@ -193,3 +193,4 @@ timeout 및 재시도 정책은 API 설계 단계에서 확정합니다.
 
 Spring Boot 프로젝트 구조, 의존성, 데이터베이스 구성,
 실행 방법 및 테스트 방법은 Backend 개발 환경 구성이 완료된 이후 본 문서에 추가합니다.
+현재 개인 수집 정책 v5는 실제 제목·최대5,000 Unicode 본문·허용된 검색어를 수집합니다. HMAC URL/기존 동의·격리·전송 계약과 함께 `pageContent`를 검증하며 이전 정책은 호환 경로로 유지합니다. [설치·재동의·데이터 계약](../docs/data-collection/page-content-collection.md), [실제 E2E·회귀 검증](../docs/data-collection/page-content-validation.md).

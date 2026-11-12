@@ -19,7 +19,7 @@ if (external) {
   assert.equal(policy.policyId,'SYNTHETIC-103');
   assert.deepEqual(policy.sites,[{origin:'https://example.org',pathPrefix:'/public'}]);
 }
-const publicPages=['https://docs.python.org/3/','https://blog.python.org/','https://news.ycombinator.com/','https://books.toscrape.com/','https://docs.python.org/3/','https://docs.python.org/3/tutorial/','https://docs.python.org/3/library/','https://docs.python.org/3/reference/','https://docs.python.org/3/howto/','https://docs.python.org/3/faq/'];
+const publicPages=['https://docs.python.org/3/','https://blog.python.org/','https://news.ycombinator.com/','https://books.toscrape.com/','https://docs.python.org/3/','https://docs.python.org/3/tutorial/','https://docs.python.org/3/library/','https://docs.python.org/3/reference/','https://search.naver.com/search.naver?query=Python+venv+documentation','https://docs.python.org/3/faq/'];
 const observedPages=[];
 const config=JSON.parse(await readFile(join(directory,'config.json'),'utf8'));
 assert.ok([19543,19544,19545].includes(config.tlsPort));
@@ -73,13 +73,17 @@ try {
       let response;
       if(n===7) await page.evaluate(()=>history.pushState({},'', '/3/library/'));
       else if(n===8) await page.goBack();
-      else response=await page.goto(publicPages[n-1],{waitUntil:'domcontentloaded',timeout:30000});
+      else response=await page.goto(publicPages[n-1],{waitUntil:'domcontentloaded',timeout:60000});
       if(response) assert.equal(response.status(),200);
-      assert.ok(['docs.python.org','blog.python.org','news.ycombinator.com','books.toscrape.com'].includes(new URL(page.url()).hostname));
+      assert.ok(['docs.python.org','blog.python.org','news.ycombinator.com','books.toscrape.com','search.naver.com'].includes(new URL(page.url()).hostname));
       observedPages.push({domain:new URL(page.url()).hostname,status:response?.status()??200});
     } else if(n===2)await page.evaluate(()=>history.pushState({},'','/public/page?page=2'));
     else await page.goto('https://example.org/public/page?page='+n);
-    await page.bringToFront();await wait(s=>s.validVisits>=n,'visit '+n);console.log((external?'AUTOMATED EXTERNAL HTTPS ':'SYNTHETIC HTTPS ')+config.slot+' visit '+n+'/10');
+    await page.bringToFront();await wait(s=>s.validVisits>=n,'visit '+n);
+    if(external) {
+      const title=await page.title();
+      observedPages.at(-1).titleSha256=createHash('sha256').update([...title.replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim()].slice(0,500).join('')).digest('hex');
+    }console.log((external?'AUTOMATED EXTERNAL HTTPS ':'SYNTHETIC HTTPS ')+config.slot+' visit '+n+'/10');
     if(external && n===4) {await harness.bringToFront();await new Promise(r=>setTimeout(r,1200));await page.bringToFront();}
     if(n===3) {const cdp=await context.newCDPSession(harness);await cdp.send('ServiceWorker.enable');await cdp.send('ServiceWorker.stopAllWorkers');await cdp.detach();await wait(s=>s.validVisits>=3,'worker restart');}
     if(n===5) {await context.close();context=await launch();await login(id);await wait(s=>s.collectionAllowed,'reauthentication');page=await context.newPage();}

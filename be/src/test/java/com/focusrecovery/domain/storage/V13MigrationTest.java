@@ -14,9 +14,9 @@ class V13MigrationTest {
     @Test @EnabledIfEnvironmentVariable(named="FOCUS93_MYSQL_URL", matches="jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/focus93.*")
     void mysqlV12UpgradePreservesPayloadAndConstraints() throws Exception {
         String base = System.getenv("FOCUS93_MYSQL_URL"), schema = "focus93_migration_" + UUID.randomUUID().toString().replace("-", "");
-        try (var conn = DriverManager.getConnection(base, "root", "synthetic-test-only"); var stmt = conn.createStatement()) {
+        try (var conn = DriverManager.getConnection(base, "root", System.getenv().getOrDefault("FOCUS93_MYSQL_PASSWORD","synthetic-test-only")); var stmt = conn.createStatement()) {
             stmt.execute("CREATE DATABASE " + schema + " CHARACTER SET utf8mb4");
-            try { verify(base.replaceFirst("/focus93[^?]*", "/" + schema), "root", "synthetic-test-only"); }
+            try { verify(base.replaceFirst("/focus93[^?]*", "/" + schema), "root", System.getenv().getOrDefault("FOCUS93_MYSQL_PASSWORD","synthetic-test-only")); }
             finally { stmt.execute("DROP DATABASE " + schema); }
         }
     }

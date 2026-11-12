@@ -1,0 +1,383 @@
+{
+  "result": "PASS",
+  "kind": "AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT",
+  "actualParticipantConsents": 0,
+  "actualHumanResearchSessions": 0,
+  "trainingReview": {
+    "schemaVersion": "focus-training-review/1",
+    "sessions": 3,
+    "visits": 30,
+    "windows": 24,
+    "sourceDatasetVersion": "merged-1b9561bf-a9d2-4d85-9596-360ffd31ccec",
+    "rawSha256": "6a3e94620d45c2c4504e49cc13d29e6cc9332dd8f01c1453ddb3e926b89a4e50",
+    "labelStatus": "UNLABELLED",
+    "privacyReview": "REQUIRED",
+    "splitUnit": "goalId",
+    "splitCounts": {
+      "validation": 3
+    },
+    "extractionFailures": 0,
+    "dataSources": [
+      "PARTICIPANT"
+    ],
+    "legacyMetadataSessionsExcluded": 0,
+    "privacySessionsExcluded": 0
+  },
+  "sources": [
+    {
+      "slot": "A",
+      "policyDigest": "2d54a38acb72f8e39d84313f1ba5d807ff39971cf53eff4ba6d615a6da669d67",
+      "assignments": 54,
+      "chrome": {
+        "kind": "AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT",
+        "actualParticipantConsent": false,
+        "observedPages": [
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "026f0c5c6cb38ca4390c46724dc5ff9d72550d97b87ec93671fab68f9a94d3d2"
+          },
+          {
+            "domain": "blog.python.org",
+            "status": 200,
+            "titleSha256": "b3b43e8d18de3b46231931897a114118efc8a596fd3326020edc41bb7535d1f2"
+          },
+          {
+            "domain": "news.ycombinator.com",
+            "status": 200,
+            "titleSha256": "619f304ad920ca567a2409329f53669fc019c613940df4dfe2fd7d2f079b7243"
+          },
+          {
+            "domain": "books.toscrape.com",
+            "status": 200,
+            "titleSha256": "1486efbd911ed89558d0af1f9fc3990c726b9ec479cf683e8c53f53af0e00ee3"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "026f0c5c6cb38ca4390c46724dc5ff9d72550d97b87ec93671fab68f9a94d3d2"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "2426599af575d856ebb2a5c20f8762b4b05d317a3cd2c9365c80170c1d6608ea"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "2426599af575d856ebb2a5c20f8762b4b05d317a3cd2c9365c80170c1d6608ea"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "2426599af575d856ebb2a5c20f8762b4b05d317a3cd2c9365c80170c1d6608ea"
+          },
+          {
+            "domain": "search.naver.com",
+            "status": 200,
+            "titleSha256": "0008c313a4b8bb3e85593c3efdd04c5dc1c4b24bc99640897826bf273622602f"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "0b0b5135b06c30cc46818cb086d1ab9aa158cee3c6040b59680f80058b552cf3"
+          }
+        ],
+        "slot": "A",
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "fileLogin": true,
+        "explicitUiConsent": true,
+        "spa": true,
+        "sensitivePageExcluded": true,
+        "workerRestart": true,
+        "browserRestart": true,
+        "wrongPinRejected": true
+      },
+      "exportVerified": true,
+      "storedVisits": 10,
+      "tabSwitches": 1,
+      "contentCodePoints": [
+        1478,
+        1604,
+        3809,
+        53,
+        1478,
+        5000,
+        5000,
+        5000,
+        4986,
+        236
+      ],
+      "titleHashesMatchBrowser": true,
+      "searchQueryVerified": true,
+      "v4UpgradeVerified": true
+    },
+    {
+      "slot": "B",
+      "policyDigest": "2d54a38acb72f8e39d84313f1ba5d807ff39971cf53eff4ba6d615a6da669d67",
+      "assignments": 53,
+      "chrome": {
+        "kind": "AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT",
+        "actualParticipantConsent": false,
+        "observedPages": [
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "026f0c5c6cb38ca4390c46724dc5ff9d72550d97b87ec93671fab68f9a94d3d2"
+          },
+          {
+            "domain": "blog.python.org",
+            "status": 200,
+            "titleSha256": "b3b43e8d18de3b46231931897a114118efc8a596fd3326020edc41bb7535d1f2"
+          },
+          {
+            "domain": "news.ycombinator.com",
+            "status": 200,
+            "titleSha256": "619f304ad920ca567a2409329f53669fc019c613940df4dfe2fd7d2f079b7243"
+          },
+          {
+            "domain": "books.toscrape.com",
+            "status": 200,
+            "titleSha256": "1486efbd911ed89558d0af1f9fc3990c726b9ec479cf683e8c53f53af0e00ee3"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "026f0c5c6cb38ca4390c46724dc5ff9d72550d97b87ec93671fab68f9a94d3d2"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "2426599af575d856ebb2a5c20f8762b4b05d317a3cd2c9365c80170c1d6608ea"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "2426599af575d856ebb2a5c20f8762b4b05d317a3cd2c9365c80170c1d6608ea"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "2426599af575d856ebb2a5c20f8762b4b05d317a3cd2c9365c80170c1d6608ea"
+          },
+          {
+            "domain": "search.naver.com",
+            "status": 200,
+            "titleSha256": "0008c313a4b8bb3e85593c3efdd04c5dc1c4b24bc99640897826bf273622602f"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "0b0b5135b06c30cc46818cb086d1ab9aa158cee3c6040b59680f80058b552cf3"
+          }
+        ],
+        "slot": "B",
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "fileLogin": true,
+        "explicitUiConsent": true,
+        "spa": true,
+        "sensitivePageExcluded": true,
+        "workerRestart": true,
+        "browserRestart": true,
+        "wrongPinRejected": true
+      },
+      "exportVerified": true,
+      "storedVisits": 10,
+      "tabSwitches": 1,
+      "contentCodePoints": [
+        1478,
+        1604,
+        3809,
+        53,
+        1478,
+        5000,
+        5000,
+        5000,
+        4986,
+        236
+      ],
+      "titleHashesMatchBrowser": true,
+      "searchQueryVerified": true,
+      "v4UpgradeVerified": false
+    },
+    {
+      "slot": "C",
+      "policyDigest": "2d54a38acb72f8e39d84313f1ba5d807ff39971cf53eff4ba6d615a6da669d67",
+      "assignments": 53,
+      "chrome": {
+        "kind": "AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT",
+        "actualParticipantConsent": false,
+        "observedPages": [
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "026f0c5c6cb38ca4390c46724dc5ff9d72550d97b87ec93671fab68f9a94d3d2"
+          },
+          {
+            "domain": "blog.python.org",
+            "status": 200,
+            "titleSha256": "b3b43e8d18de3b46231931897a114118efc8a596fd3326020edc41bb7535d1f2"
+          },
+          {
+            "domain": "news.ycombinator.com",
+            "status": 200,
+            "titleSha256": "619f304ad920ca567a2409329f53669fc019c613940df4dfe2fd7d2f079b7243"
+          },
+          {
+            "domain": "books.toscrape.com",
+            "status": 200,
+            "titleSha256": "1486efbd911ed89558d0af1f9fc3990c726b9ec479cf683e8c53f53af0e00ee3"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "026f0c5c6cb38ca4390c46724dc5ff9d72550d97b87ec93671fab68f9a94d3d2"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "2426599af575d856ebb2a5c20f8762b4b05d317a3cd2c9365c80170c1d6608ea"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "2426599af575d856ebb2a5c20f8762b4b05d317a3cd2c9365c80170c1d6608ea"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "2426599af575d856ebb2a5c20f8762b4b05d317a3cd2c9365c80170c1d6608ea"
+          },
+          {
+            "domain": "search.naver.com",
+            "status": 200,
+            "titleSha256": "0008c313a4b8bb3e85593c3efdd04c5dc1c4b24bc99640897826bf273622602f"
+          },
+          {
+            "domain": "docs.python.org",
+            "status": 200,
+            "titleSha256": "0b0b5135b06c30cc46818cb086d1ab9aa158cee3c6040b59680f80058b552cf3"
+          }
+        ],
+        "slot": "C",
+        "visits": 10,
+        "raw": "RAW_COLLECTED",
+        "ai": "NOT_RUN",
+        "fileLogin": true,
+        "explicitUiConsent": true,
+        "spa": true,
+        "sensitivePageExcluded": true,
+        "workerRestart": true,
+        "browserRestart": true,
+        "wrongPinRejected": true
+      },
+      "exportVerified": true,
+      "storedVisits": 10,
+      "tabSwitches": 1,
+      "contentCodePoints": [
+        1478,
+        1604,
+        3809,
+        53,
+        1478,
+        5000,
+        5000,
+        5000,
+        4986,
+        236
+      ],
+      "titleHashesMatchBrowser": true,
+      "searchQueryVerified": true,
+      "v4UpgradeVerified": false
+    }
+  ],
+  "rawCompleted": 3,
+  "validVisits": 30,
+  "merge": "PARTIAL",
+  "duplicateImports": 3,
+  "osTrustInstallation": "NOT_TESTED_CERTIFICATE_SPKI_PIN_ONLY",
+  "regression": {
+    "backend": {
+      "tests": 1086,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 1086
+    },
+    "frontend": {
+      "passed": 924,
+      "skippedInStandaloneRun": 2,
+      "liveHttpExecutedByBackend": true
+    },
+    "ai": {
+      "passed": 249
+    },
+    "individualLocalPython": {
+      "passed": 38
+    },
+    "collectionPython": {
+      "passed": 5
+    },
+    "typecheck": "PASS",
+    "extensionBuild": "PASS",
+    "legacySyntheticE2E": "PASS"
+  },
+  "postValidation": {
+    "result": "PASS",
+    "currentCodeReview": {
+      "dataSources": [
+        "PARTICIPANT"
+      ],
+      "extractionFailures": 0,
+      "labelStatus": "UNLABELLED",
+      "legacyMetadataSessionsExcluded": 0,
+      "privacyReview": "REQUIRED",
+      "privacySessionsExcluded": 0,
+      "rawSha256": "6f86453894b4d62ed3fb37277ec7e2698e287b3b524887e104170021c7aa748f",
+      "schemaVersion": "focus-training-review/1",
+      "sessions": 3,
+      "sourceDatasetVersion": "merged-d4e2a152-0a98-4fef-a408-a13e129c0778",
+      "splitCounts": {
+        "validation": 3
+      },
+      "splitUnit": "goalId",
+      "visits": 30,
+      "windows": 24
+    },
+    "allOriginalVisitFieldsMatch": true,
+    "withdrawnExportBlocked": true,
+    "afterWithdrawalReview": {
+      "schemaVersion": "focus-training-review/1",
+      "sessions": 2,
+      "visits": 20,
+      "windows": 16,
+      "sourceDatasetVersion": "merged-d4e2a152-0a98-4fef-a408-a13e129c0778",
+      "rawSha256": "75882703087d62d642f01f4d6fc34fb08894c1fd1d73f87492f361c66c0a5b96",
+      "labelStatus": "UNLABELLED",
+      "privacyReview": "REQUIRED",
+      "splitUnit": "goalId",
+      "splitCounts": {
+        "validation": 2
+      },
+      "extractionFailures": 0,
+      "dataSources": [
+        "PARTICIPANT"
+      ],
+      "legacyMetadataSessionsExcluded": 0,
+      "privacySessionsExcluded": 1
+    },
+    "afterWithdrawalRawCompleted": 2,
+    "stalePrivacyReimport": "REJECTED"
+  },
+  "scopeNotes": [
+    "Automated technical identities only; 0 human research sessions",
+    "Google live CAPTCHA excluded; Naver live search verified",
+    "News source is the public Hacker News listing",
+    "OS certificate trust installation and Windows not tested"
+  ],
+  "postValidationScope": "Separate completed v5 public collection run; actual automated withdrawal and current-code lossless review verified; no human research sessions."
+}

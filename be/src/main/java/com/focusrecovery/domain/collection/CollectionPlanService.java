@@ -137,7 +137,7 @@ public class CollectionPlanService {
     public record Failure(UUID failureId,String reasonCode,java.time.Instant observedAt) {}
     @Transactional public void failure(UUID attempt,Failure failure) {
         var owner=AuthenticatedParticipant.required().participantId();
-        if(failure==null || failure.failureId()==null || failure.failureId().version()!=4 || failure.failureId().variant()!=2 || failure.observedAt()==null || !failure.observedAt().equals(failure.observedAt().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)) || failure.observedAt().isAfter(clock.instant().plusSeconds(5)) || (failure.reasonCode()==null || !Set.of("EXTRACTION_FAILED","SHORT_DURATION","POLICY").contains(failure.reasonCode())))invalid();
+        if(failure==null || failure.failureId()==null || failure.failureId().version()!=4 || failure.failureId().variant()!=2 || failure.observedAt()==null || !failure.observedAt().equals(failure.observedAt().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)) || failure.observedAt().isAfter(clock.instant().plusSeconds(5)) || (failure.reasonCode()==null || !Set.of("EXTRACTION_FAILED","EXTRACTION_NO_CONTENT","EXTRACTION_DOM_ERROR","EXTRACTION_RENDER_TIMEOUT","EXTRACTION_ACCESS_DENIED","SHORT_DURATION","POLICY").contains(failure.reasonCode())))invalid();
         if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_attempt t JOIN work_session s ON s.session_id=t.session_id WHERE t.attempt_id=? AND t.participant_id=? AND s.privacy_status='CLEAR'",Integer.class,attempt.toString(),owner.toString())!=1)throw new AccessDenied(404);
         consent.requireConsent(owner);
         record Existing(String attempt,String reason,java.time.Instant observed) {}

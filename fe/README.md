@@ -892,3 +892,5 @@ FE-007 신규 7개:
 - 최종 추적 대상은 FE 파일 35개입니다. BE·AI·공통 명세 변경, 인증정보, `.env`, 브라우저 프로필, 로컬 테스트 산출물은 포함하지 않습니다. `node_modules`, `dist`, `coverage`, `*.local`은 기존 `.gitignore`로 제외합니다.
 - Commit 전 Vitest 192개(기존 102개 + 신규 90개), 타입 검사, 빌드 및 MV3 브라우저 테스트를 다시 실행해 모두 통과했습니다. Google의 실제 검색 결과 DOM 검증은 접근 차단으로 여전히 미완료입니다.
 - Push 대상은 개인 Fork의 `origin/feat/21/search-query-collection`입니다. Force Push, PR 생성, Merge는 수행하지 않습니다.
+
+현재 개인 수집 정책 v5는 실제 제목·최대5,000 Unicode 본문·허용된 검색어를 수집합니다. HMAC URL/기존 동의·격리·전송 계약과 함께 `pageContent`를 검증하며 이전 정책은 호환 경로로 유지합니다. [설치·재동의·데이터 계약](../docs/data-collection/page-content-collection.md), [실제 E2E·회귀 검증](../docs/data-collection/page-content-validation.md).

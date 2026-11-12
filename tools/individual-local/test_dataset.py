@@ -170,3 +170,43 @@ class PrivacyCliTest(unittest.TestCase):
                 d.main()
             self.assertEqual(request.call_args.args[2],'/api/collection/export-privacy')
             self.assertTrue(out.exists())
+
+class TrainingReviewTest(unittest.TestCase):
+    setUp=DatasetTest.setUp
+    tearDown=DatasetTest.tearDown
+    save=DatasetTest.save
+    def test_encrypted_review_is_lossless_verified_and_withdrawal_safe(self):
+        import subprocess
+        key=self.root/'test.agekey'
+        subprocess.run(['age-keygen','-o',str(key)],check=True,capture_output=True)
+        recipient=subprocess.run(['age-keygen','-y',str(key)],check=True,capture_output=True,text=True).stdout.strip()
+        merged=self.root/'merged.age'
+        d.merge(self.paths,self.privacy,self.registry,merged,recipient=recipient,synthetic=True)
+        review=self.root/'review.age'
+        report=d.training_review(merged,d.digest(merged.read_bytes()),self.privacy,review,key,recipient)
+        self.assertEqual((report['sessions'],report['visits'],report['windows']),(3,30,24))
+        self.assertEqual(d.verify_artifact(review,key)[1]['result'],'PASS')
+        rows=[d.parse(line) for line in d.read_payloads(review,key)['review.jsonl'].splitlines()]
+        self.assertTrue(all(r['label'] is None and r['privacyReview']=='REQUIRED' for r in rows))
+        original={v['visitId']:v for s in self.samples for v in s['files']['visits']}
+        for r in rows:
+            for v in r['visits']:
+                self.assertTrue(all(v[k]==value for k,value in original[v['visitId']].items()))
+        old=copy.deepcopy(self.samples[0])
+        for v in old['files']['visits']:
+            v['title']='Topic: PYTHON';v['content']='METADATA_ONLY: public browsing activity; page text, title and search terms were not collected.'
+        legacy=self.save(old,'legacy.tar')
+        mixed=self.root/'mixed.age'
+        d.merge([legacy,*self.paths[1:]],self.privacy,self.root/'mixed.sqlite',mixed,recipient=recipient,synthetic=True)
+        report=d.training_review(mixed,d.digest(mixed.read_bytes()),self.privacy,self.root/'mixed-review.age',key,recipient)
+        self.assertEqual((report['sessions'],report['legacyMetadataSessionsExcluded']),(2,1))
+        sensitive=copy.deepcopy(self.samples[0])
+        sensitive['files']['visits'][0].update(isSearchResultPage=True,searchQuery='cancer treatment',normalizedUrl='https://www.google.com/search',domain='www.google.com')
+        bad=self.save(sensitive,'sensitive-search.tar');badmerged=self.root/'sensitive-search.age'
+        d.merge([bad,*self.paths[1:]],self.privacy,self.root/'sensitive.sqlite',badmerged,recipient=recipient,synthetic=True)
+        with self.assertRaisesRegex(ValueError,'Sensitive search'):
+            d.training_review(badmerged,d.digest(badmerged.read_bytes()),self.privacy,self.root/'must-not-exist-review.age',key,recipient)
+        self.assertFalse((self.root/'must-not-exist-review.age').exists())
+        for p in self.privacy:p['withdrawn']=True;p['validConsentId']=None
+        denied=self.root/'withdrawn.age'
+        self.assertEqual(d.training_review(merged,d.digest(merged.read_bytes()),self.privacy,denied,key,recipient)['sessions'],0)

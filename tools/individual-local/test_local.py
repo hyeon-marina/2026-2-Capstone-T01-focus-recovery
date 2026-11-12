@@ -123,7 +123,7 @@ class PublicWebPolicyUpgradeTest(unittest.TestCase):
             a=SimpleNamespace(policy=None,policy_sha256=None)
             with patch.object(local,'PREVIOUS_TEAM_POLICY_SHA256',pin):
                 raw,digest=local.selected_policy(a,d,dict(policySha256=pin))
-                n=json.loads(raw);self.assertEqual(n['policyVersion'],'4');self.assertEqual(n['siteScope'],'PUBLIC_HTTP_HTTPS')
+                n=json.loads(raw);self.assertEqual(n['policyVersion'],'5');self.assertTrue(n['pageContent']);self.assertEqual(n['siteScope'],'PUBLIC_HTTP_HTTPS')
                 self.assertEqual(n['institution']['decision'],'NOT_REQUIRED');self.assertEqual(len(n['plan']['assignments']),160)
                 self.assertEqual(hashlib.sha256(raw).hexdigest(),digest)
             self.assertEqual(local.selected_policy(a,d,dict(policySha256=pin)),(old,pin))

@@ -74,7 +74,7 @@ public class CollectionProgressService {
             windowMap.computeIfAbsent(r.getString("session_id"),k->new ArrayList<>()).add(new Window(id,r.getInt("window_index"),r.getInt("window_size"),r.getBoolean("invalidated"),r.getString("start_visit_id"),r.getString("end_visit_id"),memberMap.getOrDefault(id,List.of()),positionMap.getOrDefault(id,List.of()),r.getString("processing_status"),state));
         },params);
         Map<String,int[]> failureMap=new HashMap<>();
-        jdbc.query("SELECT f.attempt_id,COUNT(*) AS failures,SUM(CASE WHEN f.reason_code='EXTRACTION_FAILED' THEN 1 ELSE 0 END) AS extraction FROM collection_failure f JOIN collection_attempt t ON t.attempt_id=f.attempt_id"+filter+" GROUP BY f.attempt_id",(org.springframework.jdbc.core.RowCallbackHandler) r->failureMap.put(r.getString(1),new int[]{r.getInt(2),r.getInt(3)}),params);
+        jdbc.query("SELECT f.attempt_id,COUNT(*) AS failures,SUM(CASE WHEN f.reason_code IN ('EXTRACTION_FAILED','EXTRACTION_NO_CONTENT','EXTRACTION_DOM_ERROR','EXTRACTION_RENDER_TIMEOUT','EXTRACTION_ACCESS_DENIED') THEN 1 ELSE 0 END) AS extraction FROM collection_failure f JOIN collection_attempt t ON t.attempt_id=f.attempt_id"+filter+" GROUP BY f.attempt_id",(org.springframework.jdbc.core.RowCallbackHandler) r->failureMap.put(r.getString(1),new int[]{r.getInt(2),r.getInt(3)}),params);
         List<Attempt> attempts=new ArrayList<>();
         Map<String,UUID> currentConsents=new HashMap<>();
         for(var r:rows) {

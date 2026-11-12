@@ -68,14 +68,18 @@ export function inspectPublicUrl(raw: string, sites: Site[], publicWeb = false) 
   return { ...inspected, site, canonical: u.origin + u.pathname + '?' + functional.toString() };
 }
 
-export async function describeMetadataUrl(raw: string, sites: Site[], keyBytes: Uint8Array<ArrayBuffer>, session: string, publicWeb = false) {
+export async function describeMetadataUrl(raw: string, sites: Site[], keyBytes: Uint8Array<ArrayBuffer>, session: string, publicWeb = false, pageContent = false) {
   const p = inspectPublicUrl(raw, sites, publicWeb);
   if (!p) return null;
+  const inspected = pageContent ? inspectUrl(raw) : null;
+  if (pageContent && (!inspected || inspected.isSearchResultPage && !inspected.searchQuery)) return null;
+  // Raw route/query affects only the keyed identifier; never persisted or logged.
+  const canonical = pageContent ? new URL(raw).href : p.canonical;
   const key = await crypto.subtle.importKey('raw', keyBytes, {name:'HMAC',hash:'SHA-256'}, false, ['sign']);
-  const hash = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(session + '\n' + p.canonical));
+  const hash = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(session + '\n' + canonical));
   const identity = [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2,'0')).join('');
   const prefix = p.site.pathPrefix.replace(/\/$/, '');
   return { normalizedUrl: p.url.origin + prefix + PAGE_MARKER + identity, domain: p.url.hostname, identity,
-    isSearchResultPage:p.isSearchResultPage, searchQuery:p.isSearchResultPage ? OMITTED_QUERY : null,
+    isSearchResultPage:p.isSearchResultPage, searchQuery:p.isSearchResultPage ? (pageContent ? inspected!.searchQuery : OMITTED_QUERY) : null,
     title:METADATA_TITLE, content:METADATA_CONTENT };
 }

@@ -1,3 +1,5 @@
+> 현재 실제 텍스트 수집·v5 재동의·설치·학습 변환은 [페이지 원본 수집 가이드](page-content-collection.md)를 따릅니다. 아래 버전별 메타데이터 설명은 당시 동작 기록입니다.
+
 # 전체 공개 웹 탐색 메타데이터 수집
 
 공통 정책 버전 **4**, Build ID **focus-106-public-web-v4**는 `siteScope=PUBLIC_HTTP_HTTPS`와 빈 `sites` 목록을 사용합니다. 특정 15개 사이트·경로 제한 없이 일반 HTTP/HTTPS 공개 웹사이트를 수집합니다. 기존 `institution=NOT_REQUIRED`, Plan revision 1, 목표 20개·160배정·A54/B53/C53, 동의·철회·전송·품질 계약은 유지합니다.

@@ -11,6 +11,6 @@ import org.springframework.test.context.*;
 class V2RetractionMySqlTest extends V2RetractionContract {
     @DynamicPropertySource static void mysql(DynamicPropertyRegistry p) {
         p.add("spring.datasource.url", () -> System.getenv("FOCUS93_MYSQL_URL"));
-        p.add("spring.datasource.username", () -> "root"); p.add("spring.datasource.password", () -> "synthetic-test-only");
+        p.add("spring.datasource.username", () -> "root"); p.add("spring.datasource.password", () -> System.getenv().getOrDefault("FOCUS93_MYSQL_PASSWORD","synthetic-test-only"));
     }
 }

@@ -7,6 +7,6 @@ import org.springframework.test.context.*;
 class AuthConsentMySqlTest extends AuthConsentTest {
     @DynamicPropertySource static void mysql(DynamicPropertyRegistry p) {
         p.add("spring.datasource.url",()->System.getenv("FOCUS95_MYSQL_URL"));
-        p.add("spring.datasource.username",()->"root");p.add("spring.datasource.password",()->"synthetic-test-only");
+        p.add("spring.datasource.username",()->"root");p.add("spring.datasource.password",()->System.getenv().getOrDefault("FOCUS95_MYSQL_PASSWORD","synthetic-test-only"));
     }
 }

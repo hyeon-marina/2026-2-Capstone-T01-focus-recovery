@@ -1,3 +1,5 @@
+> 현재 실제 텍스트 수집·v5 재동의·설치·학습 변환은 [페이지 원본 수집 가이드](page-content-collection.md)를 따릅니다. 아래 버전별 메타데이터 설명은 당시 동작 기록입니다.
+
 # age Export/Import 및 데이터 통합
 
 공통 정책은 CONFIRMED·Plan revision1이다. 별도 records.json/policy-prepare 또는 로컬 관리자 발급은 필요 없다. [설치·로그인·본인 동의](individual-local-setup.md) 후 수집한 독립 로컬 DB의 데이터를 통합한다. 기관 비대상 판단은 NOT_REQUIRED로 반영됐다. 참여자 본인이 동의한 데이터만 이용하며 자동 E2E 자료는 실제 연구160세션에 합산하지 않는다. 이번 검증의 합성 실적은 [실행 보고](institution-not-required-validation.md)에 구분했다.

@@ -224,3 +224,7 @@ AI_V2_PROFILE=synthetic-test AI_V2_ENABLED=1 uvicorn main:app --port 8000
 `/health`는 기존 v1 준비 상태를 유지합니다. v1 classifier가 없어도 v2 로더는 독립적으로 준비를 시도하고 구성은 모델 없이 가능합니다. 위 서버 실행의 기존 모델 로더에는 다운로드 기능이 있으므로 모델 파일을 준비한 개발 환경에서 사용합니다. 이번 검증에서는 서버 모델 로더를 실행하거나 가중치를 다운로드하지 않았습니다.
 
 `V2Service.invalidate_visits`는 내부 캐시 격리 hook이며 공개 회수 API가 아닙니다. 프로세스별 메모리 tombstone/Registry는 재시작 시 사라집니다. BE 영속 격리·모든 프로세스 전파·학습 캐시/외부 사본 회수·실제 삭제는 후속입니다. 상세 결과와 미검증 범위는 [AI v2 검증 보고](../docs/ai-v2-window-analysis-validation.md)를 참조하세요.
+
+## 실제 원본 수집 Import → 학습 검수
+
+모델 실행 없이 `dataset.py training-review`가 `focus-training-review/1` 암호화 JSONL을 만든다. 실제 제목/본문/검색어/목표/행동/시나리오/연결ID와 추출 실패 진단을 보존하며, `training/raw_review.py`가 v2 size3/stride1과 goal 단위 split을 구성·검증한다. 모든 라벨은 null이며 개인정보 검수는 REQUIRED다. legacy size5/라벨 학습 loader는 변경하지 않는다. [실행 명령·Schema](../docs/data-collection/page-content-collection.md).
