@@ -1,3 +1,4 @@
+import { maskPublicContacts, publicSearchQuery, safeSearchIntent } from '../src/shared/privacy';
 import { inspectUrl, searchEngine } from '../src/shared/url';
 import { PAGE_MARKER, METADATA_TITLE, METADATA_CONTENT, OMITTED_QUERY } from '../src/shared/metadata';
 import type { Site } from './policy';
@@ -68,11 +69,19 @@ export function inspectPublicUrl(raw: string, sites: Site[], publicWeb = false) 
   return { ...inspected, site, canonical: u.origin + u.pathname + '?' + functional.toString() };
 }
 
-export async function describeMetadataUrl(raw: string, sites: Site[], keyBytes: Uint8Array<ArrayBuffer>, session: string, publicWeb = false, pageContent = false) {
+export async function describeMetadataUrl(raw: string, sites: Site[], keyBytes: Uint8Array<ArrayBuffer>, session: string, publicWeb = false, pageContent = false, maskContacts = false) {
   const p = inspectPublicUrl(raw, sites, publicWeb);
   if (!p) return null;
   const inspected = pageContent ? inspectUrl(raw) : null;
   if (pageContent && (!inspected || inspected.isSearchResultPage && !inspected.searchQuery)) return null;
+  let query = inspected?.searchQuery ?? null;
+  if (maskContacts && query) {
+    try {
+      const masked = maskPublicContacts(query);
+      // Preserve sensitive intent in the transient description for the content guard.
+      if (safeSearchIntent(query) && publicSearchQuery(masked)) query = masked;
+    } catch { /* The content guard quarantines sensitive search intent. */ }
+  }
   // Raw route/query affects only the keyed identifier; never persisted or logged.
   const canonical = pageContent ? new URL(raw).href : p.canonical;
   const key = await crypto.subtle.importKey('raw', keyBytes, {name:'HMAC',hash:'SHA-256'}, false, ['sign']);
@@ -80,6 +89,6 @@ export async function describeMetadataUrl(raw: string, sites: Site[], keyBytes: 
   const identity = [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2,'0')).join('');
   const prefix = p.site.pathPrefix.replace(/\/$/, '');
   return { normalizedUrl: p.url.origin + prefix + PAGE_MARKER + identity, domain: p.url.hostname, identity,
-    isSearchResultPage:p.isSearchResultPage, searchQuery:p.isSearchResultPage ? (pageContent ? inspected!.searchQuery : OMITTED_QUERY) : null,
+    isSearchResultPage:p.isSearchResultPage, searchQuery:p.isSearchResultPage ? (pageContent ? query : OMITTED_QUERY) : null,
     title:METADATA_TITLE, content:METADATA_CONTENT };
 }

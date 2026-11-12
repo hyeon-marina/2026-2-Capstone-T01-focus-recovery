@@ -1,4 +1,5 @@
-> 현재 실제 텍스트 수집·v5 재동의·설치·학습 변환은 [페이지 원본 수집 가이드](page-content-collection.md)를 따릅니다. 아래 버전별 메타데이터 설명은 당시 동작 기록입니다.
+> 현재 실제 텍스트 수집·v6 재동의·설치·학습 변환은 [페이지 원본 수집 가이드](page-content-collection.md)를 따릅니다. 아래 버전별 메타데이터 설명은 당시 동작 기록입니다.
+공식 v5 수집의 동의 ID는 그대로 보존한다. 공식 v6 재동의 후 서버가 해당 세션의 후속 이용을 허용하면 최신 privacy 응답에 현재 동의 ID가 `authorizedByConsentId`로 포함된다. Import 및 training-review는 이 권한과 수집 당시 동의, Privacy revision, 전체 철회, Tombstone을 확인한다. 검증 실패 시 원본·레지스트리·기존 결과를 보존하고 새 privacy를 발급받는다. 평문 연락처가 들어 있는 번들은 Import 단계에서 거절한다.
 
 # age Export/Import 및 데이터 통합
 

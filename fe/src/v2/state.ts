@@ -9,7 +9,7 @@ export interface Candidate {
   id: string; tabId: number; tabKey: string; target: string; document: string; generation: string;
   visitedAt: string; left?: Stamp; returned: Stamp; cursor?: Stamp; remainder: number;
   behavior: VisitBehavior; snapshot?: PageSnapshot; post?: PageVisit;
-  extractionFailureReason?: 'EXTRACTION_NO_CONTENT' | 'EXTRACTION_DOM_ERROR' | 'EXTRACTION_RENDER_TIMEOUT' | 'EXTRACTION_ACCESS_DENIED';
+  extractionFailureReason?: 'POLICY' | 'EXTRACTION_NO_CONTENT' | 'EXTRACTION_DOM_ERROR' | 'EXTRACTION_RENDER_TIMEOUT' | 'EXTRACTION_ACCESS_DENIED';
   closed: boolean; crossed: boolean; excluded?: 'EXTRACTION_FAILED' | 'POLICY' | 'SHORT_DURATION';
 }
 export interface V2State {
@@ -17,7 +17,7 @@ export interface V2State {
   lifecycle: 'IDLE' | 'START_PENDING' | 'ACTIVE' | 'END_PENDING' | 'ENDED';
   owner?: { participantId: string; consentId: string | null };
   withdrawal?: { requestId: string; phase: 'pending' | 'sending' | 'acknowledged'; attempts: number; ack?: import('./access').WithdrawalReceipt };
-  start?: { idempotencyKey: string; goalText: string; collectionSpecVersion: '2.0'; apiBaseUrl: string };
+  start?: { plannedSessionId?: string; idempotencyKey: string; goalText: string; collectionSpecVersion: '2.0'; apiBaseUrl: string };
   session?: V2Session;
   foreground: number | null; lastTab: number | null; lastVisit?: string;
   candidates: Candidate[]; tabKeys: Record<number, string>; discardedCandidates: number; tabs: Record<number, string>;
@@ -25,6 +25,8 @@ export interface V2State {
   notifications: import('./notifications').NotificationReceipt[];
   compactedThrough: number; compactedCount: number;
   retractions?: import('./retractions').RetractionEntry[];
+  quarantineConfirmedFor?: string;
+  quarantineClose?: { sessionId: string; phase: 'pending' | 'acknowledged' };
   quarantine?: { reason: 'SENSITIVE_CONTENT' | 'CONSENT_WITHDRAWN' | 'PRIVACY_RETRACTED'; observedAt: string; visitIds: string[]; status: 'RETRACTION_REQUIRED' };
 }
 export function initialState(apiBaseUrl: string): V2State {

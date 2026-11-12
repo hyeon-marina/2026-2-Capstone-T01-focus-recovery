@@ -1,4 +1,4 @@
-> 현재 실제 텍스트 수집·v5 재동의·설치·학습 변환은 [페이지 원본 수집 가이드](page-content-collection.md)를 따릅니다. 아래 버전별 메타데이터 설명은 당시 동작 기록입니다.
+> 현재 실제 텍스트 수집·v6 재동의·설치·학습 변환은 [페이지 원본 수집 가이드](page-content-collection.md)를 따릅니다. 아래 버전별 메타데이터 설명은 당시 동작 기록입니다.
 
 > 현재 운영 기준은 [CONFIRMED TEAM_POLICY](TEAM_POLICY.json), [정책 적용](policy-application-guide.md), [실행 가이드](individual-local-setup.md)입니다. 아래 #105/#106 권고안·DRAFT·records 입력 설명은 과거 설계 이력이며 기본 설치 절차가 아닙니다.
 

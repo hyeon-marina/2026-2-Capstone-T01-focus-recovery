@@ -20,6 +20,8 @@ import { initialState, type V2State, type Stamp, type CompactReceipt } from './s
 export interface V2Transport {
   access: () => Promise<CollectionAccess>;
   withdraw?: (requestId: string) => Promise<unknown>;
+  confirmQuarantine?: (sessionId: string) => Promise<unknown>;
+  closeQuarantine?: (sessionId: string) => Promise<unknown>;
   retract?: (sessionId: string, request: RetractionRequest) => Promise<unknown>;
   start: (goalText: string, key: string) => Promise<unknown>;
   post: typeof savePageVisit; patch: typeof updateVisitBehavior;
@@ -80,7 +82,7 @@ export class V2Runtime {
       if (!Number.isFinite(Date.parse(access.expiresAt)) || Date.parse(access.expiresAt) <= Date.now()) throw new AccessError('authentication');
       this.verifiedIdentity = { participantId: access.participantId, expiresAt: access.expiresAt, credentialEpoch: credential };
       const owner = this.committed.owner;
-      const newSession = forStart && this.committed.lifecycle === 'ENDED' && drained(this.committed) && !this.committed.quarantine && !this.committed.withdrawal;
+      const newSession = forStart && this.committed.lifecycle === 'ENDED' && (this.committed.quarantine ? this.committed.quarantineClose?.phase === 'acknowledged' && owner?.participantId === access.participantId : drained(this.committed)) && !this.committed.withdrawal;
       if (owner && access.participantId !== owner.participantId && !newSession || !owner && this.committed.lifecycle !== 'IDLE' && !newSession) throw new AccessError('account');
       if (access.withdrawn && owner) this.serverWithdrawalSeen = true;
       this.access = access; this.credentialEpoch = credential; this.accessError = undefined;
@@ -94,6 +96,7 @@ export class V2Runtime {
       throw e;
     }
   }
+  get foregroundTab() { return this.committed.foreground; }
   collecting() { return this.authorized() && !this.failed && !this.stopping && !this.held && !this.committed.quarantine && this.committed.lifecycle === 'ACTIVE'; }
   snapshot() { return { ...structuredClone(this.committed), accessError: this.accessError, authenticated: !!this.access, collectionAllowed: this.authorized(), storageFailed: this.failed, alertsSuppressed: !this.authorized() || this.failed || this.stopping || this.held || Boolean(this.committed.quarantine) }; }
   private canSend() { return this.authorized() && !this.failed && !this.held && !this.committed.quarantine && !this.posts.blocked && !this.behaviors.blocked; }
@@ -153,19 +156,19 @@ export class V2Runtime {
     }
     if (this.canSend()) { this.posts.kick(); this.behaviors.kick(); this.ending.kick(); }
   }
-  async start(goalText: string) {
+  async start(goalText: string, plannedSessionId?: string) {
     if (this.starting) throw new Error('V2_START_IN_FLIGHT');
     this.starting = true;
     try {
-      await this.startOnce(goalText);
+      await this.startOnce(goalText, plannedSessionId);
     } finally { this.starting = false; }
   }
-  private async startOnce(goalText: string) {
-    if (!['IDLE', 'START_PENDING', 'ENDED'].includes(this.committed.lifecycle) || this.committed.quarantine || this.stopping && this.committed.lifecycle !== 'ENDED') throw new Error('V2_START_BLOCKED');
+  private async startOnce(goalText: string, plannedSessionId?: string) {
+    if (!['IDLE', 'START_PENDING', 'ENDED'].includes(this.committed.lifecycle) || this.committed.withdrawal || this.committed.quarantine && this.committed.quarantineClose?.phase !== 'acknowledged' || this.stopping && this.committed.lifecycle !== 'ENDED') throw new Error('V2_START_BLOCKED');
     const access = await this.verifyAccess(true);
     const previousSessionId = this.committed.lifecycle === 'ENDED' ? this.committed.session?.sessionId : undefined;
     const previous = previousSessionId ? undefined : this.committed.start;
-    if (previous && (previous.goalText !== goalText || previous.collectionSpecVersion !== '2.0' || previous.apiBaseUrl !== API_BASE_URL)) throw new Error('V2_START_CONFLICT');
+    if (previous && (previous.plannedSessionId && previous.plannedSessionId !== plannedSessionId || previous.goalText !== goalText || previous.collectionSpecVersion !== '2.0' || previous.apiBaseUrl !== API_BASE_URL)) throw new Error('V2_START_CONFLICT');
     await this.mutate(() => {
       if (previousSessionId) {
         const revision = this.state.revision;
@@ -173,10 +176,10 @@ export class V2Runtime {
         this.install({ ...initialState(API_BASE_URL), revision });
       }
       this.state.owner ??= { participantId: access.participantId, consentId: access.consentId };
-      this.state.start ??= { goalText, idempotencyKey: crypto.randomUUID(), collectionSpecVersion: '2.0', apiBaseUrl: API_BASE_URL };
+      this.state.start ??= { ...(plannedSessionId ? { plannedSessionId } : {}), goalText, idempotencyKey: crypto.randomUUID(), collectionSpecVersion: '2.0', apiBaseUrl: API_BASE_URL };
       this.state.lifecycle = 'START_PENDING';
     });
-    this.stopping = false;
+    this.stopping = false; this.held = false;
     await this.verifyAccess();
     const response = await this.transport.start(goalText, this.committed.start!.idempotencyKey);
     if (!isV2Session(response) || response.status !== 'ACTIVE' || response.goalText !== goalText || response.sessionId === previousSessionId) throw new Error('V2_VERSION_OR_SESSION_MISMATCH');
@@ -210,6 +213,12 @@ export class V2Runtime {
   }
   async stop(stamp: Stamp) {
     this.stopping = true; // Synchronous intent precedes queued writes and in-flight HTTP replies.
+    if (this.committed.quarantine && this.committed.session && !this.committed.withdrawal) {
+      if (this.committed.quarantineClose?.phase === 'acknowledged') return;
+      await this.mutate(() => { this.state.quarantineClose ??= { sessionId: this.state.session!.sessionId, phase: 'pending' }; });
+      await this.flushRetractions();
+      return;
+    }
     if (this.committed.lifecycle !== 'ACTIVE') return;
     await this.mutate(() => {
       this.collector.finish(stamp); this.sync(true); this.ending.begin(this.state.session!, stamp.wall);
@@ -235,16 +244,23 @@ export class V2Runtime {
     }
   }
   async flushRetractions() {
-    if (this.retractionRunning || this.failed || !this.committed.quarantine || !this.committed.session || !this.transport.retract) return;
+    if (this.retractionRunning || this.failed || !this.committed.quarantine || !this.committed.session || this.committed.quarantineClose?.phase === 'acknowledged') return;
     this.retractionRunning = true;
     try {
+      const sessionId = this.committed.session.sessionId;
+      if (!this.committed.quarantineConfirmedFor && this.transport.confirmQuarantine && !this.committed.quarantineClose && !this.committed.retractions?.length) {
+        await this.verifyAccess(false, true);
+        const receipt = await this.transport.confirmQuarantine(sessionId) as { sessionId?: string; privacyStatus?: string };
+        if (receipt?.sessionId !== sessionId || receipt.privacyStatus !== 'QUARANTINED') throw new Error('DELIVERY_UNCONFIRMED');
+        await this.mutate(() => { this.state.quarantineConfirmedFor = sessionId; });
+      }
       for (const saved of this.committed.retractions ?? []) {
         if (saved.phase === 'acknowledged' || saved.nextAttemptAt > Date.now()) continue;
         const id = saved.request.retractionId;
         await this.mutate(() => { const e = this.state.retractions!.find(e => e.request.retractionId === id)!; e.phase = 'sending'; e.attempts++; });
         try {
           await this.verifyAccess(false, true);
-          const ack = await this.transport.retract(this.committed.session.sessionId, structuredClone(saved.request));
+          const ack = await this.transport.retract!(this.committed.session.sessionId, structuredClone(saved.request));
           if (!validRetractionAck(ack, saved.request)) throw new Error('DELIVERY_UNCONFIRMED');
           await this.mutate(() => { const e = this.state.retractions!.find(e => e.request.retractionId === id)!; e.ack = ack; e.phase = 'acknowledged'; delete e.errorCode; });
         } catch {
@@ -252,6 +268,18 @@ export class V2Runtime {
           await this.mutate(() => { const e = this.state.retractions!.find(e => e.request.retractionId === id)!;
             e.phase = 'pending'; e.errorCode = 'DELIVERY_UNCONFIRMED'; e.nextAttemptAt = Date.now() + Math.min(60000, 1000 * 2 ** Math.min(e.attempts, 6)); });
         }
+      }
+      const close = this.committed.quarantineClose;
+      if (close?.phase === 'pending' && this.transport.closeQuarantine &&
+          !this.committed.retractions?.some(e => e.phase !== 'acknowledged')) {
+        await this.verifyAccess(false, true);
+        const receipt = await this.transport.closeQuarantine(close.sessionId) as { sessionId?: string; status?: string; privacyStatus?: string };
+        if (receipt?.sessionId !== close.sessionId || receipt.status !== 'ENDED' || receipt.privacyStatus !== 'QUARANTINED') throw new Error('DELIVERY_UNCONFIRMED');
+        await this.mutate(() => {
+          this.state.quarantineClose = { ...close, phase: 'acknowledged' };
+          this.ending.clear();
+          this.state.lifecycle = 'ENDED';
+        });
       }
     } finally { this.retractionRunning = false; }
   }
@@ -384,6 +412,8 @@ export const v2HttpTransport: V2Transport = {
   access: readCollectionAccess,
   withdraw: requestId => accessRequest('/api/consent/withdrawals', { requestId }),
   start: (goalText, key) => postJson('/api/sessions', { goalText, collectionSpecVersion: '2.0' }, key),
+  confirmQuarantine: id => accessRequest(`/api/sessions/${id}/visit-retractions/quarantine`, {}),
+  closeQuarantine: id => accessRequest(`/api/sessions/${id}/visit-retractions/close`, {}),
   retract: sendRetraction,
   post: savePageVisit, patch: updateVisitBehavior, end: endSession, query: getSession,
 };

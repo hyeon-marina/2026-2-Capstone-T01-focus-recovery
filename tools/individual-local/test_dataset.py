@@ -44,6 +44,13 @@ class DatasetTest(unittest.TestCase):
         self.assertEqual(d.verify_artifact(self.root/'merged.tar',synthetic=True)[1]['rawCompleted'],3)
         self.assertEqual(r['status'],'PARTIAL');self.assertEqual(r['participants'],dict(A=1,B=1,C=1))
         self.assertEqual(self.merge(name='duplicate.tar')['duplicateImports'],3)
+    def test_import_rejects_unmasked_contact(self):
+        sample = copy.deepcopy(self.samples[0])
+        sample['files']['visits'][0]['title'] = 'Synthetic reporter@example.org'
+        with self.assertRaisesRegex(ValueError, 'Sensitive text'):
+            self.merge([self.save(sample, 'contact.tar')], self.privacy[:1])
+        self.assertFalse((self.root/'merged.tar').exists())
+
     def test_partial(self):
         self.assertEqual(self.merge(self.paths[:1],self.privacy[:1])['rawCompleted'],1)
     def test_full_160_remains_separate_from_analysis(self):
@@ -125,6 +132,7 @@ class DatasetTest(unittest.TestCase):
     def test_missing_and_stale_privacy(self):
         with self.assertRaisesRegex(ValueError,'Every source'):self.merge(privacy=[])
         p=copy.deepcopy(self.privacy[0]);p['observedAt']=(datetime.now(timezone.utc)-timedelta(minutes=16)).isoformat().replace('+00:00','Z');file=self.root/'stale.json';file.write_bytes(d.encoded(p))
+        with self.assertRaisesRegex(ValueError,'Fresh'):self.merge(privacy=[p,*self.privacy[1:]])
         with self.assertRaisesRegex(ValueError,'Fresh'):d.read_privacy(file,d.digest(file.read_bytes()))
     def test_plaintext_real_data_and_mixed_sources_forbidden(self):
         s=copy.deepcopy(self.samples[0]);s['files']['sessions'][0]['source']='PARTICIPANT';s['files']['collection_attempts'][0]['source']='PARTICIPANT';s['files']['raw_quality'][0]['source']='PARTICIPANT';s['files']['consent_references'][0].update(policyStatus='APPROVED',approvalRef='fixture',retentionPolicyRef='fixture')
@@ -203,10 +211,9 @@ class TrainingReviewTest(unittest.TestCase):
         sensitive=copy.deepcopy(self.samples[0])
         sensitive['files']['visits'][0].update(isSearchResultPage=True,searchQuery='cancer treatment',normalizedUrl='https://www.google.com/search',domain='www.google.com')
         bad=self.save(sensitive,'sensitive-search.tar');badmerged=self.root/'sensitive-search.age'
-        d.merge([bad,*self.paths[1:]],self.privacy,self.root/'sensitive.sqlite',badmerged,recipient=recipient,synthetic=True)
         with self.assertRaisesRegex(ValueError,'Sensitive search'):
-            d.training_review(badmerged,d.digest(badmerged.read_bytes()),self.privacy,self.root/'must-not-exist-review.age',key,recipient)
-        self.assertFalse((self.root/'must-not-exist-review.age').exists())
+            d.merge([bad,*self.paths[1:]],self.privacy,self.root/'sensitive.sqlite',badmerged,recipient=recipient,synthetic=True)
+        self.assertFalse(badmerged.exists())
         for p in self.privacy:p['withdrawn']=True;p['validConsentId']=None
         denied=self.root/'withdrawn.age'
         self.assertEqual(d.training_review(merged,d.digest(merged.read_bytes()),self.privacy,denied,key,recipient)['sessions'],0)

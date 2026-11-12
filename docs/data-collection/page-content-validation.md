@@ -1,3 +1,5 @@
+> 아래는 PR #111의 v5 검증 기록이다. Issue #112 실행 결과는 [v6 검증 기록](collection-stability-validation.md)을 참조한다.
+
 # 페이지 원본 수집 구현·검증 보고
 
 기준 공식 main: `1bfe57f6bdd74348166022da4b22c63d585bf95c` (PR #110 이후). 작업 브랜치: `feat/ai-training-page-content-collection`. 자동 Merge/main Push는 하지 않는다. Commit/공식 PR 링크는 최종 PR head와 작업 결과 응답에서 확인한다.

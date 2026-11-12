@@ -4,9 +4,21 @@ Consumes authenticated Import tables in memory. Kept separate from the legacy fi
 labelled training loader. All source fields survive; downstream annotators must review PII.
 """
 import hashlib
+import re
 from collections import defaultdict
 from datetime import datetime
 from urllib.parse import urlsplit
+
+
+sensitive=re.compile(r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\d{6}-[1-4]\d{6}|(?:\+\d{1,3}[- .])?(?:\(\d{2,4}\)[- .]?|\b\d{2,4}[- .])\d{3,4}[- .]\d{4}\b|(?:01[016789]|\+82[- .]?1[016789])[- .]?\d{3,4}[- .]?\d{4}|bearer\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret)\s*[:=]\s*\S+|\b(?:diagnosis|prescription|patient|bank account|credit card)\b|주민등록|계좌번호|진단명|처방전|비밀번호',re.I)
+sensitive_query=re.compile(r'\b(?:medical|diagnosis|patient|prescription|symptoms?|treatment|cancer|hiv|aids|depression|banking|finance|loan|credit|insurance|password|cookie|token)\b|의료|진료|환자|질병|증상|치료|처방|우울|암 검사|대출|신용|계좌|금융|주민|비밀번호',re.I)
+
+
+def validate_visit_privacy(visit):
+    if any(sensitive.search(visit[field] or '') for field in ('title', 'content', 'searchQuery')):
+        raise ValueError('Sensitive text requires quarantine')
+    if visit['searchQuery'] and sensitive_query.search(visit['searchQuery']):
+        raise ValueError('Sensitive search requires quarantine')
 
 
 def review_records(tables):
@@ -30,6 +42,10 @@ def review_records(tables):
         if session['collectionStatus'] != 'COMPLETE':
             continue
         goal = goals[(key[0], session['goalId'])]
+        if session.get('privacyStatus', 'CLEAR') != 'CLEAR':
+            raise ValueError('Quarantined review session')
+        if sensitive.search(goal['description']):
+            raise ValueError('Sensitive goal requires review')
         ordered = sorted(grouped[key], key=lambda v: v['sequence'])
         if not ordered or len({v['sequence'] for v in ordered}) != len(ordered):
             raise ValueError('Missing/duplicate ordered visits')
@@ -50,11 +66,12 @@ def review_records(tables):
             datetime.fromisoformat(v['visitedAt'].replace('Z','+00:00'))
             if (v['extractionStatus'] != 'SUCCESS' or not isinstance(v['title'], str)
                     or not v['title'].strip() or not isinstance(v['content'], str)
-                    or not 1 <= len(v['content']) <= 5000
+                    or not (1 if v['isSearchResultPage'] else 50) <= len(v['content']) <= 5000
                     or v['content'].startswith('METADATA_ONLY:')
                     or v['title'].startswith('Topic: ')
                     or v['searchQuery'] == '[NOT_COLLECTED]'):
                 raise ValueError('Raw text required; historical metadata is not training text')
+            validate_visit_privacy(v)
         result.append(dict(schemaVersion='focus-training-review/1', sourceInstanceId=key[0],
                            participantId=session['participantId'], sessionId=session['sessionId'],
                            goalId=session['goalId'], goalText=goal['description'],

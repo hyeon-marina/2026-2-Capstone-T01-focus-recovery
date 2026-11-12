@@ -27,6 +27,7 @@ export function validateV2(s: V2State, api: string) {
     || !Number.isSafeInteger(s.withdrawal.attempts) || s.withdrawal.attempts < 0
     || s.withdrawal.phase === 'acknowledged' && !validWithdrawal(s.withdrawal.ack, s.withdrawal.requestId))) fail();
   if (s.posts.apiBaseUrl !== api || s.behaviors.apiBaseUrl !== api || s.start && s.start.apiBaseUrl !== api) throw new StorageFailure('server-changed');
+  if (s.start?.plannedSessionId !== undefined && !/^PLAN-\d{3}$/.test(s.start.plannedSessionId)) fail();
   if (s.start && (!UUID4.test(s.start.idempotencyKey) || s.start.collectionSpecVersion !== '2.0'
     || !validGoal(s.start.goalText) || normalizeGoal(s.start.goalText) !== s.start.goalText)) fail();
   if (s.lifecycle !== 'IDLE' && !s.start || ['ACTIVE', 'END_PENDING', 'ENDED'].includes(s.lifecycle)
@@ -65,7 +66,12 @@ export function validateV2(s: V2State, api: string) {
   if (s.quarantine && (s.quarantine.status !== 'RETRACTION_REQUIRED' || !validTime(s.quarantine.observedAt)
     || !['SENSITIVE_CONTENT', 'CONSENT_WITHDRAWN', 'PRIVACY_RETRACTED'].includes(s.quarantine.reason)
     || !Array.isArray(s.quarantine.visitIds) || s.quarantine.visitIds.some(id => !UUID4.test(id)))) fail();
-  if (['END_PENDING', 'ENDED'].includes(s.lifecycle) !== Boolean(s.end)) fail();
+  if (s.quarantineConfirmedFor !== undefined && (!s.quarantine || s.quarantineConfirmedFor !== s.session?.sessionId)) fail();
+  if (s.quarantineClose && (!s.session || !s.quarantine || s.quarantineClose.sessionId !== s.session.sessionId ||
+      !['pending','acknowledged'].includes(s.quarantineClose.phase))) fail();
+  if (s.quarantineClose?.phase === 'acknowledged') {
+    if (s.lifecycle !== 'ENDED' || s.end || s.retractions?.some(e => e.phase !== 'acknowledged')) fail();
+  } else if (['END_PENDING', 'ENDED'].includes(s.lifecycle) !== Boolean(s.end)) fail();
   if (s.end && (canonical(s.end.session) !== canonical(s.session) || s.end.apiBaseUrl !== api || !validTime(s.end.requestedAt)
     || !['draining', 'queued', 'sending', 'retry-wait', 'failed', 'acked'].includes(s.end.phase)
     || !Number.isSafeInteger(s.end.attempts) || s.end.attempts < 0 || s.end.attempts > 3
@@ -138,7 +144,7 @@ export class V2Repository {
     r.onsuccess = () => {
       const previous = r.result as V2State | undefined;
       if ((previous?.revision ?? 0) !== expectedRevision) { tx.abort(); return; }
-      const newSession = previous?.lifecycle === 'ENDED' && saved.lifecycle === 'START_PENDING' && !previous.quarantine;
+      const newSession = previous?.lifecycle === 'ENDED' && saved.lifecycle === 'START_PENDING' && !previous.withdrawal && (!previous.quarantine || previous.quarantineClose?.phase === 'acknowledged');
       // CAS also guards immutable originals and irreversible sequence/lifecycle progress.
       if (previous && !newSession && (previous.owner && canonical(saved.owner) !== canonical(previous.owner)
         || previous.withdrawal && (!saved.withdrawal || previous.withdrawal.requestId !== saved.withdrawal.requestId

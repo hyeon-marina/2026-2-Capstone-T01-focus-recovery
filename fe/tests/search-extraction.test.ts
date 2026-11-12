@@ -12,6 +12,11 @@ describe('organic search extraction', () => {
     document.body.innerHTML = `<div id="search"><div id="rso">${googleCard()}</div></div>`;
     expect(extractSearchContent(document, googleUrl)).toEqual({ content: '검색어: JWT\n\n검색 결과 1\n제목: 인증 문서\n설명: JWT 검증 방법', organicResultCount: 1 });
   });
+  it('masks a query, organic title and snippet before formatting or truncating', () => {
+    document.body.innerHTML = `<div id="search"><div id="rso">${googleCard('desk@example.org','Phone 010-0000-0000')}</div></div>`;
+    const page = extractSearchContent(document,'https://www.google.com/search?q=info%40example.org',true);
+    expect(page?.content).toBe('검색어: [EMAIL]\n\n검색 결과 1\n제목: [EMAIL]\n설명: Phone [PHONE]');
+  });
   it.each(['data-block-id="web/prs_template_v2_web_basic_desk.ts"', 'data-template-id="ugcItem" data-template-type="searchBasic"'])('extracts observed Naver structures: %s', attributes => {
     document.body.innerHTML = `<div id="main_pack">${naverCard(attributes)}</div>`;
     expect(extractSearchContent(document, naverUrl)?.organicResultCount).toBe(1);

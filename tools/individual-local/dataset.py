@@ -35,6 +35,10 @@ SCENARIOS = {'GOAL_MAINTENANCE', 'JUSTIFIED_DETOUR', 'GRADUAL_DRIFT', 'CLEAR_DRI
 LIMIT = 256 * 1024 * 1024
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'ai'))
+from training.raw_review import review_records, validate_visit_privacy, validate_review_records
+
+
 def require(condition, message):
     if not condition:
         raise ValueError(message)
@@ -226,7 +230,7 @@ def validate(m, f, synthetic):
             require(s['endedAt'] and instant(s['endedAt']) >= instant(s['startedAt']), 'Invalid session end')
         require(s['consentRecordId'] in consents and consents[s['consentRecordId']]['participantId'] == m['participantId'], 'Consent FK')
         c = consents[s['consentRecordId']]
-        require(c['policyStatus'] == ('SYNTHETIC' if a['source'] == 'SYNTHETIC' else 'APPROVED'), 'Consent source mismatch')
+        require(c['policyStatus'] in ({'SYNTHETIC'} if a['source'] == 'SYNTHETIC' else {'APPROVED', 'RETIRED'}), 'Consent source mismatch')
         if a['source'] == 'PARTICIPANT':
             require(c['approvalRef'] and c['retentionPolicyRef'], 'Approved consent references required')
         require(goals[s['goalId']]['status'] == 'CONFIRMED', 'Executed goal is not confirmed')
@@ -262,6 +266,7 @@ def validate(m, f, synthetic):
         u=urllib.parse.urlsplit(v['normalizedUrl'])
         require(u.scheme in {'http','https'} and u.hostname==v['domain'] and not(u.username or u.password or u.query or u.fragment) and u.path.startswith('/'), 'Invalid normalized URL/domain')
         require(isinstance(v['searchQuery'],str) and 0<len(v['searchQuery'].strip())<=500 if v['isSearchResultPage'] else v['searchQuery'] is None, 'Invalid search query')
+        validate_visit_privacy(v)
         instant(v['visitedAt'])
         b = behaviors[v['visitId']]
         require(all(b[k] == v[k] for k in ['sessionId', 'activeDurationMs', 'tabSwitchCount', 'behaviorVersion']), 'Behavior FK/counter mismatch')
@@ -275,12 +280,18 @@ def validate(m, f, synthetic):
 def read_privacy(path, expected):
     raw = Path(path).read_bytes()
     require(digest(raw) == expected, 'Privacy authority checksum mismatch')
-    p = parse(raw)
+    return validate_privacy(parse(raw))
+
+
+def validate_privacy(p):
     require(set(p)==set('sourceInstanceId participantId observedAt withdrawn validConsentId sessions tombstones'.split()), 'Unexpected privacy fields')
     uid(p['sourceInstanceId']); uid(p['participantId'])
     if p['validConsentId']:uid(p['validConsentId'])
     for s in p['sessions']:
-        require(set(s)==set('sessionId consentId privacyStatus privacyRevision'.split()), 'Unexpected privacy session fields')
+        require(set(s)-{'authorizedByConsentId'}==set('sessionId consentId privacyStatus privacyRevision'.split()), 'Unexpected privacy session fields')
+        if 'authorizedByConsentId' in s:
+            uid(s['authorizedByConsentId'])
+            require(s['authorizedByConsentId'] == p['validConsentId'], 'Historical consent authority mismatch')
         uid(s['sessionId']);uid(s['consentId']);integer(s['privacyRevision'])
         require(s['privacyStatus'] in {'CLEAR','QUARANTINED'}, 'Invalid privacy status')
     for t in p['tombstones']:
@@ -304,7 +315,7 @@ def merge(inputs, privacy, registry, output, identity=None, recipient=None, synt
     require(len({tuple(m['dataSources']) for m, _, _ in bundles}) == 1, 'REAL/SYNTHETIC mixing forbidden')
     require(recipient or synthetic, 'Encrypted output recipient required')
     require(not recipient or str(output).endswith('.age'),'Encrypted output must use .age suffix')
-    current = {(p['sourceInstanceId'], p['participantId']): p for p in privacy}
+    current = {(p['sourceInstanceId'], p['participantId']): validate_privacy(p) for p in privacy}
     require(len(current) == len(privacy), 'Duplicate privacy authority')
     require(set(current) == {(m['sourceInstanceId'], m['participantId']) for m, _, _ in bundles}, 'Every source needs current trusted privacy state')
     registry = Path(registry)
@@ -359,7 +370,7 @@ def merge(inputs, privacy, registry, output, identity=None, recipient=None, synt
             ps = {s['sessionId']: s for s in p['sessions']}
             for s in f['sessions']:
                 uid(s['sessionId']); latest = ps.get(s['sessionId'])
-                allowed = latest and not p['withdrawn'] and latest['privacyStatus'] == 'CLEAR' and latest['consentId'] == p['validConsentId'] == s['consentRecordId'] and latest['privacyRevision'] == s['privacyRevision']
+                allowed = latest and not p['withdrawn'] and latest['privacyStatus'] == 'CLEAR' and latest['consentId'] == s['consentRecordId'] and latest.get('authorizedByConsentId',latest['consentId']) == p['validConsentId'] and latest['privacyRevision'] == s['privacyRevision']
                 allowed = allowed and not db.execute('SELECT 1 FROM withdrawn WHERE source=?', (source,)).fetchone() and not db.execute('SELECT 1 FROM denied WHERE source=? AND session=?', (source, s['sessionId'])).fetchone()
                 if not allowed:
                     excluded.add((source, s['sessionId']))
@@ -478,8 +489,6 @@ def verify_artifact(path, identity=None, synthetic=False):
         rows=[parse(line) for line in payloads['review.jsonl'].splitlines()]
         require(digest(payloads['review.jsonl'])==m['rawSha256'],'Review text hash mismatch')
         require(m['labelStatus']=='UNLABELLED' and m['privacyReview']=='REQUIRED' and m['splitCounts']==dict(Counter(r['split'] for r in rows)),'Review labels/split mismatch')
-        sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'ai'))
-        from training.raw_review import validate_review_records
         validate_review_records(rows)
         require(m['sessions']==len(rows) and m['visits']==sum(len(r['visits']) for r in rows)
             and m['windows']==sum(len(r['windows']) for r in rows),'Review record count mismatch')
@@ -530,7 +539,7 @@ def training_review(bundle, expected, privacy, output, identity, recipient):
     require(recipient and str(output).endswith('.age'), 'Encrypted review output required')
     payloads = read_payloads(bundle, identity)
     tables = {name: [parse(line) for line in payloads[name+'.jsonl'].splitlines()] for name in FILES}
-    current = {(p['sourceInstanceId'], p['participantId']): p for p in privacy}
+    current = {(p['sourceInstanceId'], p['participantId']): validate_privacy(p) for p in privacy}
     require(len(current) == len(privacy), 'Duplicate privacy authority')
     expected_owners = {(s['sourceInstanceId'],s['participantId']) for s in tables['sessions']}
     require(expected_owners <= set(current), 'Fresh privacy for every source required')
@@ -540,7 +549,7 @@ def training_review(bundle, expected, privacy, output, identity, recipient):
         key=(s['sourceInstanceId'],s['participantId']); p=current[key]
         require(instant(p['observedAt']) >= instant(prior[key]['observedAt']), 'Privacy rollback')
         authority=next((r for r in p['sessions'] if r['sessionId']==s['sessionId']),None)
-        if (not p['withdrawn'] and p['validConsentId']==s['consentRecordId'] and authority
+        if (not p['withdrawn'] and authority and p['validConsentId']==authority.get('authorizedByConsentId',authority['consentId'])
             and authority['consentId']==s['consentRecordId'] and authority['privacyStatus']=='CLEAR'
             and authority['privacyRevision']==s['privacyRevision']
             and not any(t['sessionId']==s['sessionId'] for t in p['tombstones'])):
@@ -555,18 +564,7 @@ def training_review(bundle, expected, privacy, output, identity, recipient):
         and (v['title']=='Public browsing metadata' or v['title'].startswith('Topic: ')) for v in visits)}
     tables['sessions']=[s for s in tables['sessions'] if (s['sourceInstanceId'],s['sessionId']) not in legacy]
     tables['visits']=[v for v in tables['visits'] if (v['sourceInstanceId'],v['sessionId']) not in legacy]
-    sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'ai'))
-    from training.raw_review import review_records
     records=review_records(tables)
-    # Defense in depth for imported text. Reject, never print or silently redact raw text.
-    import re
-    sensitive=re.compile(r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\d{6}-[1-4]\d{6}|(?:01[016789])[- .]?\d{3,4}[- .]?\d{4}|bearer\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|secret)\s*[:=]\s*\S+|\b(?:diagnosis|prescription|patient|bank account|credit card)\b|주민등록|계좌번호|진단명|처방전|비밀번호',re.I)
-    sensitive_query=re.compile(r'\b(?:medical|diagnosis|patient|prescription|symptoms?|treatment|cancer|hiv|aids|depression|banking|finance|loan|credit|insurance|password|cookie|token)\b|의료|진료|환자|질병|증상|치료|처방|우울|암 검사|대출|신용|계좌|금융|주민|비밀번호',re.I)
-    for r in records:
-        require(not sensitive.search(r['goalText']), 'Sensitive goal requires review')
-        for v in r['visits']:
-            require(all(not sensitive.search(v[k] or '') for k in ['title','content','searchQuery']), 'Sensitive text requires quarantine')
-            require(not v['searchQuery'] or not sensitive_query.search(v['searchQuery']), 'Sensitive search requires quarantine')
     raw=b''.join(encoded(r) for r in records)
     report=dict(schemaVersion='focus-training-review/1',sessions=len(records),visits=sum(len(r['visits']) for r in records),
         windows=sum(len(r['windows']) for r in records),sourceDatasetVersion=manifest['datasetVersion'],
