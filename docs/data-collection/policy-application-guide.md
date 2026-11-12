@@ -1,3 +1,5 @@
+> 현재 실제 텍스트 수집·v5 재동의·설치·학습 변환은 [페이지 원본 수집 가이드](page-content-collection.md)를 따릅니다. 아래 버전별 메타데이터 설명은 당시 동작 기록입니다.
+
 # 확정 공통 정책 적용
 
 [TEAM_POLICY.json](TEAM_POLICY.json)은 실제 설치하는 CONFIRMED 운영 설정이다. 정책 버전4·build focus-106-public-web-v4·Plan revision1·목표20개·160배정·A54/B53/C53을 유지한다. 파일 전체 해시는 [TEAM_POLICY.sha256](TEAM_POLICY.sha256), Plan 해시는 JSON의 planChecksum이다.

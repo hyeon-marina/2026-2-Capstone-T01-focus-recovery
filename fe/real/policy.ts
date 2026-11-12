@@ -11,5 +11,4 @@ export function validPolicy(p: SitePolicy, build: { policyDigest: string; buildI
   return !!p && !!p.publicWeb === !!build.publicWeb && p.digest === build.policyDigest && p.buildId === build.buildId && Number.isFinite(Date.parse(p.expiresAt)) && Date.parse(p.expiresAt) > Date.now()
     && p.status === (synthetic ? 'SYNTHETIC' : 'APPROVED') && Array.isArray(p.sites) && p.sites.length === build.sites.length && p.sites.every((s,i) => s.origin === build.sites[i].origin && s.pathPrefix === build.sites[i].pathPrefix);
 }
-// Conservative public-text filter. Site review remains necessary; this is not a complete PII detector.
-export function publicText(...texts: string[]) { return texts.every(t => !/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b\d{6}-[1-4]\d{6}\b|(?:01[016789])[- .]?\d{3,4}[- .]?\d{4}/i.test(t)); }
+export { publicText, publicSearchQuery } from '../src/shared/privacy';

@@ -16,9 +16,9 @@ class V14MigrationTest {
     @Test @EnabledIfEnvironmentVariable(named="FOCUS95_MYSQL_URL",matches="jdbc:mysql://127\\.0\\.0\\.1:[0-9]+/focus95.*")
     void actualMysqlPreservesLegacyPayloadAndEnforcesOwnershipConsentFk() throws Exception {
         String base=System.getenv("FOCUS95_MYSQL_URL"), schema="focus95_migration_"+UUID.randomUUID().toString().replace("-","");
-        try(var conn=DriverManager.getConnection(base,"root","synthetic-test-only");var stmt=conn.createStatement()) {
+        try(var conn=DriverManager.getConnection(base,"root",System.getenv().getOrDefault("FOCUS95_MYSQL_PASSWORD","synthetic-test-only"));var stmt=conn.createStatement()) {
             stmt.execute("CREATE DATABASE "+schema+" CHARACTER SET utf8mb4");
-            try {verify(base.replaceFirst("/focus95[^?]*","/"+schema),"root","synthetic-test-only");}
+            try {verify(base.replaceFirst("/focus95[^?]*","/"+schema),"root",System.getenv().getOrDefault("FOCUS95_MYSQL_PASSWORD","synthetic-test-only"));}
             finally {stmt.execute("DROP DATABASE "+schema);}
         }
     }

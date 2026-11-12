@@ -105,3 +105,9 @@ blockers: LOCAL_SETUP_REQUIRED, LOCAL_POLICY_MISSING, LOCAL_POLICY_DRAFT, LOCAL_
 기존 v2/`focus-raw-export/1` 필드와 JSON Schema는 유지한다. title은 제한된 `Topic: ...` 분류, content는 `METADATA_ONLY: public browsing activity; page text, title and search terms were not collected.` 고정 표식, 검색 페이지의 searchQuery는 `[NOT_COLLECTED]`이고 나머지는 null이다. `extractionStatus=SUCCESS`는 이 모드의 메타데이터 생성 성공이며 본문/검색어 원문을 추출했다는 뜻이 아니다. Backend는 이 고정 tuple 밖의 원제목/본문/검색어를 거절한다. 과거 정책 Export·AI 활성 경로의 원문 필드 의미와 구분한다.
 
 본문/검색결과/블로그 글·영상/자막/댓글/추천·입력값은 전송하지 않는다. 공개 페이지 제목은 로컬에서 고정 주제로 분류 후 폐기한다. `metadataOnly=false`인 기존 독립 real-collection Artifact/AI 활성/합성 계약은 보존한다. 현재 팀 정책은 DRAFT로 실제 수집은 계속 차단된다. [상세 정책](../data-collection/real-collection-policy.md)과 [검증](../data-collection/issue105-validation.md)을 참조한다.
+
+## 원본 텍스트 정책 v5
+
+site-policy 응답에 pageContent boolean을 추가했다. metadataOnly=true는 HMAC URL 호환 경로이며 pageContent=true일 때 실제 제목·본문·검색어를 검증한다. policyVersion/build/digest와 현재 동의·session scope를 모두 확인한다. DB 필드·v2 Visit Wire·Export 버전은 유지하며 DDL 변경은 없다.
+
+운영 failure reasonCode에 EXTRACTION_NO_CONTENT, EXTRACTION_DOM_ERROR, EXTRACTION_RENDER_TIMEOUT, EXTRACTION_ACCESS_DENIED를 추가한다. 기존 EXTRACTION_FAILED도 수용하며 위 사유를 모두 추출 실패 수로 집계한다. 실패 후보는 정상 Page Visit으로 저장하지 않는다. 원문·URL 없는 실패 행은 기존 Export/Import에 포함한다. [설치/필드/학습 검수 계약](../data-collection/page-content-collection.md).

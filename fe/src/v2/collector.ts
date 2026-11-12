@@ -6,7 +6,7 @@ import type { PageSnapshot, PageVisit } from '../shared/types';
 
 export interface Observation {
   tabId: number; document: string; target: string; generation: string; stamp: Stamp;
-  snapshot: PageSnapshot | null; permitted: boolean; safe: boolean; enteredAt?: Stamp; extractionFailed?: boolean;
+  snapshot: PageSnapshot | null; permitted: boolean; safe: boolean; enteredAt?: Stamp; extractionFailed?: boolean; failureReason?: Candidate['extractionFailureReason'];
 }
 export const VALID_MS = 5000, RETURN_MS = 4000, PATCH_MS = 300000;
 // Synthetic observation budget, not a claim of continuous focus during scheduler/OS suspension.
@@ -115,6 +115,7 @@ export class V2Collector {
     }
     s.tabs[o.tabId] = c.id;
     if (o.extractionFailed) {
+      c.extractionFailureReason = o.failureReason;
       if (c.post) this.pause(o.tabId, o.stamp);
       else { c.cursor = undefined; c.excluded = 'EXTRACTION_FAILED'; delete c.snapshot; delete c.left; }
       return c;

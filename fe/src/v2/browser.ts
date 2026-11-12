@@ -1,4 +1,4 @@
-import { validMetadataTitle } from '../shared/metadata';
+import { validMetadataTitle, METADATA_CONTENT, OMITTED_QUERY } from '../shared/metadata';
 import { describeMetadataUrl } from '../../real/url';
 import { UUID4 } from './contract';
 import { setCredential, AccessError } from '../api/auth-fetch';
@@ -11,10 +11,10 @@ import { describeUrl } from '../shared/url';
 import { serialExecutor } from '../background/serial';
 import { catalog, fixtureId } from '../../synthetic/catalog';
 import type { Stamp } from './state';
-import { allowedSite, validPolicy, publicText, type SitePolicy } from '../../real/policy';
+import { allowedSite, validPolicy, publicText, publicSearchQuery, type SitePolicy } from '../../real/policy';
 import { validSnapshot } from './contract';
 import type { PageSnapshot } from '../shared/types';
-declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string; metadataOnly?: boolean; publicWeb?: boolean };
+declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string; metadataOnly?: boolean; pageContent?: boolean; publicWeb?: boolean };
 
 export function installV2Browser(options: { uiPath: string; pilot: boolean; participant: boolean; real?: boolean }) {
 if (options.pilot && !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(API_BASE_URL)) throw new Error('V2_SYNTHETIC_ONLY');
@@ -31,7 +31,7 @@ const metadataKey = real && build?.metadataOnly ? (async () => {
   return bytes;
 })() : undefined;
 async function descriptionFor(raw: string) {
-  return build?.metadataOnly ? describeMetadataUrl(raw, sitePolicy?.sites ?? [], await metadataKey!, runtime.snapshot().session!.sessionId, build?.publicWeb) : describeUrl(raw);
+  return build?.metadataOnly ? describeMetadataUrl(raw, sitePolicy?.sites ?? [], await metadataKey!, runtime.snapshot().session!.sessionId, build?.publicWeb, build?.pageContent) : describeUrl(raw);
 }
 const permits = (raw: string) => real ? !!sitePolicy && Date.parse(sitePolicy.expiresAt) > Date.now() && allowedSite(raw, sitePolicy.sites, build?.metadataOnly === true, build?.publicWeb) : !!fixtureId(raw);
 async function collectionAccess() {
@@ -71,7 +71,7 @@ async function syncReport() {
     reportAttempts.set(sessionId, attemptId);
   }
   for (const c of s.candidates) if (c.excluded && !reportedFailures.has(c.id)) { await accessRequest(`/api/collection/attempts/${attemptId}/failures`, {
-    failureId: c.id, reasonCode: c.excluded, observedAt: c.visitedAt,
+    failureId: c.id, reasonCode: c.extractionFailureReason ?? c.excluded, observedAt: c.visitedAt,
   }); reportedFailures.add(c.id); }
   if (s.lifecycle === 'ENDED' && s.end?.phase === 'acked' && s.notifications.every(r => r.shownAck && (!r.selection || r.selectionAck))) await accessRequest(`/api/collection/attempts/${attemptId}/delivered`, {
     visitCount: s.compactedCount + s.posts.entries.filter(e => e.phase === 'acked').length, lastSequence: s.nextSequence - 1,
@@ -175,7 +175,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       // Chrome's sender.url can retain the document's initial URL after pushState.
       const frame = await chrome.webNavigation.getFrame({tabId,frameId:0});
       const collecting = typeof m.raw === 'string' && frame?.documentId === sender.documentId && frame.url === m.raw && permits(m.raw) && runtime.collecting();
-      return {collecting,metadataOnly:build?.metadataOnly === true,description:collecting && build?.metadataOnly ? await descriptionFor(m.raw) : undefined};
+      return {collecting,pageContent:build?.pageContent === true,publicWeb:build?.publicWeb === true,metadataOnly:build?.metadataOnly === true,description:collecting && build?.metadataOnly ? await descriptionFor(m.raw) : undefined};
     }
     if (m?.type === 'v2-context') return { collecting: !!sender.url && permits(sender.url) && runtime.collecting() };
     if (m?.type === 'v2-leave') { await runtime.leave(tabId, t); return; }
@@ -188,7 +188,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       const frame = await chrome.webNavigation.getFrame({ tabId, frameId: 0 });
       if (!frame || frame.documentId !== sender.documentId || frame.url !== m.raw) return;
       const permitted = await chrome.permissions.contains({origins:[new URL(m.raw).origin + '/*']});
-      if (build?.publicWeb && (!permitted || m.safe !== true)) { await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()}; }
+      if (build?.publicWeb && (!permitted || m.safe !== true && m.sensitive !== true)) { await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()}; }
       if (!permitted || m.safe !== true) { await runtime.quarantine('SENSITIVE_CONTENT', t.wall); return { collecting: false }; }
       await focus(t);
       if (!m.visible) { await runtime.leave(tabId, t); return { collecting: runtime.collecting() }; }
@@ -197,17 +197,19 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       if (!description) return;
       const s = m.snapshot as PageSnapshot | null;
       if (s && (!validSnapshot(s, runtime.snapshot().session!.sessionId) || s.normalizedUrl !== description.normalizedUrl || s.identity !== description.identity
-        || build?.metadataOnly && (!validMetadataTitle(s.title) || s.content !== ('content' in description ? description.content : ''))
+        || build?.pageContent && (!s.title.trim() || validMetadataTitle(s.title) || s.content === METADATA_CONTENT || s.searchQuery === OMITTED_QUERY)
+        || build?.metadataOnly && !build?.pageContent && (!validMetadataTitle(s.title) || s.content !== ('content' in description ? description.content : ''))
+        || build?.pageContent && s.isSearchResultPage && !publicSearchQuery(s.searchQuery ?? '')
         || s.searchQuery !== description.searchQuery || s.isSearchResultPage !== description.isSearchResultPage || !publicText(s.title,s.content,s.searchQuery ?? ''))) {
         await runtime.quarantine('SENSITIVE_CONTENT', t.wall);return { collecting: false };
       }
-      const generation = s ? [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s.title+'\n'+s.content)))].map(b=>b.toString(16).padStart(2,'0')).join('') : 'extracting';
+      const generation = build?.pageContent ? description.identity : s ? [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s.title+'\n'+s.content)))].map(b=>b.toString(16).padStart(2,'0')).join('') : 'extracting';
       const previous=contentGenerations.get(tabId);
       if (previous && (previous.raw !== m.raw || previous.content !== generation)) boundaries.set(tabId,t);
       contentGenerations.set(tabId,{raw:m.raw,content:generation});
       if (arrivedRevision !== navigationRevision.get(tabId)) return { collecting: runtime.collecting() };
       await runtime.observe({tabId,document:sender.documentId,target:description.identity,generation,stamp:t,enteredAt:boundaries.get(tabId) ?? t,
-        permitted,safe:true,snapshot:s,extractionFailed:m.extractionFailed === true});
+        permitted,safe:true,snapshot:s,extractionFailed:m.extractionFailed === true,failureReason:['EXTRACTION_NO_CONTENT','EXTRACTION_DOM_ERROR','EXTRACTION_RENDER_TIMEOUT','EXTRACTION_ACCESS_DENIED'].includes(m.failureReason) ? m.failureReason : undefined});
       await syncReport();await runtime.compact(t);return { collecting:runtime.collecting() };
     }
     if (m?.type !== 'v2-observation'  || typeof m.raw !== 'string' || !fixtureId(m.raw) || fixtureId(m.raw) !== m.id) return;

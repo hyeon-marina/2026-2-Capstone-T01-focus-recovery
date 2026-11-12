@@ -22,11 +22,11 @@ export default defineConfig(({ mode }) => {
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   const dirty = !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim();
   const metadata = { version: '0.4.0', sourceCommit, dirty, mode, apiOrigin: api, actualCollection: 'REQUIRES_SERVER_APPROVAL',
-    publicWeb, metadataOnly: policy.schemaVersion === 'focus-local-policy/1' || synthetic && policy.metadataOnly === true, buildId: policy.buildId, policyDigest: createHash('sha256').update(bytes).digest('hex'), sites: policy.sites };
+    pageContent: policy.pageContent === true, publicWeb, metadataOnly: policy.schemaVersion === 'focus-local-policy/1' || synthetic && policy.metadataOnly === true, buildId: policy.buildId, policyDigest: createHash('sha256').update(bytes).digest('hex'), sites: policy.sites };
   return { base: './', publicDir: false, define: { __COLLECTION_PILOT__: false, __COLLECTION_REAL__: true, __COLLECTION_BUILD__: JSON.stringify(metadata) },
     plugins: [{ name: 'real-manifest', generateBundle() {
       this.emitFile({type:'asset',fileName:'build-info.json',source:JSON.stringify(metadata,null,2)});
-      this.emitFile({type:'asset',fileName:'manifest.json',source:JSON.stringify({ manifest_version:3, name: synthetic ? 'Focus v2 Controlled HTML — SYNTHETIC' : 'Focus Recovery v2 — 웹 탐색 메타데이터', version:metadata.version,
+      this.emitFile({type:'asset',fileName:'manifest.json',source:JSON.stringify({ manifest_version:3, name: synthetic ? 'Focus v2 Controlled HTML — SYNTHETIC' : 'Focus Recovery v2 — 학습용 웹 탐색 수집', version:metadata.version,
         minimum_chrome_version:'106', permissions:['storage','alarms','webNavigation','tabs'], host_permissions:[...new Set([`${api}/*`,...(publicWeb ? ['http://*/*','https://*/*'] : policy.sites.map((s:{origin:string})=>`${s.origin}/*`))])],
         action:{default_title:'수집 상태 열기'}, background:{service_worker:'background.js',type:'module'},
         ...(matches.length ? {content_scripts:[{matches:[...new Set(matches)],js:['content.js'],run_at:'document_idle',all_frames:false}]} : {})

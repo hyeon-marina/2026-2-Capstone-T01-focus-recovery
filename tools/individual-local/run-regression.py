@@ -36,7 +36,7 @@ def main():
         for _ in range(150):
             try:sql('SELECT 1;');break
             except RuntimeError:time.sleep(.2)
-        for prefix in ('85','89'):
+        for prefix in ('85','89','93','95','97'):
             schema='focus'+prefix+'_issue101_'+uuid.uuid4().hex;sql('CREATE DATABASE '+schema+' CHARACTER SET utf8mb4;')
             env['FOCUS'+prefix+'_MYSQL_URL']='jdbc:mysql://127.0.0.1:'+str(c['dbPort'])+'/'+schema+'?serverTimezone=UTC';env['FOCUS'+prefix+'_MYSQL_PASSWORD']=c['password']
         for port in (8893,8895,8897):

@@ -154,7 +154,7 @@ def read_payloads(path, identity=None, synthetic=False):
         members = tar.getmembers()
         require(len(members) <= len(FILES) + 3, 'Unexpected archive members')
         for item in members:
-            require(item.isfile() and item.name not in payloads and item.name in {*(x + '.jsonl' for x in FILES), 'manifest.json', 'checksums.sha256', 'id_map.jsonl'} and 0 <= item.size <= LIMIT, 'Unsafe archive member')
+            require(item.isfile() and item.name not in payloads and item.name in {*(x + '.jsonl' for x in FILES), 'manifest.json', 'checksums.sha256', 'id_map.jsonl', 'review.jsonl'} and 0 <= item.size <= LIMIT, 'Unsafe archive member')
             require(sum(len(x) for x in payloads.values()) + item.size <= LIMIT, 'Archive expansion too large')
             payloads[item.name] = tar.extractfile(item).read()
     checksums = ''.join(digest(v) + '  ' + k + '\n' for k, v in sorted(payloads.items()) if k != 'checksums.sha256').encode()
@@ -266,7 +266,7 @@ def validate(m, f, synthetic):
         b = behaviors[v['visitId']]
         require(all(b[k] == v[k] for k in ['sessionId', 'activeDurationMs', 'tabSwitchCount', 'behaviorVersion']), 'Behavior FK/counter mismatch')
     for row in f['collection_failures']:
-        uid(row['failureId']); require(row['attemptId'] in attempts and row['reasonCode'] in {'EXTRACTION_FAILED', 'SHORT_DURATION', 'POLICY'}, 'Failure FK/code')
+        uid(row['failureId']); require(row['attemptId'] in attempts and row['reasonCode'] in {'EXTRACTION_FAILED','EXTRACTION_NO_CONTENT','EXTRACTION_DOM_ERROR','EXTRACTION_RENDER_TIMEOUT','EXTRACTION_ACCESS_DENIED', 'SHORT_DURATION', 'POLICY'}, 'Failure FK/code')
         instant(row['observedAt'])
     for row in f['privacy_events']:
         uid(row['retractionId']); require(row['sessionId'] in sessions, 'Privacy FK')
@@ -473,6 +473,17 @@ def merge(inputs, privacy, registry, output, identity=None, recipient=None, synt
 def verify_artifact(path, identity=None, synthetic=False):
     payloads=read_payloads(path,identity,synthetic)
     m=parse(payloads['manifest.json'])
+    if m['schemaVersion']=='focus-training-review/1':
+        require(set(payloads)=={'manifest.json','checksums.sha256','review.jsonl'},'Review file set mismatch')
+        rows=[parse(line) for line in payloads['review.jsonl'].splitlines()]
+        require(digest(payloads['review.jsonl'])==m['rawSha256'],'Review text hash mismatch')
+        require(m['labelStatus']=='UNLABELLED' and m['privacyReview']=='REQUIRED' and m['splitCounts']==dict(Counter(r['split'] for r in rows)),'Review labels/split mismatch')
+        sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'ai'))
+        from training.raw_review import validate_review_records
+        validate_review_records(rows)
+        require(m['sessions']==len(rows) and m['visits']==sum(len(r['visits']) for r in rows)
+            and m['windows']==sum(len(r['windows']) for r in rows),'Review record count mismatch')
+        return m,dict(result='PASS',sessions=m['sessions'],visits=m['visits'],windows=m['windows'],labelStatus='UNLABELLED',privacyReview='REQUIRED')
     if m['schemaVersion']==SCHEMA:
         m,f,h=load_bundle(path,identity,synthetic)
         return m,dict(result='PASS',exportId=m['exportId'],manifestSha256=h,sessions=len(f['sessions']),visits=len(f['visits']),source=m['dataSources'])
@@ -511,6 +522,68 @@ def verify_artifact(path, identity=None, synthetic=False):
     return m,dict(result='PASS',datasetVersion=m['datasetVersion'],rawCompleted=m['rawCompleted'],validVisits=m['validVisits'],theoreticalWindows=m['theoreticalWindows'],status=m['status'])
 
 
+def training_review(bundle, expected, privacy, output, identity, recipient):
+    """Only a verified merged Import plus fresh authority snapshots can become review data."""
+    require(digest(Path(bundle).read_bytes()) == expected, 'Trusted ciphertext SHA required')
+    manifest, _ = verify_artifact(bundle, identity)
+    require(manifest['schemaVersion'] == 'focus-raw-dataset/1', 'Merged Import required')
+    require(recipient and str(output).endswith('.age'), 'Encrypted review output required')
+    payloads = read_payloads(bundle, identity)
+    tables = {name: [parse(line) for line in payloads[name+'.jsonl'].splitlines()] for name in FILES}
+    current = {(p['sourceInstanceId'], p['participantId']): p for p in privacy}
+    require(len(current) == len(privacy), 'Duplicate privacy authority')
+    expected_owners = {(s['sourceInstanceId'],s['participantId']) for s in tables['sessions']}
+    require(expected_owners <= set(current), 'Fresh privacy for every source required')
+    prior = {(p['sourceInstanceId'],p['participantId']): p for p in manifest['privacySnapshots']}
+    allowed = set()
+    for s in tables['sessions']:
+        key=(s['sourceInstanceId'],s['participantId']); p=current[key]
+        require(instant(p['observedAt']) >= instant(prior[key]['observedAt']), 'Privacy rollback')
+        authority=next((r for r in p['sessions'] if r['sessionId']==s['sessionId']),None)
+        if (not p['withdrawn'] and p['validConsentId']==s['consentRecordId'] and authority
+            and authority['consentId']==s['consentRecordId'] and authority['privacyStatus']=='CLEAR'
+            and authority['privacyRevision']==s['privacyRevision']
+            and not any(t['sessionId']==s['sessionId'] for t in p['tombstones'])):
+            allowed.add((s['sourceInstanceId'],s['sessionId']))
+    tables['sessions']=[s for s in tables['sessions'] if (s['sourceInstanceId'],s['sessionId']) in allowed]
+    tables['visits']=[v for v in tables['visits'] if (v['sourceInstanceId'],v['sessionId']) in allowed]
+    # Historical metadata remains importable; it must not block new text sessions after upgrade.
+    by_session=defaultdict(list)
+    for v in tables['visits']:by_session[(v['sourceInstanceId'],v['sessionId'])].append(v)
+    legacy={key for key,visits in by_session.items() if visits and all(
+        v['content']=='METADATA_ONLY: public browsing activity; page text, title and search terms were not collected.'
+        and (v['title']=='Public browsing metadata' or v['title'].startswith('Topic: ')) for v in visits)}
+    tables['sessions']=[s for s in tables['sessions'] if (s['sourceInstanceId'],s['sessionId']) not in legacy]
+    tables['visits']=[v for v in tables['visits'] if (v['sourceInstanceId'],v['sessionId']) not in legacy]
+    sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'ai'))
+    from training.raw_review import review_records
+    records=review_records(tables)
+    # Defense in depth for imported text. Reject, never print or silently redact raw text.
+    import re
+    sensitive=re.compile(r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\d{6}-[1-4]\d{6}|(?:01[016789])[- .]?\d{3,4}[- .]?\d{4}|bearer\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|secret)\s*[:=]\s*\S+|\b(?:diagnosis|prescription|patient|bank account|credit card)\b|주민등록|계좌번호|진단명|처방전|비밀번호',re.I)
+    sensitive_query=re.compile(r'\b(?:medical|diagnosis|patient|prescription|symptoms?|treatment|cancer|hiv|aids|depression|banking|finance|loan|credit|insurance|password|cookie|token)\b|의료|진료|환자|질병|증상|치료|처방|우울|암 검사|대출|신용|계좌|금융|주민|비밀번호',re.I)
+    for r in records:
+        require(not sensitive.search(r['goalText']), 'Sensitive goal requires review')
+        for v in r['visits']:
+            require(all(not sensitive.search(v[k] or '') for k in ['title','content','searchQuery']), 'Sensitive text requires quarantine')
+            require(not v['searchQuery'] or not sensitive_query.search(v['searchQuery']), 'Sensitive search requires quarantine')
+    raw=b''.join(encoded(r) for r in records)
+    report=dict(schemaVersion='focus-training-review/1',sessions=len(records),visits=sum(len(r['visits']) for r in records),
+        windows=sum(len(r['windows']) for r in records),sourceDatasetVersion=manifest['datasetVersion'],
+        rawSha256=digest(raw),labelStatus='UNLABELLED',privacyReview='REQUIRED',
+        splitUnit='goalId',splitCounts=dict(Counter(r['split'] for r in records)),
+        extractionFailures=sum(f['reasonCode'].startswith('EXTRACTION_') for f in tables['collection_failures']),
+        dataSources=manifest['dataSources'],legacyMetadataSessionsExcluded=len(legacy),privacySessionsExcluded=len(payloads['sessions.jsonl'].splitlines())-len(allowed))
+    memory=io.BytesIO()
+    review_files={'review.jsonl':raw,'manifest.json':encoded(report)}
+    review_files['checksums.sha256']=''.join(digest(data)+'  '+name+'\n' for name,data in sorted(review_files.items())).encode()
+    with tarfile.open(fileobj=memory,mode='w') as tar:
+        for name,data in sorted(review_files.items()):
+            info=tarfile.TarInfo(name);info.size=len(data);info.mode=0o600;tar.addfile(info,io.BytesIO(data))
+    publish(Path(output),age(memory.getvalue(),recipient=recipient))
+    return report
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__);sub=p.add_subparsers(dest='command',required=True)
     for name in ['export','privacy']:
@@ -519,8 +592,11 @@ def main():
     q=sub.add_parser('verify');q.add_argument('--sha256');q.add_argument('bundle');q.add_argument('--identity');q.add_argument('--synthetic-plaintext',action='store_true')
     q=sub.add_parser('inspect');q.add_argument('bundle');q.add_argument('--identity');q.add_argument('--synthetic-plaintext',action='store_true')
     q=sub.add_parser('merge');q.add_argument('bundles',nargs='+');q.add_argument('--bundle-sha256',action='append',help='Trusted exporter ciphertext SHA-256, same order as bundles');q.add_argument('--privacy',action='append',nargs=2,metavar=('FILE','TRUSTED_SHA256'),required=True);q.add_argument('--registry',required=True);q.add_argument('--output',required=True);q.add_argument('--identity');q.add_argument('--recipient');q.add_argument('--synthetic-plaintext',action='store_true')
+    q=sub.add_parser('training-review');q.add_argument('bundle');q.add_argument('--sha256',required=True);q.add_argument('--identity',required=True);q.add_argument('--recipient',required=True);q.add_argument('--privacy',action='append',nargs=2,required=True);q.add_argument('--output',required=True)
     a=p.parse_args();os.umask(0o077)
-    if a.command in {'export','privacy'}:
+    if a.command=='training-review':
+        print(json.dumps(training_review(a.bundle,a.sha256,[read_privacy(file,h) for file,h in a.privacy],a.output,a.identity,a.recipient)))
+    elif a.command in {'export','privacy'}:
         require(not a.output.exists(),'New output required')
         if a.participant:uid(a.participant)
         if a.command=='privacy':

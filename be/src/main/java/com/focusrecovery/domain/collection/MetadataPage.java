@@ -39,4 +39,27 @@ public final class MetadataPage {
         if(!matches(r.normalizedUrl(),sites,publicWeb) || !validTitle(r.title()) || !CONTENT.equals(r.content()) || !Boolean.valueOf(search).equals(r.isSearchResultPage()) || (search ? !QUERY.equals(r.searchQuery()) : r.searchQuery()!=null) || !URI.create(r.normalizedUrl()).getHost().equals(r.domain()))
             throw new ConflictException("COLLECTION_POLICY_BLOCKED","원본 URL·본문·제목·검색어 대신 고정 메타데이터가 필요합니다.");
     }
+    public static boolean publicText(String text) {
+        return text != null && !java.util.regex.Pattern.compile(
+            "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}|[0-9]{6}-[1-4][0-9]{6}|(?:01[016789])[- .]?[0-9]{3,4}[- .]?[0-9]{4}|bearer\\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|secret)\\s*[:=]\\s*\\S+|\\b(?:diagnosis|prescription|patient|bank account|credit card)\\b|주민등록|계좌번호|진단명|처방전|비밀번호",
+            java.util.regex.Pattern.CASE_INSENSITIVE).matcher(text).find();
+    }
+    public static boolean publicSearchQuery(String query) {
+        return publicText(query) && !java.util.regex.Pattern.compile("\\b(?:medical|diagnosis|patient|prescription|symptoms?|treatment|cancer|hiv|aids|depression|banking|finance|loan|credit|insurance|password|cookie|token)\\b|의료|진료|환자|질병|증상|치료|처방|우울|암 검사|대출|신용|계좌|금융|주민|비밀번호",java.util.regex.Pattern.CASE_INSENSITIVE).matcher(query).find();
+    }
+    public static void validateContent(CreatePageVisitRequest r,List<CollectionSitePolicy.Site> sites,boolean publicWeb) {
+        r.validateV2();
+        if(!matches(r.normalizedUrl(),sites,publicWeb)) throw invalidContent();
+        URI page=URI.create(r.normalizedUrl());
+        boolean search=(page.getHost().matches("(?:www\\.)?google\\.(?:com|co\\.kr|co\\.uk|co\\.jp|[a-z]{2})") && page.getPath().startsWith("/search"+MARKER))
+            || (page.getHost().matches("(?:search|m\\.search)\\.naver\\.com") && page.getPath().startsWith("/search.naver"+MARKER));
+        if(!page.getHost().equals(r.domain()) || !Boolean.valueOf(search).equals(r.isSearchResultPage())
+            || r.title().isBlank() || TITLE.equals(r.title()) || r.title().startsWith("Topic: ") || CONTENT.equals(r.content())
+            || !publicText(r.title()) || !publicText(r.content()) || search && (!publicSearchQuery(r.searchQuery()) || QUERY.equals(r.searchQuery())
+                || !r.searchQuery().equals(r.searchQuery().replaceAll("\\s+"," ").trim()))
+            || r.title().matches("(?s).*[\\x00-\\x1f\\x7f].*")) throw invalidContent();
+    }
+    private static ConflictException invalidContent() {
+        return new ConflictException("COLLECTION_POLICY_BLOCKED","공개 본문·제목·검색어와 개인정보 검사를 확인하세요.");
+    }
 }

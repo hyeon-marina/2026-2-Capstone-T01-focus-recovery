@@ -9,6 +9,7 @@ export interface Candidate {
   id: string; tabId: number; tabKey: string; target: string; document: string; generation: string;
   visitedAt: string; left?: Stamp; returned: Stamp; cursor?: Stamp; remainder: number;
   behavior: VisitBehavior; snapshot?: PageSnapshot; post?: PageVisit;
+  extractionFailureReason?: 'EXTRACTION_NO_CONTENT' | 'EXTRACTION_DOM_ERROR' | 'EXTRACTION_RENDER_TIMEOUT' | 'EXTRACTION_ACCESS_DENIED';
   closed: boolean; crossed: boolean; excluded?: 'EXTRACTION_FAILED' | 'POLICY' | 'SHORT_DURATION';
 }
 export interface V2State {

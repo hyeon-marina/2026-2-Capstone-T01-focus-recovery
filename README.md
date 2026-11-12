@@ -1,6 +1,6 @@
 # Focus Recovery
 
-일반 HTTP/HTTPS 전체 탐색 수집은 [버전 4 범위·갱신 가이드](docs/data-collection/public-web-navigation.md)를 확인합니다.
+실제 제목·본문·허용된 검색어 수집은 [버전 5 설치·재동의·암호화 전달·학습 검수 가이드](docs/data-collection/page-content-collection.md)를 확인합니다. 일반 공개 HTTP/HTTPS 탐색과 기존 Plan을 유지합니다.
 
 사용자가 웹 탐색을 시작할 때 설정한 최초 작업 목표와 실제 탐색 흐름을 분석하여,
 목표에서 점진적으로 벗어나는 상황을 탐지하고 필요한 시점에 최초 목표를 다시 제시하는 시스템입니다.

@@ -17,9 +17,9 @@ import com.focusrecovery.global.exception.ConflictException;
 public class CollectionSitePolicy {
     public record Site(String origin, String pathPrefix) {}
     public record Policy(String digest, String buildId, String policyId, String policyVersion, String status,
-        Instant expiresAt, List<Site> sites, boolean metadataOnly, boolean publicWeb) {
+        Instant expiresAt, List<Site> sites, boolean metadataOnly, boolean publicWeb, boolean pageContent) {
         public Policy(String digest,String buildId,String policyId,String policyVersion,String status,Instant expiresAt,List<Site> sites) {
-            this(digest,buildId,policyId,policyVersion,status,expiresAt,sites,false,false);
+            this(digest,buildId,policyId,policyVersion,status,expiresAt,sites,false,false,false);
         }
     }
     private final Environment env;
@@ -47,7 +47,7 @@ public class CollectionSitePolicy {
                 var sites=validateLocalSites(n);
                 if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_local_owner o JOIN participant p ON p.participant_id=o.participant_id JOIN collection_plan c ON c.plan_id=1 WHERE o.policy_digest=? AND o.plan_checksum=? AND c.revision=? AND p.status='ACTIVE' AND p.withdrawn_at IS NULL",Integer.class,digest,validator.checksum(plan),plan.revision())!=1) return null;
                 if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_release WHERE policy_digest=? AND build_id=? AND approval_ref=? AND revoked_at IS NULL",Integer.class,digest,build,LocalCollectionPolicy.operationalRef(n))!=1)return null;
-                return new Policy(digest,build,n.path("policyId").asText(),n.path("policyVersion").asText(),LocalCollectionPolicy.institutionCleared(n)?"APPROVED":"INSTITUTION_BLOCKED",Instant.parse(n.path("expiresAt").asText()),sites,true,n.path("siteScope").asText().equals("PUBLIC_HTTP_HTTPS"));
+                return new Policy(digest,build,n.path("policyId").asText(),n.path("policyVersion").asText(),LocalCollectionPolicy.institutionCleared(n)?"APPROVED":"INSTITUTION_BLOCKED",Instant.parse(n.path("expiresAt").asText()),sites,true,n.path("siteScope").asText().equals("PUBLIC_HTTP_HTTPS"),n.path("pageContent").asBoolean(false));
             }
             if(!(synthetic?status.equals("SYNTHETIC"):status.equals("APPROVED")) || !build.matches("[a-zA-Z0-9_.-]{1,100}"))return null;
             for(String k:List.of("approvalRef","contractApprovalRef","retentionRef","institutionRef","modelEvidenceRef","privacyEvidenceRef","startAuthorizationRef"))
@@ -116,7 +116,11 @@ public class CollectionSitePolicy {
         } catch(IllegalArgumentException e) { throw blocked(); }
     }
     public void checkVisitData(com.focusrecovery.domain.visit.dto.CreatePageVisitRequest request) {
-        if(realProfile() && require().metadataOnly())MetadataPage.validate(request,require().sites(),require().publicWeb());
+        if(realProfile() && require().metadataOnly()) {
+            var p=require();
+            if(p.pageContent()) MetadataPage.validateContent(request,p.sites(),p.publicWeb());
+            else MetadataPage.validate(request,p.sites(),p.publicWeb());
+        }
     }
     private static ConflictException blocked() { return new ConflictException("COLLECTION_POLICY_BLOCKED","배포 버전·허용 사이트·승인 정책을 확인하세요."); }
 }
