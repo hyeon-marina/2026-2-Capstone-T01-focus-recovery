@@ -20,7 +20,7 @@ export function inspectUrl(raw: string, allowVideo = false): { url: URL; isSearc
     const path = decodeURIComponent(url.pathname);
     if (sensitivePath.test(path) || sensitiveHost.test(url.hostname) || /\.(pdf|mp4|webm|mp3|wav|ogg|m4a)$/i.test(path)) return null;
     if ([...url.searchParams.keys()].some(key => sensitiveQuery.test(key))) return null;
-    if (/^(?:www\.|m\.)?(?:youtube\.com|youtu\.be|vimeo\.com|twitch\.tv|soundcloud\.com|open\.spotify\.com)$/i.test(url.hostname) && !(url.hostname === 'www.youtube.com' && (metadataPath(url.pathname) || allowVideo && url.pathname === '/watch'))) return null;
+    if (/^(?:www\.|m\.)?(?:youtube\.com|youtu\.be|vimeo\.com|twitch\.tv|soundcloud\.com|open\.spotify\.com)$/i.test(url.hostname) && !(metadataPath(url.pathname) || url.hostname === 'www.youtube.com' && allowVideo && url.pathname === '/watch')) return null;
     // Catch token-style fragments before discarding them.
     if (/(?:access_token|id_token|password|authorization|code)=/i.test(url.hash)) return null;
     const engine = searchEngine(url);

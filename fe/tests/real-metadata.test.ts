@@ -54,7 +54,7 @@ it('excludes private/edit namespaces on reviewed encyclopedia origins',()=>{
   for(const path of ['User:someone','Talk:Public_transport','특수:로그인','의료']) expect(inspectPublicUrl('https://ko.wikipedia.org/wiki/'+encodeURIComponent(path),wiki)).toBeNull();
 });
 it('collects general public HTTP/HTTPS domains using the unchanged session HMAC and Topic contract',async()=>{
-  for(const raw of ['https://docs.python.org/3/','https://blog.python.org/','http://news.ycombinator.com/','https://books.toscrape.com/','https://www.google.com/search?q=private#section']){
+  for(const raw of ['https://docs.python.org/3/','https://blog.python.org/','http://news.ycombinator.com/','https://books.toscrape.com/','https://vimeo.com/123','https://www.twitch.tv/public','https://www.google.com/search?q=private#section']){
     expect(allowedSite(raw,[],true,true)).toBe(true);
     const s=(await describeMetadataUrl(raw,[],key,session,true))!;
     expect(s).not.toBeNull();expect(validSnapshot({...s,title:topicTitle('Python tutorial')},session)).toBe(true);
