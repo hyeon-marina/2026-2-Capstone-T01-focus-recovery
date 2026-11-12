@@ -249,4 +249,6 @@ python3 tools/individual-local/local.py --directory "$C_DIR" stop
 
 신규 스크립트의 node 문법 검사와 실제 브라우저 검증의 모든 assert가 PASS했다. 이번에는 FE/BE/AI 제품 코드가 바뀌지 않아 §3의 전체 단위·통합 테스트를 재실행하지 않았다. §3 수치는 앞선 실행 결과다. 재수집 중 오류는 없었다. 증거 SQL 초안에서 예약어 stored를 별칭으로 사용해 오류 1064가 났고 stored_visits로 바꿔 읽기 전용 조회를 재실행했다. JAR 메타데이터 확인도 실제 ZIP 내 경로 META-INF/build-info.properties로 정정했다. 이들은 증거 확인 명령의 문제로 수집 데이터나 애플리케이션을 변경하지 않았다.
 
+최초 `local.py stop` 이후 최종 점검에서 C MySQL 컨테이너 exit=137을 관측했다. 최초 종료 원인은 확정하지 못했다. 같은 볼륨의 MySQL만 다시 열어 healthy를 확인하고 행 보존 검사·14 Visit 개인정보 검사·SQL을 재실행했다. SQL 출력은 이전과 동일했고 보존 검사도 PASS했다. 이후 `docker stop --timeout 60 focus-local-3ea05155201b-mysql-1`로 종료해 exit=0·OOMKilled=false·State.Error 없음까지 확인했다. 추가 Session/Visit은 생성하지 않았으며 볼륨과 프로필을 보존했다. [종료·재시작 검증](evidence/issue112-slot-c/recollect-10/shutdown-validation.json). 기본 종료 경로의 137 발생 원인은 후속 운영 점검 대상으로 남긴다.
+
 **이번 재수집 범위: PASS. 전체 현장 준비 판정: PARTIAL 유지.** 실제 팀원 장비·직접 동의·운영 DB 검증은 여전히 NOT_TESTED다. 검증 후 이번 C Backend·컨테이너만 정지하고 DB Volume·두 Session/Attempt·14 Visit·동의·Chrome 프로필을 보존했다. Export/Import나 실제 연구 Registry 등록은 수행하지 않았다. PR 자동 병합과 Issue 종료도 수행하지 않는다.
