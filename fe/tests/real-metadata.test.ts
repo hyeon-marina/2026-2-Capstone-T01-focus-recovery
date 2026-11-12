@@ -64,5 +64,5 @@ it('collects general public HTTP/HTTPS domains using the unchanged session HMAC 
   expect(a).toEqual(await describeMetadataUrl('https://blog.python.org/a?q=other#other',[],key,session,true));
 });
 it('fails closed for sensitive and private destinations in broad public scope',()=>{
-  for(const raw of ['http://127.0.0.1/','http://192.168.1.1/','https://localhost/','https://[::1]/','https://internal/','https://site.local/','https://mail.google.com/','https://docs.google.com/','https://site.com/account','https://site.com/private','https://site.com/checkout','https://site.com/medical','https://site.com/?token=secret','https://site.com/%2561ccount']) expect(inspectPublicUrl(raw,[],true),raw).toBeNull();
+  for(const raw of ['http://127.0.0.1/','http://192.168.1.1/','https://localhost/','https://[::1]/','https://internal/','https://site.local/','https://mail.google.com/','https://docs.google.com/','https://site.com/account','https://site.com/private','https://site.com/checkout','https://site.com/medical','https://site.com/?token=secret','https://site.com/%2561ccount','https://site.com/#/account','https://site.com/#/private','https://site.com/#access_token=secret']) expect(inspectPublicUrl(raw,[],true),raw).toBeNull();
 });

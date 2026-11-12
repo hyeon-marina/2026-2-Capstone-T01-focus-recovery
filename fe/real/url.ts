@@ -13,12 +13,15 @@ export function publicWebUrl(raw: string): URL | null {
       || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}$/.test(u.hostname)
       || privateHost.test(u.hostname) || sensitive.test(u.hostname) || /^(?:(?:docs|drive|calendar|contacts)\.google\.com|.*\.sharepoint\.com|onedrive\.live\.com)$/.test(u.hostname)) return null;
     if ([...u.searchParams.keys()].some(k => /token|password|secret|credential|authorization|^(code|session|sessionid|sid|email|phone|address|card)$/.test(k.toLowerCase()))) return null;
-    let path = u.pathname;
-    for (let i = 0; i < 3; i++) { const decoded = decodeURIComponent(path); if (decoded === path) break; path = decoded; }
-    if (/%|[\\@\u0000-\u001f\u007f]/.test(path) || sensitive.test(path)
-      || /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\d{6}-[1-4]\d{6}/i.test(path)
-      || /\.(?:pdf|mp4|webm|mp3|wav|ogg|m4a)$/i.test(path)) return null;
-    // Query values and fragment are never read, hashed, sent or stored.
+    if (/(?:^|[?&#])(?:access_token|id_token|token|password|authorization|code)=/i.test(u.hash)) return null;
+    for (const component of [u.pathname,u.hash.slice(1)]) {
+      let path = component;
+      for (let i = 0; i < 3; i++) { const decoded = decodeURIComponent(path); if (decoded === path) break; path = decoded; }
+      if (/%|[\\@\u0000-\u001f\u007f]/.test(path) || sensitive.test(path)
+        || /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\d{6}-[1-4]\d{6}/i.test(path)
+        || /\.(?:pdf|mp4|webm|mp3|wav|ogg|m4a)$/i.test(path)) return null;
+    }
+    // Only the sanitized URL feeds HMAC and durable data.
     u.search = ''; u.hash = '';
     return u;
   } catch { return null; }
