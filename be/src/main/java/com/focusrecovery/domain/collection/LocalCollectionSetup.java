@@ -106,7 +106,8 @@ public class LocalCollectionSetup implements ApplicationRunner {
         jdbc.update("INSERT INTO collection_audit VALUES(?,?,?,?,?,?)",UUID.randomUUID().toString(),id,action,id,ref,Timestamp.from(Instant.now()));
     }
     private void install(String id,tools.jackson.databind.JsonNode n,CollectionPlanService.Plan p,String digest) {
-        if(jdbc.queryForObject("SELECT COUNT(*) FROM work_session WHERE status='ACTIVE'",Integer.class)>0)throw new IllegalStateException("End active session before policy change");
+        var old=jdbc.queryForList("SELECT policy_digest FROM collection_local_owner WHERE owner_key=1",String.class).getFirst();
+        if(!digest.equals(old) && jdbc.queryForObject("SELECT COUNT(*) FROM work_session WHERE status='ACTIVE' AND privacy_status='CLEAR'",Integer.class)>0)throw new IllegalStateException("ACTIVE_SESSION_POLICY_CHANGE: 정책 변경 전에 진행 중인 세션의 종료 또는 격리 마감을 확인하세요.");
         var previous=jdbc.queryForList("SELECT plan_checksum FROM collection_local_owner WHERE owner_key=1",String.class).getFirst();
         String checksum=policies.checksum(p);
         if(previous!=null && !previous.equals(checksum) && jdbc.queryForObject("SELECT COUNT(*) FROM collection_attempt",Integer.class)>0)throw new IllegalStateException("PLAN_HAS_ACTUALS: 실행 이력의 공통 Plan은 변경하지 않습니다.");
@@ -115,7 +116,6 @@ public class LocalCollectionSetup implements ApplicationRunner {
         for(var g:p.goals())jdbc.update("UPDATE collection_goal SET description=?,status=?,evidence_ref=? WHERE goal_id=?",g.description(),g.status(),g.evidenceRef(),g.goalId());
         jdbc.update("UPDATE collection_plan SET revision=? WHERE plan_id=1",p.revision());
         String policyId=n.path("policyId").asText(),version=n.path("policyVersion").asText();
-        var old=jdbc.queryForList("SELECT policy_digest FROM collection_local_owner WHERE owner_key=1",String.class).getFirst();
         if(!digest.equals(old) && jdbc.queryForObject("SELECT COUNT(*) FROM consent_policy WHERE policy_id=? AND policy_version=?",Integer.class,policyId,version)>0)throw new IllegalStateException("POLICY_VERSION_CONFLICT: 변경 정책은 새 버전·재동의가 필요합니다.");
         if(!digest.equals(old)) {
             var previousDates=jdbc.queryForList("SELECT effective_at FROM consent_policy WHERE scope='SESSION_COLLECTION' ORDER BY effective_at DESC LIMIT 1",Timestamp.class);

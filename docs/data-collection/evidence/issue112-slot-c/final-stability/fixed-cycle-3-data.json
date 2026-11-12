@@ -1,0 +1,212 @@
+{
+  "result": "PASS",
+  "label": "fixed-cycle-3-data",
+  "checkedAt": "2026-11-12T22:46:44.919054+00:00",
+  "slot": "C",
+  "sourcePrefix": "9159c1d7",
+  "participantPrefix": "1e43eb87",
+  "planRevision": 1,
+  "assignments": 53,
+  "unchangedWholeRowHashes": {
+    "work_session": true,
+    "page_visit": true,
+    "collection_attempt": true,
+    "consent_record": true,
+    "consent_event": true,
+    "consent_withdrawal": true,
+    "privacy_retraction": true,
+    "visit_tombstone": true,
+    "collection_source_instance": true,
+    "collection_local_owner": true,
+    "access_credential": true,
+    "collection_slot": true,
+    "collection_assignment": true,
+    "collection_goal": true,
+    "collection_plan": true,
+    "collection_release": true
+  },
+  "counts": {
+    "work_session": 2,
+    "page_visit": 14,
+    "collection_attempt": 2,
+    "consent_record": 1,
+    "consent_event": 1,
+    "consent_withdrawal": 0,
+    "privacy_retraction": 0,
+    "visit_tombstone": 0,
+    "collection_source_instance": 1,
+    "collection_local_owner": 1,
+    "access_credential": 1,
+    "collection_slot": 3,
+    "collection_assignment": 160,
+    "collection_goal": 20,
+    "collection_plan": 1,
+    "collection_release": 1
+  },
+  "attempts": [
+    {
+      "plannedSessionId": "PLAN-018",
+      "sessionStatus": "ENDED",
+      "privacyStatus": "CLEAR",
+      "reviewStatus": "RECOLLECT_REQUIRED",
+      "reasonCode": "INSUFFICIENT_VISITS",
+      "deliveryConfirmed": true,
+      "rawQuality": {
+        "validVisits": 4,
+        "theoreticalWindows": 2,
+        "referencesValid": true,
+        "reasons": [
+          "VISITS_BELOW_10"
+        ]
+      },
+      "rawStatus": "RECOLLECT_REQUIRED",
+      "analysisState": "NOT_RUN",
+      "sessionPrefix": "7710f7c7",
+      "attemptPrefix": "cac088b5"
+    },
+    {
+      "plannedSessionId": "PLAN-018",
+      "sessionStatus": "ENDED",
+      "privacyStatus": "CLEAR",
+      "reviewStatus": "PENDING",
+      "reasonCode": null,
+      "deliveryConfirmed": true,
+      "rawQuality": {
+        "validVisits": 10,
+        "theoreticalWindows": 8,
+        "referencesValid": true,
+        "reasons": []
+      },
+      "rawStatus": "RAW_COLLECTED",
+      "analysisState": "NOT_RUN",
+      "sessionPrefix": "da18fc7e",
+      "attemptPrefix": "4d497df5"
+    }
+  ],
+  "raw": {
+    "completed": 1,
+    "syntheticCompleted": 0,
+    "validVisits": 10,
+    "theoreticalWindows": 8,
+    "generatedWindows": 0,
+    "analysisCompletedWindows": 0,
+    "participants": {
+      "C": 1
+    },
+    "goals": {
+      "GOAL-001": 0,
+      "GOAL-002": 0,
+      "GOAL-003": 1,
+      "GOAL-004": 0,
+      "GOAL-005": 0,
+      "GOAL-006": 0,
+      "GOAL-007": 0,
+      "GOAL-008": 0,
+      "GOAL-009": 0,
+      "GOAL-010": 0,
+      "GOAL-011": 0,
+      "GOAL-012": 0,
+      "GOAL-013": 0,
+      "GOAL-014": 0,
+      "GOAL-015": 0,
+      "GOAL-016": 0,
+      "GOAL-017": 0,
+      "GOAL-018": 0,
+      "GOAL-019": 0,
+      "GOAL-020": 0
+    },
+    "scenarios": {
+      "CLEAR_DRIFT": 0,
+      "GOAL_MAINTENANCE": 1,
+      "GRADUAL_DRIFT": 0,
+      "JUSTIFIED_DETOUR": 0
+    }
+  },
+  "storedPrivacyChecks": 14,
+  "visits": [
+    {
+      "activeMs": 6286,
+      "sequence": 1,
+      "sessionPrefix": "7710f7c7",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 6424,
+      "sequence": 2,
+      "sessionPrefix": "7710f7c7",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 6285,
+      "sequence": 3,
+      "sessionPrefix": "7710f7c7",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 6196,
+      "sequence": 4,
+      "sessionPrefix": "7710f7c7",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 6568,
+      "sequence": 1,
+      "sessionPrefix": "da18fc7e",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 5356,
+      "sequence": 2,
+      "sessionPrefix": "da18fc7e",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 6458,
+      "sequence": 3,
+      "sessionPrefix": "da18fc7e",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 6515,
+      "sequence": 4,
+      "sessionPrefix": "da18fc7e",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 5446,
+      "sequence": 5,
+      "sessionPrefix": "da18fc7e",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 5419,
+      "sequence": 6,
+      "sessionPrefix": "da18fc7e",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 5488,
+      "sequence": 7,
+      "sessionPrefix": "da18fc7e",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 6225,
+      "sequence": 8,
+      "sessionPrefix": "da18fc7e",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 5442,
+      "sequence": 9,
+      "sessionPrefix": "da18fc7e",
+      "extractionStatus": "SUCCESS"
+    },
+    {
+      "activeMs": 5498,
+      "sequence": 10,
+      "sessionPrefix": "da18fc7e",
+      "extractionStatus": "SUCCESS"
+    }
+  ]
+}

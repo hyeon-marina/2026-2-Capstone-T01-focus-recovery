@@ -20,7 +20,7 @@ def test_lossless_ordered_unlabelled_v2_review():
     assert len({r['split'] for r in review_records(t)})==1
 
 
-@pytest.mark.parametrize('field,value',[('content','METADATA_ONLY: x'),('extractionStatus','EXTRACTION_FAILED'),('content','a'*5001),('searchQuery','[NOT_COLLECTED]')])
+@pytest.mark.parametrize('field,value',[('title','reporter@example.org'),('title','Bearer synthetic-only'),('content','METADATA_ONLY: x'),('extractionStatus','EXTRACTION_FAILED'),('content','a'*5001),('searchQuery','[NOT_COLLECTED]')])
 def test_metadata_or_failed_text_is_never_training_success(field,value):
     t=tables();t['visits'][0][field]=value
     with pytest.raises(ValueError):review_records(t)

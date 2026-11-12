@@ -41,7 +41,7 @@ public final class MetadataPage {
     }
     public static boolean publicText(String text) {
         return text != null && !java.util.regex.Pattern.compile(
-            "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}|[0-9]{6}-[1-4][0-9]{6}|(?:01[016789])[- .]?[0-9]{3,4}[- .]?[0-9]{4}|bearer\\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|secret)\\s*[:=]\\s*\\S+|\\b(?:diagnosis|prescription|patient|bank account|credit card)\\b|주민등록|계좌번호|진단명|처방전|비밀번호",
+            "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}|[0-9]{6}-[1-4][0-9]{6}|(?:\\+\\d{1,3}[- .])?(?:\\(\\d{2,4}\\)[- .]?|\\b\\d{2,4}[- .])\\d{3,4}[- .]\\d{4}\\b|(?:01[016789]|\\+82[- .]?1[016789])[- .]?[0-9]{3,4}[- .]?[0-9]{4}|bearer\\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret)\\s*[:=]\\s*\\S+|\\b(?:diagnosis|prescription|patient|bank account|credit card)\\b|주민등록|계좌번호|진단명|처방전|비밀번호",
             java.util.regex.Pattern.CASE_INSENSITIVE).matcher(text).find();
     }
     public static boolean publicSearchQuery(String query) {

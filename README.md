@@ -1,6 +1,6 @@
 # Focus Recovery
 
-실제 제목·본문·허용된 검색어 수집은 [버전 5 설치·재동의·암호화 전달·학습 검수 가이드](docs/data-collection/page-content-collection.md)를 확인합니다. 일반 공개 HTTP/HTTPS 탐색과 기존 Plan을 유지합니다.
+실제 제목·본문·허용된 검색어 수집은 [버전 6 설치·재동의·암호화 전달·학습 검수 가이드](docs/data-collection/page-content-collection.md)를 확인합니다. 일반 공개 HTTP/HTTPS 탐색과 기존 Plan을 유지합니다.
 
 사용자가 웹 탐색을 시작할 때 설정한 최초 작업 목표와 실제 탐색 흐름을 분석하여,
 목표에서 점진적으로 벗어나는 상황을 탐지하고 필요한 시점에 최초 목표를 다시 제시하는 시스템입니다.
@@ -62,11 +62,11 @@ AI는 최근 5개의 유효 Page Visit을 기준으로 탐색 상태를 분석�
 | [기존 문서 권한 적용 검증](docs/active-page-permission-fix-validation.md) | Issue #67 수정 및 실제 Chrome·BE·DB 검증 결과 |
 | [권한 미허용 안내 검증](docs/permission-denial-feedback-fix-validation.md) | Issue #74 수정 및 Popup 재진입·네이티브 취소·재허용 검증 |
 
-## v2 수집 환경 준비 (#97)
+## v2 수집 환경 준비
 
-실제 사용자 수집은 **BLOCKED**입니다. 설치 가능한 참여 준비/합성 파일럿 패키지와 등록·Credential·20목표/160배정·진행률 도구를 제공합니다. 실제 목표 원문·운영 서버·동의/기관/보존·전체 회수·실제 모델 검증이 필요합니다.
+실제 수집은 팀원별 독립 로컬 환경에서 현재 정책과 빌드를 확인하고 본인이 직접 동의한 뒤 시작합니다. 설치·격리 마감·재수집 절차와 검증 범위는 아래 안내를 따릅니다.
 
 - [참여자 안내서](docs/data-collection/participant-guide.md)
 - [관리자 실행·장애 대응](docs/data-collection/operator-guide.md)
 - [승인 Readiness](docs/data-collection/readiness-checklist.md)
-- [실행·검증 보고](docs/data-collection/environment-validation.md)
+- [실행·검증 보고](docs/data-collection/collection-stability-validation.md)

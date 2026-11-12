@@ -21,6 +21,7 @@ def main():
     p.add_argument('--automated-test-only',action='store_true',required=True)
     p.add_argument('--verify-v4-upgrade',action='store_true',help='A starts from exact official v4 policy and automated consent, then upgrades without replacing owner/credential')
     p.add_argument('--test-subnet-prefix',help='Optional dedicated test IPv4 /24 prefix, e.g. 10.253.240; preserves existing networks')
+    p.add_argument('--tls-port-base', type=int, default=19543, help='First of three consecutive local test HTTPS ports')
     p.add_argument('--output',type=Path,required=True);p.add_argument('--chrome',required=True)
     a=p.parse_args();os.umask(0o077);root=a.output.resolve();root.mkdir(parents=True,mode=0o700,exist_ok=False)
     policy=local.ROOT/'docs/data-collection/TEAM_POLICY.json';expected=policy.with_suffix('.sha256').read_text().split()[0]
@@ -37,7 +38,7 @@ def main():
             if a.test_subnet_prefix:
                 import ipaddress
                 network=ipaddress.ip_network(a.test_subnet_prefix+'.0/24',strict=True)
-                cli(d,'init','--slot',slot,'--db-port',str(33231+i),'--tls-port',str(19543+i))
+                cli(d,'init','--slot',slot,'--db-port',str(33231+i),'--tls-port',str(a.tls_port_base+i))
                 project=json.loads((d/'config.json').read_text())['project']
                 subnet=list(network.subnets(new_prefix=28))[i]
                 command(['docker','network','create','--subnet',str(subnet),'--label','com.docker.compose.project='+project,'--label','com.docker.compose.network=default',project+'_default'])
@@ -45,7 +46,7 @@ def main():
                 old=subprocess.run(['git','show','1bfe57f6bdd74348166022da4b22c63d585bf95c:docs/data-collection/TEAM_POLICY.json'],cwd=local.ROOT,check=True,capture_output=True).stdout
                 assert ds.digest(old)==local.V4_TEAM_POLICY_SHA256
                 oldfile=root/'official-v4.json';local.private(oldfile,old.decode())
-                cli(d,'setup','--slot',slot,'--db-port',str(33231+i),'--tls-port',str(19543+i),'--policy',oldfile,'--policy-sha256',ds.digest(old))
+                cli(d,'setup','--slot',slot,'--db-port',str(33231+i),'--tls-port',str(a.tls_port_base+i),'--policy',oldfile,'--policy-sha256',ds.digest(old))
                 credential_before=(d/'participant.json').read_bytes()
                 before=json.loads(credential_before);config=json.loads((d/'config.json').read_text())
                 oldpolicy=json.loads(old)
@@ -53,7 +54,7 @@ def main():
                 with urllib.request.urlopen(req,context=ssl.create_default_context(cafile=str(d/'tls/localhost.pem'))) as response:
                     assert response.status==200
                 assert ds.request('https://localhost:'+str(config['tlsPort']),d/'participant.json','/api/consent',d/'tls/localhost.pem')['consentValid']
-            cli(d,'setup','--slot',slot,'--db-port',str(33231+i),'--tls-port',str(19543+i))
+            cli(d,'setup','--slot',slot,'--db-port',str(33231+i),'--tls-port',str(a.tls_port_base+i))
             if a.verify_v4_upgrade and slot=='A':assert (d/'participant.json').read_bytes()==credential_before
             assert ds.digest((d/'site-policy.json').read_bytes())==expected
             local.private(d/'AUTOMATED_TEST_ONLY','NO_HUMAN_PARTICIPANT_CONSENT')
@@ -62,7 +63,7 @@ def main():
             state=ds.request(server,credential,'/api/collection/local-status',ca)
             assert 'INSTITUTION_BLOCKED' not in state['blockers'] and state['blockers']==['CONSENT_REQUIRED']
             assert state['planRevision']==1 and not state['ready']
-            env=os.environ.copy();env.update(FOCUS105_LOCAL_DIRECTORY=str(d),FOCUS105_AUTOMATED_EXTERNAL='1',CHROMIUM_PATH=a.chrome)
+            env=os.environ.copy();env.update(FOCUS105_LOCAL_DIRECTORY=str(d),FOCUS105_AUTOMATED_EXTERNAL='1',FOCUS_TEST_TLS_PORT=str(a.tls_port_base+i),CHROMIUM_PATH=a.chrome)
             with (d/'external-chrome.log').open('ab') as log:
                 subprocess.run(['node','scripts/local-https-browser-test.mjs'],cwd=local.ROOT/'fe',env=env,stdout=log,stderr=log,check=True,timeout=360)
             state=ds.request(server,credential,'/api/collection/local-status',ca);assert state['ready'] and not state['blockers']
@@ -99,7 +100,7 @@ def main():
         print('PASS: real public-site automated technical path; human consent/actuals=0',flush=True)
     finally:
         for d in directories:
-            if (d/'backend.json').exists():cli(d,'stop')
+            if (d/'config.json').exists():cli(d,'stop')
 
 
 if __name__=='__main__':main()

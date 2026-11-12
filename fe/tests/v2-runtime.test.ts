@@ -360,3 +360,73 @@ it('does not carry compacted visit IDs across a new session into its retraction 
   await r.start(session.goalText); await r.quarantine('SENSITIVE_CONTENT', time(12000).wall);
   expect(r.snapshot().retractions).toEqual([]); expect(r.snapshot().quarantine!.visitIds).not.toContain(old); repo.close();
 });
+
+it('archives a zero-visit quarantine after server close and starts a new session', async () => {
+  const t = { ...transport(), closeQuarantine: async (sessionId: string) => ({ sessionId, privacyStatus: 'QUARANTINED', status: 'ENDED' }) };
+  const { runtime, repo } = await setup(t);
+  await runtime.quarantine('SENSITIVE_CONTENT', Date.now());
+  await runtime.stop(time(1000));
+  await waitFor(() => runtime.snapshot().lifecycle === 'ENDED');
+  expect((await repo.load()).quarantine).toBeDefined();
+  const next = { ...session, sessionId: crypto.randomUUID() };
+  t.start = async () => next;
+  await runtime.start(next.goalText);
+  expect(runtime.collecting()).toBe(true);
+  expect(runtime.snapshot().session?.sessionId).toBe(next.sessionId);
+});
+
+it('keeps the pending assignment across restart when two repetitions share the same goal', async () => {
+  const t = transport();
+  vi.mocked(t.start).mockRejectedValueOnce(new Error('lost start reply'));
+  const first = new V2Runtime(new V2Repository(API_BASE_URL), t);
+  await first.initialize();
+  await expect(first.start(session.goalText, 'PLAN-001')).rejects.toThrow('lost start reply');
+  const key = first.snapshot().start!.idempotencyKey;
+  const second = new V2Runtime(new V2Repository(API_BASE_URL), t);
+  await second.initialize();
+  await expect(second.start(session.goalText, 'PLAN-004')).rejects.toThrow('V2_START_CONFLICT');
+  await second.start(session.goalText, 'PLAN-001');
+  expect(t.start).toHaveBeenCalledTimes(2);
+  expect(t.start).toHaveBeenLastCalledWith(session.goalText, key);
+});
+
+it('keeps a late POST acknowledgement out of the next assignment after quarantine closure', async () => {
+  const t = transport();
+  let reply!: (value: never) => void;
+  t.post = vi.fn(() => new Promise<never>(resolve => { reply = resolve; }));
+  t.retract = async (_id, request) => ({status:'QUARANTINED', invalidatedWindowIds:[],
+    retractionId:request.retractionId, visitId:request.visitId});
+  t.closeQuarantine = async sessionId => ({sessionId, status:'ENDED', privacyStatus:'QUARANTINED'});
+  const { runtime: r } = await setup(t);
+  await advance(r);
+  await waitFor(() => vi.mocked(t.post).mock.calls.length === 1);
+  const original = r.snapshot().posts.entries[0].visit;
+  await r.quarantine('SENSITIVE_CONTENT', time(5100).wall);
+  await waitFor(() => r.snapshot().retractions?.[0].phase === 'acknowledged');
+  await r.stop(time(5200));
+  const nextId = crypto.randomUUID();
+  t.start = async () => ({...session,sessionId:nextId});
+  await r.start(session.goalText);
+  reply({...original,updatedAt:null} as never);
+  await r.idle();
+  expect(r.snapshot().session?.sessionId).toBe(nextId);
+  expect(r.snapshot().posts.entries).toEqual([]);
+  expect(r.collecting()).toBe(true);
+});
+
+it('recovers a lost quarantine close reply from IndexedDB before allowing another assignment', async () => {
+  const t = transport();
+  t.closeQuarantine = vi.fn(async () => { throw new Error('lost close reply'); });
+  const { repo, runtime } = await setup(t);
+  await runtime.quarantine('SENSITIVE_CONTENT', time(0).wall);
+  await expect(runtime.stop(time(1000))).rejects.toThrow('lost close reply');
+  expect((await repo.load()).quarantineClose).toEqual({sessionId:session.sessionId,phase:'pending'});
+  await expect(runtime.start(session.goalText)).rejects.toThrow('V2_START_BLOCKED');
+  repo.close();
+  t.closeQuarantine = vi.fn(async sessionId => ({sessionId,status:'ENDED',privacyStatus:'QUARANTINED'}));
+  const restored = new V2Runtime(new V2Repository(API_BASE_URL), t);
+  await restored.initialize();
+  await waitFor(() => restored.snapshot().quarantineClose?.phase === 'acknowledged');
+  expect(t.closeQuarantine).toHaveBeenCalledWith(session.sessionId);
+  expect(restored.collecting()).toBe(false);
+});

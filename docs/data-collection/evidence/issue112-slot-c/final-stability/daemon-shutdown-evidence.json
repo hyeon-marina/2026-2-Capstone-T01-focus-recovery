@@ -1,0 +1,16 @@
+[
+  {
+    "time": "2026-11-12T21:18:40.311126713Z",
+    "component": "command",
+    "message": "Container failed to exit within 1s of signal 15 - using the force",
+    "source": "init.log.0",
+    "matchedContainerPrefix": "c0d266442906"
+  },
+  {
+    "time": "2026-11-12T22:17:44.932460299Z",
+    "component": "command",
+    "message": "Container failed to exit within 1s of signal 15 - using the force",
+    "source": "init.log.0",
+    "matchedContainerPrefix": "c0d266442906"
+  }
+]

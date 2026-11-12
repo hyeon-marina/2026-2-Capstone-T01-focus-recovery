@@ -1,0 +1,1 @@
+PASS: persisted title/content/searchQuery privacy validator 4/4; UTF-8 client; no raw text logged or exported.

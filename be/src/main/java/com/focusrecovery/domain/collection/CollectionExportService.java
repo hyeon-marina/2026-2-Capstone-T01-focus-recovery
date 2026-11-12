@@ -62,7 +62,7 @@ public class CollectionExportService {
         files.put("assignments",rows("SELECT planned_session_id,goal_id,scenario_type,repetition,slot_id FROM collection_assignment ORDER BY planned_session_id"));
         files.put("participants",rows("SELECT s.slot_id,p.participant_id FROM participant p JOIN collection_slot s ON s.participant_id=p.participant_id WHERE p.participant_id=?",owner));
         files.put("sessions",rows("SELECT s.session_id,s.owner_participant_id AS participant_id,a.goal_id,a.scenario_type AS scenario,s.started_at,s.ended_at,s.status,s.collection_spec_version,s.consent_id AS consent_record_id,s.privacy_status,s.privacy_revision,t.source,t.planned_session_id FROM work_session s JOIN collection_attempt t ON t.session_id=s.session_id JOIN collection_assignment a ON a.planned_session_id=t.planned_session_id WHERE t.participant_id=? ORDER BY s.started_at,s.session_id",owner));
-        String clear=" JOIN work_session s ON s.session_id=v.session_id JOIN collection_attempt t ON t.session_id=s.session_id WHERE t.participant_id=? AND s.privacy_status='CLEAR' AND s.consent_id=? AND s.status='ENDED' AND NOT EXISTS(SELECT 1 FROM visit_tombstone x WHERE x.session_id=s.session_id)";
+        String clear=" JOIN work_session s ON s.session_id=v.session_id JOIN collection_attempt t ON t.session_id=s.session_id WHERE t.participant_id=? AND "+CollectionDataAuthorization.CLEAR+" AND "+CollectionDataAuthorization.CONSENT+" AND s.status='ENDED'";
         files.put("visits",rows("SELECT v.visit_id,v.session_id,v.sequence,v.browser_tab_key,v.normalized_url,v.domain,v.title,v.content,v.search_query,v.is_search_result_page,v.visited_at,v.extraction_status,v.active_duration_ms,v.tab_switch_count,v.behavior_version FROM page_visit v"+clear+" ORDER BY v.session_id,v.sequence",owner,current.toString()));
         files.put("behaviors",rows("SELECT v.visit_id,v.session_id,v.active_duration_ms,v.tab_switch_count,v.behavior_version,v.updated_at FROM page_visit v"+clear+" ORDER BY v.session_id,v.sequence",owner,current.toString()));
         files.put("collection_attempts",rows("SELECT attempt_id,planned_session_id,participant_id,session_id,source,review_status,delivered_visit_count,delivered_through_sequence,reason_code,created_at FROM collection_attempt WHERE participant_id=? ORDER BY created_at,attempt_id",owner));
@@ -95,6 +95,11 @@ public class CollectionExportService {
     private Map<String,Object> privacy(UUID participant,String source,Instant now) {
         var valid=consent.validConsent(participant);
         var sessions=rows("SELECT session_id,consent_id,privacy_status,privacy_revision FROM work_session WHERE owner_participant_id=? ORDER BY session_id",participant.toString());
+        if(valid!=null) {
+            var historical=jdbc.queryForList("SELECT s.session_id FROM work_session s WHERE s.owner_participant_id=? AND s.consent_id<>? AND "+CollectionDataAuthorization.CONSENT,String.class,participant.toString(),valid.toString(),valid.toString());
+            var eligible=Set.copyOf(historical);
+            for(var session:sessions)if(eligible.contains(session.get("sessionId")))session.put("authorizedByConsentId",valid.toString());
+        }
         return Map.of("sourceInstanceId",source,"participantId",participant.toString(),"observedAt",now.toString(),"withdrawn",consent.withdrawn(participant),"validConsentId",valid==null?"":valid.toString(),"sessions",sessions,"tombstones",rows("SELECT v.visit_id,v.session_id FROM visit_tombstone v JOIN work_session s ON s.session_id=v.session_id WHERE s.owner_participant_id=? ORDER BY v.visit_id",participant.toString()));
     }
 }

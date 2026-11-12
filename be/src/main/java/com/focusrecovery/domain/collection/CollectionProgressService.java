@@ -76,7 +76,7 @@ public class CollectionProgressService {
         Map<String,int[]> failureMap=new HashMap<>();
         jdbc.query("SELECT f.attempt_id,COUNT(*) AS failures,SUM(CASE WHEN f.reason_code IN ('EXTRACTION_FAILED','EXTRACTION_NO_CONTENT','EXTRACTION_DOM_ERROR','EXTRACTION_RENDER_TIMEOUT','EXTRACTION_ACCESS_DENIED') THEN 1 ELSE 0 END) AS extraction FROM collection_failure f JOIN collection_attempt t ON t.attempt_id=f.attempt_id"+filter+" GROUP BY f.attempt_id",(org.springframework.jdbc.core.RowCallbackHandler) r->failureMap.put(r.getString(1),new int[]{r.getInt(2),r.getInt(3)}),params);
         List<Attempt> attempts=new ArrayList<>();
-        Map<String,UUID> currentConsents=new HashMap<>();
+        Map<String,Set<String>> authorizedSessions=new HashMap<>();
         for(var r:rows) {
             String session=(String)r.get("session_id");
             var visits=visitMap.getOrDefault(session,List.of());
@@ -93,10 +93,13 @@ public class CollectionProgressService {
             var raw=rawQuality(visits);
             String rawStatus;
             String participant=(String)r.get("participant_id");
-            if(!currentConsents.containsKey(participant))currentConsents.put(participant,consent.validConsent(UUID.fromString(participant)));
-            UUID validConsent=currentConsents.get(participant);
-            boolean consentValid=validConsent!=null && validConsent.toString().equals(r.get("consent_id"));
-            if(!r.get("privacy_status").equals("CLEAR") || !consentValid)rawStatus="QUARANTINED";
+            if(!authorizedSessions.containsKey(participant)) {
+                UUID current=consent.validConsent(UUID.fromString(participant));
+                authorizedSessions.put(participant,current==null?Set.of():Set.copyOf(jdbc.queryForList(
+                    "SELECT s.session_id FROM work_session s WHERE s.owner_participant_id=? AND "+CollectionDataAuthorization.CLEAR+" AND "+CollectionDataAuthorization.CONSENT,
+                    String.class,participant,current.toString())));
+            }
+            if(!authorizedSessions.get(participant).contains(session))rawStatus="QUARANTINED";
             else if(review.equals("FAILED") || review.equals("RECOLLECT_REQUIRED"))rawStatus=review;
             else if(r.get("session_status").equals("ACTIVE"))rawStatus="IN_PROGRESS";
             else rawStatus=raw.reasons().isEmpty() && delivered?"RAW_COLLECTED":"RECOLLECT_REQUIRED";

@@ -1,12 +1,10 @@
-# 실제 제목·본문·검색어 수집 — 정책 v5
+# 실제 제목·본문·검색어 수집 — 정책 v6
 
-현재 기준은 TEAM_POLICY.json의 `pageContent=true`, 버전5, RAW_ONLY다. 기관 판단 NOT_REQUIRED, Plan revision1, 20목표·160세션·A54/B53/C53은 그대로다. #105~#110 문서의 METADATA_ONLY/Topic 설명은 **과거 버전의 필드 의미**이며 새 수집의 의미가 아니다.
+현재 기준은 TEAM_POLICY.json의 `pageContent=true`, 버전 6, RAW_ONLY다. 기관 판단 NOT_REQUIRED, Plan revision1, 20목표·160세션·A54/B53/C53은 그대로다. #105~#110 문서의 METADATA_ONLY/Topic 설명은 **과거 버전의 필드 의미**이며 새 수집의 의미가 아니다.
 
-기존 v4 세션을 먼저 종료하고 Queue0·END ACK를 확인한다. 본인 PC에서 다음 명령을 실행한다. B/C는 자신의 슬롯을 사용한다.
+기존 v5의 정상 세션은 종료 ACK와 미전송 0건을 확인한다. 격리 중이면 동일한 로컬 디렉터리와 Chrome 프로필을 보존한 채 업그레이드 후 아래 마감 절차를 따른다. 기존 데이터가 있으면 먼저 local.py backup에 새 .age 출력 경로와 별도로 확인한 수신자 공개키를 지정한다. 본인 PC에서 다음 명령을 실행한다. B/C는 자신의 슬롯을 사용한다.
 
 ```sh
-git switch main
-git pull --ff-only origin main
 npm ci --prefix fe
 cd be
 ./gradlew bootJar
@@ -16,7 +14,7 @@ python3 tools/individual-local/local.py build
 python3 tools/individual-local/local.py status
 ```
 
-setup은 알려진 공식 v2/v3/v4 정책의 **기존 파일 SHA를 검증한 뒤** 새 공식 정책을 설치한다. 커스텀 정책은 자동 덮어쓰지 않는다. DB·기존 실적·Participant ID·Credential·Plan을 보존하며 같은 policyId/version의 다른 bytes는 거절한다. 확장 프로그램을 새로고침한 다음 Credential로 로그인하고 **새 수집 항목을 읽고 직접 재동의**한다. 이전 동의는 새 정책에 유효하지 않다. 기록 파일·policy-prepare·관리자 승인은 필요 없다.
+setup은 알려진 공식 v2/v3/v4/v5 정책의 **기존 파일 SHA를 검증한 뒤** 새 공식 정책을 설치한다. 커스텀 정책은 자동 덮어쓰지 않는다. DB·기존 실적·Participant ID·Credential·Plan을 보존하며 같은 policyId/version의 다른 bytes는 거절한다. 확장 프로그램을 새로고침한 다음 Credential로 로그인하고 **새 수집 항목을 읽고 직접 재동의**한다. 이전 동의는 새 정책에 유효하지 않다. 기록 파일·policy-prepare·관리자 승인은 필요 없다.
 
 ## 수집과 제외
 
@@ -32,6 +30,18 @@ setup은 알려진 공식 v2/v3/v4 정책의 **기존 파일 SHA를 검증한 �
 활성 체류5초, 복귀4초, 첫5분 행동 PATCH, 전송 큐·재시도·중복Visit 방지·END ACK를 유지한다. 1초 pulse는 체류 측정에 사용하고 DOM 추출은 동일 route에서 최소5초 간격으로 제한한다. 늦은 제목/본문은 다음 추출에서 반영하며 **같은 문서/페이지에서 제목 변경만으로 Visit을 추가하지 않는다**. 이미 확정·전송한 Visit의 원문은 멱등성을 위해 고정한다. 새 route/문서/실제 복귀는 기존 방문 경계 규칙을 따른다.
 
 유효 본문 최소50자(검색 결과1자)는 기존 v2 계약을 유지한다. 실패를 가짜 본문/정상 Visit으로 만들지 않는다. 후보의 상태는 EXTRACTION_FAILED, 운영 진단은 EXTRACTION_NO_CONTENT/DOM_ERROR/RENDER_TIMEOUT/ACCESS_DENIED로 구분한다. 민감 페이지는 POLICY/기존 SENSITIVE_CONTENT 격리로 처리한다. 실패 진단에는 제목·URL·본문·검색어를 넣지 않는다. 실패 후 복구되면 새 유효 후보를 측정한다.
+
+## 제외·격리·재수집
+
+수집 허용 페이지에서 이메일과 국내 휴대전화 번호는 제목·본문 후보·검색 결과·검색어에 대해 각각 `[EMAIL]`, `[PHONE]`으로 가린다. 휴대전화 마스킹 규칙에 속하지 않는 지역번호 등 일반 전화 형식을 감지하면 해당 Visit을 POLICY로 제외한다. 마스킹한 텍스트만 유효 길이를 판정한다. 구독 제한·접근 거부·본문 추출 실패는 원인 코드만 남기며 다음 공개 페이지에서 계속 측정한다.
+
+격리 알림이 뜨면 **세션 종료 · 수집 중지**를 누른다. Visit이 없어도 서버가 소유권을 검사하고 격리 마감을 기록한다. 응답이 끊기면 같은 프로필에서 재인증하고 **재전송 / 복구**를 누른다. 마감이 확인되면 Session은 ENDED, Privacy는 QUARANTINED다. 서버가 접수한 회수 작업의 진행 상황은 마감 이후에도 추적한다.
+
+다른 배정은 마감 확인 후 선택한다. 같은 배정은 이전 Attempt에서 재수집 사유를 기록하고 배정을 다시 시작한다. 새 Attempt와 Session ID로 수집된다. 전체 동의 철회는 참여자의 모든 후속 수집을 차단한다. 정상 종료의 품질 판정은 **나의 진행**에서 `전송 확인`, `원본 RAW_COLLECTED`, `AI NOT_RUN`으로 확인한다.
+
+v5에서 첫 Visit 전에 격리되어 서버가 아직 ACTIVE / CLEAR로 표시되는 경우에는 설치된 공식 v5 site-policy.json을 별도로 보존하고 해당 파일과 v5 SHA를 명시하여 새 백엔드로 setup한다. 같은 v5 파일로 확장도 재빌드하고 새로고침한 뒤 격리 마감을 확인한다. 이후 정책 인자 없이 setup하면 v6로 갱신된다. 이전 서버가 이미 QUARANTINED로 표시한 세션은 v6에서 본인 인증 후 마감할 수 있다.
+
+기존 v5 참가자는 재빌드한 패키지를 chrome://extensions에서 새로고침하고 서버 정책 버전 6의 수집 항목과 후속 이용 범위를 읽은 뒤 직접 재동의한다. 본인의 기존 슬롯·디렉터리·DB 볼륨을 사용한다. 연결 문제는 `local.py status`와 보호된 디렉터리의 backend.log 및 setup.log에서 확인한다. 공유할 때는 상태 코드와 시각만 전달한다.
 
 ## Export/Import 이후 학습 검수 데이터
 

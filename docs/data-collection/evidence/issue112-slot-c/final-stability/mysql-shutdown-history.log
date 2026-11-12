@@ -1,0 +1,15 @@
+2026-11-12T21:16:11.609587589Z 2026-11-12T21:16:11.609541Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Socket: /var/run/mysqld/mysqlx.sock
+2026-11-12T21:16:11.609619089Z 2026-11-12T21:16:11.609577Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.4.9'  socket: '/var/run/mysqld/mysqld.sock'  port: 0  MySQL Community Server - GPL.
+2026-11-12T21:16:12.112614339Z 2026-11-12T21:16:12.112570Z 13 [System] [MY-013172] [Server] Received SHUTDOWN from user root. Shutting down mysqld (Version: 8.4.9).
+2026-11-12T21:16:13.123667631Z 2026-11-12T21:16:13.123517Z 0 [System] [MY-010910] [Server] /usr/sbin/mysqld: Shutdown complete (mysqld 8.4.9)  MySQL Community Server - GPL.
+2026-11-12T21:16:14.446074215Z 2026-11-12T21:16:14.446026Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Bind-address: '::' port: 33060, socket: /var/run/mysqld/mysqlx.sock
+2026-11-12T21:16:14.446077674Z 2026-11-12T21:16:14.446055Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.4.9'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL.
+2026-11-12T21:18:39.308736630Z 2026-11-12T21:18:39.308635Z 0 [System] [MY-013172] [Server] Received SHUTDOWN from user <via user signal>. Shutting down mysqld (Version: 8.4.9).
+2026-11-12T21:18:40.225789672Z 2026-11-12T21:18:40.225645Z 0 [System] [MY-010910] [Server] /usr/sbin/mysqld: Shutdown complete (mysqld 8.4.9)  MySQL Community Server - GPL.
+2026-11-12T22:11:06.111483044Z 2026-11-12T22:11:06.111408Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Bind-address: '::' port: 33060, socket: /var/run/mysqld/mysqlx.sock
+2026-11-12T22:11:06.111488294Z 2026-11-12T22:11:06.111447Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.4.9'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL.
+2026-11-12T22:17:43.927586881Z 2026-11-12T22:17:43.927502Z 0 [System] [MY-013172] [Server] Received SHUTDOWN from user <via user signal>. Shutting down mysqld (Version: 8.4.9).
+2026-11-12T22:20:03.472423335Z 2026-11-12T22:20:03.472356Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Bind-address: '::' port: 33060, socket: /var/run/mysqld/mysqlx.sock
+2026-11-12T22:20:03.472467626Z 2026-11-12T22:20:03.472412Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.4.9'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL.
+2026-11-12T22:20:11.181472213Z 2026-11-12T22:20:11.181369Z 0 [System] [MY-013172] [Server] Received SHUTDOWN from user <via user signal>. Shutting down mysqld (Version: 8.4.9).
+2026-11-12T22:20:11.957298422Z 2026-11-12T22:20:11.957109Z 0 [System] [MY-010910] [Server] /usr/sbin/mysqld: Shutdown complete (mysqld 8.4.9)  MySQL Community Server - GPL.

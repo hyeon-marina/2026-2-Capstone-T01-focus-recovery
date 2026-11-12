@@ -25,7 +25,19 @@ public class LocalCollectionStatus {
         var actor=AuthenticatedParticipant.required();consent.lockParticipant(actor.participantId());consent.requireConsent(actor.participantId());
         if(input==null || input.reasonCode()==null || !Set.of("INSUFFICIENT_VISITS","DELIVERY_FAILED","USER_REQUEST").contains(input.reasonCode()))throw new com.focusrecovery.global.exception.InvalidRequestException("정해진 재수집 사유를 선택하세요.");
         if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_local_owner WHERE participant_id=?",Integer.class,actor.participantId().toString())!=1)throw new AccessDenied(404);
-        if(jdbc.update("UPDATE collection_attempt SET review_status='RECOLLECT_REQUIRED',reason_code=? WHERE attempt_id=? AND participant_id=? AND session_id IN (SELECT session_id FROM work_session WHERE status='ENDED' AND privacy_status='CLEAR')",input.reasonCode(),attempt.toString(),actor.participantId().toString())!=1)throw new AccessDenied(404);
+        var rows=jdbc.queryForList("""
+            SELECT t.review_status,t.reason_code FROM collection_attempt t
+            JOIN work_session s ON s.session_id=t.session_id
+            JOIN collection_assignment a ON a.planned_session_id=t.planned_session_id
+            JOIN collection_slot slot ON slot.slot_id=a.slot_id
+            WHERE t.attempt_id=? AND slot.participant_id=t.participant_id AND t.participant_id=?
+            AND s.owner_participant_id=t.participant_id AND s.status='ENDED'
+            """,attempt.toString(),actor.participantId().toString());
+        if(rows.size()!=1)throw new AccessDenied(404);
+        var previous=rows.getFirst();
+        if("RECOLLECT_REQUIRED".equals(previous.get("review_status")) && input.reasonCode().equals(previous.get("reason_code")))return;
+        if(!"PENDING".equals(previous.get("review_status")))throw new com.focusrecovery.global.exception.ConflictException("ATTEMPT_ALREADY_REVIEWED","이미 처리된 재수집 사유를 확인하세요.");
+        jdbc.update("UPDATE collection_attempt SET review_status='RECOLLECT_REQUIRED',reason_code=? WHERE attempt_id=?",input.reasonCode(),attempt.toString());
         jdbc.update("INSERT INTO collection_audit VALUES(?,?,?,?,?,?)",UUID.randomUUID().toString(),actor.participantId().toString(),"LOCAL_RECOLLECT",attempt.toString(),input.reasonCode(),java.sql.Timestamp.from(Instant.now()));
     }
     @GetMapping("/api/collection/local-status") public Map<String,Object> status() {

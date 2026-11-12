@@ -1,3 +1,4 @@
+import { highRiskText, maskPublicContacts } from '../shared/privacy';
 import { inspectUrl, normalizeUrl, searchEngine } from '../shared/url';
 import { cleanText, isExcludedDocument, isVisible, textFrom } from './extraction';
 
@@ -66,14 +67,20 @@ function naverResults(doc: Document, base: URL) {
     return entry ? [entry] : [];
   });
 }
-export function extractSearchContent(doc: Document, raw: string): { content: string; organicResultCount: number } | null {
+export function extractSearchContent(doc: Document, raw: string, maskContacts = false): { content: string; organicResultCount: number } | null {
   const inspected = inspectUrl(raw);
   if (!inspected?.isSearchResultPage || !inspected.searchQuery || isExcludedDocument(doc, inspected.url)) return null;
   const entries = searchEngine(inspected.url) === 'google' ? googleResults(doc, inspected.url) : naverResults(doc, inspected.url);
+  if (maskContacts && entries.some(entry => highRiskText(entry.title) || highRiskText(entry.description))) throw new Error('SENSITIVE_CONTENT');
   const seen = new Set<string>();
   const blocks: string[] = [];
-  let length = [...`검색어: ${inspected.searchQuery}`].length;
+  const query = maskContacts ? maskPublicContacts(inspected.searchQuery) : inspected.searchQuery;
+  let length = [...`검색어: ${query}`].length;
   for (const entry of entries) {
+    if (maskContacts) {
+      entry.title = maskPublicContacts(entry.title);
+      entry.description = maskPublicContacts(entry.description);
+    }
     const key = `${entry.title}\n${entry.description}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -85,5 +92,5 @@ export function extractSearchContent(doc: Document, raw: string): { content: str
     length += [...block].length;
     if (blocks.length === 100 || length === 5000) break;
   }
-  return blocks.length ? { content: `검색어: ${inspected.searchQuery}${blocks.join('')}`, organicResultCount: blocks.length } : null;
+  return blocks.length ? { content: `검색어: ${query}${blocks.join('')}`, organicResultCount: blocks.length } : null;
 }

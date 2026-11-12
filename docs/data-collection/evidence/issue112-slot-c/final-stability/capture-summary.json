@@ -1,0 +1,65 @@
+{
+  "result": "PASS",
+  "kind": "READ_ONLY_CURRENT_STATE_NOT_HISTORICAL_REENACTMENT",
+  "humanResearchSessions": 0,
+  "chromeVersion": "151.0.7922.34",
+  "captures": [
+    {
+      "file": "17-current-session-ended.png",
+      "purpose": "Current retained session: ENDED, ten Visits, acked, pending zero; actual metrics element",
+      "capturedAt": "2026-11-12T22:47:27.155Z",
+      "sha256": "bc64f81f915ca2cec303bc9559cb5e785e86e2ad56ae457342c54726a8ffb652"
+    },
+    {
+      "file": "18-current-progress.png",
+      "purpose": "Current work section: C assignment count 53, completion 1, both retained Attempts 4/10, RAW_COLLECTED",
+      "capturedAt": "2026-11-12T22:47:27.236Z",
+      "sha256": "db48754b9e87eba6425b1a414630ec7917f900f22bd3625948fab6be026cc747"
+    },
+    {
+      "file": "19-current-backend-progress.png",
+      "purpose": "Actual authenticated Backend JSON after restart, two Attempts and latest raw completion",
+      "capturedAt": "2026-11-12T22:47:27.412Z",
+      "sha256": "2c1cde93acbf4accfccf7cc1ff9ae6040389fbc8adc68fd1dc42b489fa145ac7"
+    }
+  ],
+  "raw": {
+    "completed": 1,
+    "syntheticCompleted": 0,
+    "validVisits": 10,
+    "theoreticalWindows": 8,
+    "generatedWindows": 0,
+    "analysisCompletedWindows": 0,
+    "participants": {
+      "C": 1
+    },
+    "goals": {
+      "GOAL-001": 0,
+      "GOAL-002": 0,
+      "GOAL-003": 1,
+      "GOAL-004": 0,
+      "GOAL-005": 0,
+      "GOAL-006": 0,
+      "GOAL-007": 0,
+      "GOAL-008": 0,
+      "GOAL-009": 0,
+      "GOAL-010": 0,
+      "GOAL-011": 0,
+      "GOAL-012": 0,
+      "GOAL-013": 0,
+      "GOAL-014": 0,
+      "GOAL-015": 0,
+      "GOAL-016": 0,
+      "GOAL-017": 0,
+      "GOAL-018": 0,
+      "GOAL-019": 0,
+      "GOAL-020": 0
+    },
+    "scenarios": {
+      "CLEAR_DRIFT": 0,
+      "GOAL_MAINTENANCE": 1,
+      "GRADUAL_DRIFT": 0,
+      "JUSTIFIED_DETOUR": 0
+    }
+  }
+}

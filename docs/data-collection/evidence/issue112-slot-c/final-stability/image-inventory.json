@@ -1,0 +1,208 @@
+{
+  "files": 19,
+  "uniqueImages": 15,
+  "images": [
+    {
+      "file": "01-slot-c-status.png",
+      "sha256": "079e2701b8329b61f62b396d00264bd753e7e7e367fd9a224cc104029a0197f8",
+      "gitBlob": "ba01bd5b218f98c50392a5f2234d7bc5716a91e5",
+      "reportedCaptureAt": "2026-11-12T21:16:56.953Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "01-slot-c-status.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "02-extension-ready.png",
+      "sha256": "129ca5c3832597b76279962ab48dc8baa88f10a804403028554df28009d450e8",
+      "gitBlob": "743526bd0da45adbecf79c6dd8c3171e23293f50",
+      "reportedCaptureAt": "2026-11-12T21:16:57.122Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "02-extension-ready.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "03-session-active.png",
+      "sha256": "d75dddde07dfad0dca6afaf6224a323124c3151613b3dad1b42c3f1150bea10d",
+      "gitBlob": "480a0bf65a0acf3c2996418e77bc4a9156620c5f",
+      "reportedCaptureAt": "2026-11-12T21:16:57.427Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "03-session-active.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "04-public-page-visit.png",
+      "sha256": "25b98448ba68885990fac2c387b2134713a2fe7c49292e82c5b04537ce60696c",
+      "gitBlob": "5517b1b81addb7171c46a53c9814a9b6df235556",
+      "reportedCaptureAt": "2026-11-12T21:17:04.048Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "04-public-page-visit.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "05-visit-progress.png",
+      "sha256": "bd7e424305a551f5cffc377c07817cfd6e9420094cba05576e29a2107081baf7",
+      "gitBlob": "9aa30104e2ad84235216d7860288329b9fad4516",
+      "reportedCaptureAt": "2026-11-12T21:17:23.391Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "05-visit-progress.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "06-session-ended.png",
+      "sha256": "0b970ee5e6ea966734b3311e80275ffd99eb8a603504ff516970353be026dbb5",
+      "gitBlob": "67adf14531dc56a218bfc9a95d90a7654010b7af",
+      "reportedCaptureAt": "2026-11-12T21:17:23.763Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "06-session-ended.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "07-collection-progress.png",
+      "sha256": "0b970ee5e6ea966734b3311e80275ffd99eb8a603504ff516970353be026dbb5",
+      "gitBlob": "67adf14531dc56a218bfc9a95d90a7654010b7af",
+      "reportedCaptureAt": "2026-11-12T21:17:23.950Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "06-session-ended.png",
+      "independentVisualEvidence": false
+    },
+    {
+      "file": "08-server-validation.png",
+      "sha256": "301fadb196b18afb9d41c4eee8701ccf61ab13f1ed30cd23b7ecf864ae4ba10e",
+      "gitBlob": "319995fbb0f32649d203535fef7a4eb419777e10",
+      "reportedCaptureAt": "2026-11-12T21:17:24.104Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "08-server-validation.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "final-stability/17-current-session-ended.png",
+      "sha256": "bc64f81f915ca2cec303bc9559cb5e785e86e2ad56ae457342c54726a8ffb652",
+      "gitBlob": "f5bae151964d63de06eedd45a8293592e0cf2d98",
+      "reportedCaptureAt": "2026-11-12T22:47:27.155Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "final-stability/17-current-session-ended.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "final-stability/18-current-progress.png",
+      "sha256": "db48754b9e87eba6425b1a414630ec7917f900f22bd3625948fab6be026cc747",
+      "gitBlob": "ccddb742563e4c22c2b62683b533e452516acc55",
+      "reportedCaptureAt": "2026-11-12T22:47:27.236Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "final-stability/18-current-progress.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "final-stability/19-current-backend-progress.png",
+      "sha256": "2c1cde93acbf4accfccf7cc1ff9ae6040389fbc8adc68fd1dc42b489fa145ac7",
+      "gitBlob": "e1c54a971c49c509a681cee8ab271f8fad7c87df",
+      "reportedCaptureAt": "2026-11-12T22:47:27.412Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "recollect-10/15-server-two-attempts.png",
+      "independentVisualEvidence": false
+    },
+    {
+      "file": "recollect-10/09-before-recollection.png",
+      "sha256": "0b970ee5e6ea966734b3311e80275ffd99eb8a603504ff516970353be026dbb5",
+      "gitBlob": "67adf14531dc56a218bfc9a95d90a7654010b7af",
+      "reportedCaptureAt": "2026-11-12T22:13:52.548Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "06-session-ended.png",
+      "independentVisualEvidence": false
+    },
+    {
+      "file": "recollect-10/10-recollect-authorized.png",
+      "sha256": "b949ade93e2ba84478333cd2f651735642431d59f269e476735574e9b5524dca",
+      "gitBlob": "c064a1a78698741ab908d0a1dfb86448e74eeb10",
+      "reportedCaptureAt": "2026-11-12T22:13:52.763Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "recollect-10/10-recollect-authorized.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "recollect-10/11-new-session-active.png",
+      "sha256": "752e82430f28bd2d9c773d7099e1837ff52159ccb2264302464c0e99eba7f15d",
+      "gitBlob": "e26880bac401703c2a0c789cb7d3e5070277c61f",
+      "reportedCaptureAt": "2026-11-12T22:13:53.046Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "recollect-10/11-new-session-active.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "recollect-10/12-public-page-visit.png",
+      "sha256": "25b98448ba68885990fac2c387b2134713a2fe7c49292e82c5b04537ce60696c",
+      "gitBlob": "5517b1b81addb7171c46a53c9814a9b6df235556",
+      "reportedCaptureAt": "2026-11-12T22:13:59.780Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "04-public-page-visit.png",
+      "independentVisualEvidence": false
+    },
+    {
+      "file": "recollect-10/13-ten-visits-active.png",
+      "sha256": "f66dd7bd94f15f467a34a6113e68af18b0fe36733a96a2dce77cebf20c35c66b",
+      "gitBlob": "82468d3f3af68d74e9bf9d5e0e2e1a17a84473e3",
+      "reportedCaptureAt": "2026-11-12T22:14:53.233Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "recollect-10/13-ten-visits-active.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "recollect-10/14-raw-collected.png",
+      "sha256": "4a265b9b4f23c89400e7251edf30beba4cb346533ed34aa2a25351188054f826",
+      "gitBlob": "1cf01e384f43faa0ed40dfa35c9a23daf5c3f3de",
+      "reportedCaptureAt": "2026-11-12T22:14:53.726Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "recollect-10/14-raw-collected.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "recollect-10/15-server-two-attempts.png",
+      "sha256": "2c1cde93acbf4accfccf7cc1ff9ae6040389fbc8adc68fd1dc42b489fa145ac7",
+      "gitBlob": "e1c54a971c49c509a681cee8ab271f8fad7c87df",
+      "reportedCaptureAt": "2026-11-12T22:14:53.894Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "recollect-10/15-server-two-attempts.png",
+      "independentVisualEvidence": true
+    },
+    {
+      "file": "recollect-10/16-mysql-preservation.png",
+      "sha256": "3e1bbc251919799b99d4ca6ca5ad10342ed0542cded176afc8658de887d67583",
+      "gitBlob": "d369d60532dff3d0ee22d91b406ac4ca980545b2",
+      "reportedCaptureAt": "2026-11-12T22:15:51.167Z",
+      "timeSource": "automation capture-call metadata, not an image-embedded timestamp",
+      "canonicalVisualEvidence": "recollect-10/16-mysql-preservation.png",
+      "independentVisualEvidence": true
+    }
+  ],
+  "duplicateGroups": [
+    {
+      "sha256": "25b98448ba68885990fac2c387b2134713a2fe7c49292e82c5b04537ce60696c",
+      "canonical": "04-public-page-visit.png",
+      "files": [
+        "04-public-page-visit.png",
+        "recollect-10/12-public-page-visit.png"
+      ],
+      "interpretation": "Shared visual evidence; do not treat duplicated bytes as independent timing or session-visit proof"
+    },
+    {
+      "sha256": "0b970ee5e6ea966734b3311e80275ffd99eb8a603504ff516970353be026dbb5",
+      "canonical": "06-session-ended.png",
+      "files": [
+        "06-session-ended.png",
+        "07-collection-progress.png",
+        "recollect-10/09-before-recollection.png"
+      ],
+      "interpretation": "Shared visual evidence; do not treat duplicated bytes as independent timing or session-visit proof"
+    },
+    {
+      "sha256": "2c1cde93acbf4accfccf7cc1ff9ae6040389fbc8adc68fd1dc42b489fa145ac7",
+      "canonical": "recollect-10/15-server-two-attempts.png",
+      "files": [
+        "final-stability/19-current-backend-progress.png",
+        "recollect-10/15-server-two-attempts.png"
+      ],
+      "interpretation": "Shared visual evidence; do not treat duplicated bytes as independent timing or session-visit proof"
+    }
+  ],
+  "privacyReview": "Inspected actual images; no credential/token/private key or personal participant information. Full UUIDs in Backend screenshots belong only to the isolated automated source."
+}

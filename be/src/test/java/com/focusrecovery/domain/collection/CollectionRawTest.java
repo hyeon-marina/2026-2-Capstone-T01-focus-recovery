@@ -47,6 +47,19 @@ class CollectionRawTest extends CollectionOperationsTest {
         assertThatThrownBy(()->exports.export(alice,false)).hasFieldOrPropertyWithValue("code","CONSENT_REQUIRED");
         as(operatorToken);assertThat(exports.privacy(alice)).containsEntry("withdrawn",true);
     }
+    @Test void zeroVisitQuarantineIsOwnerScopedAndClosureIsIdempotent() throws Exception {
+        assigned(true);
+        agree(aliceToken);
+        String id=plans.start("PLAN-001","zero-quarantine").sessionId().toString();
+        String path="/api/sessions/"+id+"/visit-retractions/";
+        mvc.perform(post(path+"close").secure(true).header("Authorization","Bearer "+bobToken)).andExpect(status().isNotFound());
+        mvc.perform(post(path+"quarantine").secure(true).header("Authorization","Bearer "+aliceToken))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACTIVE"));
+        for(int i=0;i<2;i++)mvc.perform(post(path+"close").secure(true).header("Authorization","Bearer "+aliceToken))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ENDED")).andExpect(jsonPath("$.privacyStatus").value("QUARANTINED"));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM visit_tombstone WHERE session_id=?",Integer.class,id)).isZero();
+    }
+
     @Test void unstartedAssignmentCannotBreakTheThreeParticipantDistribution() {
         var before=plans.read();var changed=new ArrayList<>(before.assignments());var first=changed.getFirst();
         changed.set(0,new CollectionPlanService.Assignment(first.plannedSessionId(),first.goalId(),first.scenarioType(),first.repetition(),"B"));

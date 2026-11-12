@@ -119,6 +119,8 @@ public class CollectionPlanService {
         }
         if(!rows.getFirst().get("status").equals("CONFIRMED"))throw new ConflictException("GOAL_UNCONFIRMED","작업 목표가 미확정입니다.");
         if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_attempt t JOIN work_session s ON s.session_id=t.session_id WHERE t.planned_session_id=? AND (t.review_status='PENDING' OR s.status='ACTIVE')",Integer.class,plannedId)>0)throw new ConflictException("ASSIGNMENT_ALREADY_STARTED","기존 세션을 확인하고 재수집 사유를 등록하세요.");
+        if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_attempt t JOIN work_session s ON s.session_id=t.session_id WHERE t.participant_id=? AND s.status='ACTIVE'",Integer.class,owner.toString())>0)
+            throw new ConflictException("SESSION_ACTIVE","진행 중인 세션을 먼저 마감하세요.");
         var access=consent.state();
         // Synthetic policies cannot become participant actuals; real releases must pass all server gates.
         if(!access.collectionEnabled() || access.policy()==null || !(access.policy().status().equals("SYNTHETIC") || sites.realProfile() && access.policy().status().equals("APPROVED")))throw new ConflictException("PARTICIPANT_COLLECTION_BLOCKED","승인 전 실제 참여자 수집은 차단됩니다.");

@@ -113,6 +113,26 @@ public class PrivacyRetractionService {
 		targets.flush();
 		return receipt(job);
 	}
+    public record Closure(UUID sessionId, String status, String privacyStatus) {}
+
+    @Transactional
+    public Closure quarantineForOwner(UUID sessionId, boolean close) {
+        com.focusrecovery.domain.identity.AuthenticatedParticipant.required();
+        gate.requireEnabled();
+        var session = sessions.findForUpdateBySessionId(sessionId).orElseThrow(SessionNotFoundException::new);
+        gate.requireV2(session);
+        gate.checkOwnership(session);
+        var now = clock.instant().truncatedTo(ChronoUnit.MILLIS);
+        for (var visit : visits.findBySessionIdAndSequenceGreaterThanOrderBySequence(sessionId, 0)) {
+            if (!tombstones.existsById(visit.getVisitId())) {
+                quarantine(sessionId, new Retraction.Request(UUID.randomUUID(), visit.getVisitId(), "SENSITIVE_CONTENT", now));
+            }
+        }
+        quarantineOwnedSession(sessionId);
+        if (close) session.end(now);
+        return new Closure(sessionId, session.getStatus().name(), "QUARANTINED");
+    }
+
     /** Also handles zero-visit and legacy sessions without inventing a visit/tombstone. */
     @Transactional
     public void quarantineOwnedSession(UUID sessionId) {

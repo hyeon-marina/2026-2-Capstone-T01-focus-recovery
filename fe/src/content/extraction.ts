@@ -1,4 +1,4 @@
-import { publicText } from '../shared/privacy';
+import { highRiskText, maskPublicContacts, publicText } from '../shared/privacy';
 const OMIT = 'script,style,noscript,nav,header,footer,aside,form,input,textarea,select,button,option,iframe,canvas,svg,video,audio,[contenteditable],[hidden],[inert],[aria-hidden="true"],[role="navigation"],[role="menu"],[role="dialog"],[role="alert"],[role="banner"],[role="contentinfo"],[role="complementary"],.ad,.ads,.advertisement,[data-ad],[id*="google_ads"],.comments,.comment-list,.social-share,.menu,.navigation,.navbar,.sidebar,.cookie-banner,.sr-only';
 const PRIVATE_INPUT = 'input[type="password"],input[type="email"],input[type="tel"],input[autocomplete^="cc-"],input[autocomplete="street-address"],input[autocomplete="one-time-code"],input[autocomplete="given-name"],input[autocomplete="family-name"],input[name*="password" i],input[name*="token" i],input[name*="ssn" i],input[name*="card" i]';
 export function isVisible(element: Element): boolean {
@@ -55,22 +55,27 @@ export function textFrom(element: Element): string {
   }
   return pieces.join('');
 }
-export function extractMainContent(doc: Document, publicPage = false): string | null {
+export function extractMainContent(doc: Document, publicPage = false, maskContacts = false): string | null {
   if (publicPage ? isExcludedPublicDocument(doc) : isExcludedDocument(doc)) return null;
   const explicit = [...doc.querySelectorAll('article,main,[role="main"],.post-content,.entry-content,.article-body,.document,.post-body,.story-body,#main,#hnmain')];
   // Unknown layouts fail closed; only a coherent section can serve as fallback.
   const roots = explicit.length ? explicit : [...doc.querySelectorAll('section')].filter(el => el.querySelectorAll('p,pre').length >= 2);
   const texts = roots.map(textFrom).map(cleanText).filter(Boolean);
-  if (publicPage && texts.some(t => !publicText(t))) throw new Error('SENSITIVE_CONTENT');
+  if (publicPage && texts.some(highRiskText)) throw new Error('SENSITIVE_CONTENT');
+  if (publicPage && !maskContacts && texts.some(t => !publicText(t))) throw new Error('SENSITIVE_CONTENT');
   if (!texts.length) return null;
   // FE/BE contract: at most 5,000 Unicode code points, preserving surrogate pairs.
-  const main = texts.sort((a, b) => b.length - a.length)[0];
+  const selected = texts.sort((a, b) => b.length - a.length)[0];
+  const main = maskContacts ? maskPublicContacts(selected) : selected;
   const text = publicPage ? [...new Set(main.split('\n'))].join('\n') : main;
   return [...text].slice(0, 5000).join('');
 }
 
 // Page-level signals supplement URL and text checks; no input values are inspected.
 export function isExcludedPublicDocument(doc: Document): boolean {
-  return isExcludedMetadataDocument(doc) || !!doc.querySelector('meta[content="noai"],meta[content="noindex"], [data-paywall],.paywall,[itemprop="isAccessibleForFree"][content="false"],input[autocomplete="email"]')
+  return isExcludedMetadataDocument(doc) || excludedPublicLayout(doc);
+}
+export function excludedPublicLayout(doc: Document): boolean {
+  return !!doc.querySelector('meta[content="noai"],meta[content="noindex"], [data-paywall],.paywall,[itemprop="isAccessibleForFree"][content="false"],input[autocomplete="email"]')
     || /subscribe to (?:continue|read)|subscription required|구독 후 열람|유료 기사|access denied/i.test(doc.body?.textContent ?? '');
 }

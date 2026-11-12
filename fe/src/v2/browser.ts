@@ -4,7 +4,7 @@ import { UUID4 } from './contract';
 import { setCredential, AccessError } from '../api/auth-fetch';
 import { readCollectionAccess, accessRequest } from './access';
 import { V2StatusClient } from './status';
-import { postJson, API_BASE_URL } from '../api/client';
+import { ApiError, postJson, API_BASE_URL } from '../api/client';
 import { V2Runtime, v2HttpTransport } from './runtime';
 import { V2Repository } from './repository';
 import { describeUrl } from '../shared/url';
@@ -14,7 +14,7 @@ import type { Stamp } from './state';
 import { allowedSite, validPolicy, publicText, publicSearchQuery, type SitePolicy } from '../../real/policy';
 import { validSnapshot } from './contract';
 import type { PageSnapshot } from '../shared/types';
-declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string; metadataOnly?: boolean; pageContent?: boolean; publicWeb?: boolean };
+declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string; metadataOnly?: boolean; pageContent?: boolean; maskContacts?: boolean; publicWeb?: boolean };
 
 export function installV2Browser(options: { uiPath: string; pilot: boolean; participant: boolean; real?: boolean }) {
 if (options.pilot && !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(API_BASE_URL)) throw new Error('V2_SYNTHETIC_ONLY');
@@ -31,7 +31,7 @@ const metadataKey = real && build?.metadataOnly ? (async () => {
   return bytes;
 })() : undefined;
 async function descriptionFor(raw: string) {
-  return build?.metadataOnly ? describeMetadataUrl(raw, sitePolicy?.sites ?? [], await metadataKey!, runtime.snapshot().session!.sessionId, build?.publicWeb, build?.pageContent) : describeUrl(raw);
+  return build?.metadataOnly ? describeMetadataUrl(raw, sitePolicy?.sites ?? [], await metadataKey!, runtime.snapshot().session!.sessionId, build?.publicWeb, build?.pageContent, build?.maskContacts) : describeUrl(raw);
 }
 const permits = (raw: string) => real ? !!sitePolicy && Date.parse(sitePolicy.expiresAt) > Date.now() && allowedSite(raw, sitePolicy.sites, build?.metadataOnly === true, build?.publicWeb) : !!fixtureId(raw);
 async function collectionAccess() {
@@ -85,7 +85,7 @@ function snapshot() {
     pending: s.collectionAllowed ? [...s.posts.entries, ...s.behaviors.entries].filter(e => e.phase !== 'acked').length : 0,
     notificationPending: s.collectionAllowed ? s.notifications.filter(r => !r.shownAck || r.selection && !r.selectionAck).length : 0,
     notificationAcknowledged: s.collectionAllowed ? s.notifications.filter(r => r.selectionAck).length : 0,
-    endPhase: s.end?.phase, quarantined: !!s.quarantine, withdrawalPhase: s.withdrawal?.phase,
+    pendingAssignment: s.lifecycle === 'START_PENDING' ? s.start?.plannedSessionId : undefined, quarantineClose: s.quarantineClose?.phase, endPhase: s.end?.phase, quarantined: !!s.quarantine, withdrawalPhase: s.withdrawal?.phase,
   };
 }
 const ready = runtime.initialize();
@@ -110,7 +110,7 @@ async function focus(t: Stamp, switched = false) {
   focusedWindow = w?.id ?? null;
   const next = tab?.id ?? null;
   if (w?.id !== undefined && next !== null) windowTabs.set(w.id, next);
-  if (focused !== next) {
+  if (focused !== next || runtime.foregroundTab !== next) {
     if (next !== null) boundaries.set(next, t);
     focused = next;
     await runtime.foreground(next, t, switched);
@@ -123,7 +123,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
   if (sender.url === chrome.runtime.getURL(options.uiPath) && ['v2-login','v2-logout','v2-withdraw'].includes(m?.type)) runtime.suspendAccess();
   // Termination/privacy intents enter the runtime synchronously, before waiting on browser queries.
   if (sender.url === chrome.runtime.getURL(options.uiPath) && m?.type === 'v2-stop') {
-    void ready.then(() => runtime.stop(t)).then(() => reply({ ok: true })).catch(() => reply({ ok: false }));
+    void ready.then(() => runtime.stop(t)).then(() => reply({ ok: true })).catch(() => reply({ error: 'DELIVERY_UNCONFIRMED' }));
     return true;
   }
   void serial(async () => {
@@ -152,9 +152,12 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
           const assignments = await accessRequest('/api/collection/assignments');
           const assigned = assignments.find((a: { plannedSessionId: string }) => a.plannedSessionId === m.plannedSessionId);
           if (!assigned || assigned.goalStatus !== 'CONFIRMED') throw new Error('GOAL_UNCONFIRMED');
+          if (runtime.snapshot().end?.phase === 'acked') await syncReport();
           selectedAssignment = assigned.plannedSessionId;
-          await runtime.start(assigned.goalText);
+          await runtime.start(assigned.goalText, assigned.plannedSessionId);
         } else await runtime.start('Synthetic TypeScript transaction research');
+        boundaries.clear(); documents.clear(); contentGenerations.clear();
+        await focus(t);
         await captureAllowedTabs();
       }
       if (m?.type === 'v2-retry') { await runtime.retry(); await runtime.flushNotifications(); }
@@ -175,7 +178,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       // Chrome's sender.url can retain the document's initial URL after pushState.
       const frame = await chrome.webNavigation.getFrame({tabId,frameId:0});
       const collecting = typeof m.raw === 'string' && frame?.documentId === sender.documentId && frame.url === m.raw && permits(m.raw) && runtime.collecting();
-      return {collecting,pageContent:build?.pageContent === true,publicWeb:build?.publicWeb === true,metadataOnly:build?.metadataOnly === true,description:collecting && build?.metadataOnly ? await descriptionFor(m.raw) : undefined};
+      return {collecting,maskContacts:build?.maskContacts === true,pageContent:build?.pageContent === true,publicWeb:build?.publicWeb === true,metadataOnly:build?.metadataOnly === true,description:collecting && build?.metadataOnly ? await descriptionFor(m.raw) : undefined};
     }
     if (m?.type === 'v2-context') return { collecting: !!sender.url && permits(sender.url) && runtime.collecting() };
     if (m?.type === 'v2-leave') { await runtime.leave(tabId, t); return; }
@@ -209,7 +212,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       contentGenerations.set(tabId,{raw:m.raw,content:generation});
       if (arrivedRevision !== navigationRevision.get(tabId)) return { collecting: runtime.collecting() };
       await runtime.observe({tabId,document:sender.documentId,target:description.identity,generation,stamp:t,enteredAt:boundaries.get(tabId) ?? t,
-        permitted,safe:true,snapshot:s,extractionFailed:m.extractionFailed === true,failureReason:['EXTRACTION_NO_CONTENT','EXTRACTION_DOM_ERROR','EXTRACTION_RENDER_TIMEOUT','EXTRACTION_ACCESS_DENIED'].includes(m.failureReason) ? m.failureReason : undefined});
+        permitted,safe:true,snapshot:s,extractionFailed:m.extractionFailed === true,failureReason:['POLICY','EXTRACTION_NO_CONTENT','EXTRACTION_DOM_ERROR','EXTRACTION_RENDER_TIMEOUT','EXTRACTION_ACCESS_DENIED'].includes(m.failureReason) ? m.failureReason : undefined});
       await syncReport();await runtime.compact(t);return { collecting:runtime.collecting() };
     }
     if (m?.type !== 'v2-observation'  || typeof m.raw !== 'string' || !fixtureId(m.raw) || fixtureId(m.raw) !== m.id) return;
@@ -237,7 +240,10 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     await syncReport();
     await runtime.compact(t);
     return { collecting: runtime.collecting() };
-  }).then(reply).catch(() => reply({ error: 'V2_BLOCKED' }));
+  }).then(reply).catch(error => {
+    const code = error instanceof AccessError ? error.kind : error instanceof ApiError ? 'API_'+(error.status ?? error.kind) : error instanceof Error && /^(?:V2_[A-Z_]+|GOAL_UNCONFIRMED|PARTICIPANT_COLLECTION_BLOCKED)$/.test(error.message) ? error.message : 'V2_BLOCKED';
+    reply(real ? { error: 'V2_BLOCKED', reason: code } : { error: 'V2_BLOCKED' });
+  });
   return true;
 });
 if (options.pilot || real) {

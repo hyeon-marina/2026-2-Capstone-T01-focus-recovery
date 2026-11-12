@@ -24,6 +24,16 @@ public class PrivacyRetractionController {
         this.authorization = authorization; this.service = service;
         this.mapper = mapper.rebuild().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
     }
+    @PostMapping("/quarantine")
+    public PrivacyRetractionService.Closure quarantine(@PathVariable UUID sessionId) {
+        return service.quarantineForOwner(sessionId, false);
+    }
+
+    @PostMapping("/close")
+    public PrivacyRetractionService.Closure close(@PathVariable UUID sessionId) {
+        return service.quarantineForOwner(sessionId, true);
+    }
+
     @PostMapping
     public ResponseEntity<?> retract(@PathVariable String sessionId, @RequestBody String raw, HttpServletRequest http) {
         UUID session;
