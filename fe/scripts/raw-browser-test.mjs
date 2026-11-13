@@ -113,11 +113,14 @@ try {
       if(faults && n===8){const other=await context.newPage();await other.goto('about:blank');await other.bringToFront();await page.waitForTimeout(700);await other.close();await page.bringToFront();}
       const started=Date.now();
       if(n===2){
-        await wait(s=>s.pending>=1,'durable offline queue');await capture('network-recovery');
+        await wait(s=>s.pending>=1 && (!faults || s.localVisits>=n),'durable offline queue');
         if(faults){
-          offlineVisitId=await worker.evaluate(()=>globalThis.__offlineVisitId);assert.ok(offlineVisitId);
+          const deadline=Date.now()+10000;
+          while(!offlineVisitId && Date.now()<deadline){offlineVisitId=await worker.evaluate(()=>globalThis.__offlineVisitId);if(!offlineVisitId)await page.waitForTimeout(100);}
+          assert.ok(offlineVisitId,'the new Visit POST actually failed before worker restart');
+          await capture('network-recovery');
           const cdp=await context.newCDPSession(harness);await cdp.send('ServiceWorker.enable');await cdp.send('ServiceWorker.stopAllWorkers');await cdp.detach();
-        }else await worker.evaluate(()=>{globalThis.__rawNetworkFailure=false;});
+        }else {await capture('network-recovery');await worker.evaluate(()=>{globalThis.__rawNetworkFailure=false;});}
         await send('retry');await page.bringToFront();
       }
       await wait(s=>s.validVisits>=n,'measured visit '+n);
