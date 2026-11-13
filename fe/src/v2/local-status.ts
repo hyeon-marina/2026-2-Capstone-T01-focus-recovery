@@ -10,3 +10,22 @@ const messages: Record<string, string> = {
   PRIVACY_WITHDRAWN: '전체 동의 철회·격리 상태 · 수집을 재개할 수 없습니다.',
 };
 export const localBlocker = (code: string) => messages[code] ?? '수집 조건 미충족 · 로컬 상태와 검증 가이드를 확인하세요.';
+
+const observationMessages: Record<string, string> = {
+  WAITING_OBSERVATION: '페이지 관찰 응답을 기다립니다. 공개 웹페이지로 돌아가세요.',
+  CONTENT_SCRIPT_UNAVAILABLE: '페이지 관찰 코드에 연결하지 못했습니다. 확장 업데이트 전에 열었던 페이지라면 새로고침한 뒤 재전송 / 복구를 누르세요.',
+  SITE_PERMISSION_REQUIRED: 'Chrome 확장 프로그램의 사이트 접근 권한을 허용한 뒤 페이지를 새로고침하세요.',
+  NO_FOREGROUND_TAB: '전경 Chrome 창의 공개 웹페이지로 돌아가세요.',
+  NOT_FOCUSED_OR_STALE: '포커스가 없거나 이전 탐색 응답입니다. 활성 웹페이지에서 다시 관찰합니다.',
+  INPUT_FOCUSED: '입력 요소에 포커스가 있어 이 페이지 관찰을 중지했습니다. 입력값은 읽지 않습니다. 본문으로 포커스를 옮기면 다시 관찰합니다.',
+  POLICY: '현재 페이지는 수집 제외 대상입니다. 다른 공개 문서에서 계속할 수 있습니다.',
+  WAITING_CONTENT: '제목·본문이 준비되기를 기다립니다.',
+  OBSERVING: '공개 페이지를 관찰 중입니다. 실제 활성 체류시간 5초부터 Visit을 생성합니다.',
+  OBSERVATION_GAP: '관찰 응답이 지연되어 확인할 수 없는 시간은 체류시간에 포함하지 않았습니다.',
+  EXTRACTION_NO_CONTENT: '추출 가능한 본문을 찾지 못했습니다. 다른 공개 문서에서 계속할 수 있습니다.',
+  EXTRACTION_DOM_ERROR: '본문 추출 중 오류가 발생했습니다. 다른 공개 문서에서 계속할 수 있습니다.',
+  EXTRACTION_RENDER_TIMEOUT: '본문 렌더링 대기시간을 초과했습니다. 페이지가 준비되면 다시 관찰합니다.',
+  EXTRACTION_ACCESS_DENIED: 'HTML 본문에 접근할 수 없습니다. 다른 공개 문서에서 계속할 수 있습니다.',
+  SENSITIVE_CONTENT: '고위험 개인정보 신호로 세션을 격리했습니다.',
+};
+export const observationStatus = (code: string) => observationMessages[code] ?? '관찰 상태 확인 중';

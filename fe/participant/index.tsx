@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { AuthConsentPanel } from '../src/v2/AuthConsentPanel';
 import type { CollectionAccess } from '../src/v2/access';
 import type { V2Alert } from '../src/v2/status';
+import { observationStatus } from '../src/v2/local-status';
 import './style.css';
 import candidates from '../../docs/data-collection/goals.candidates.json';
 declare const __COLLECTION_BUILD__: { version: string; sourceCommit: string; dirty: boolean; mode: string; apiOrigin: string; policyDigest?: string; publicWeb?: boolean; pageContent?: boolean; maskContacts?: boolean; sites?: { origin: string; pathPrefix: string }[] };
@@ -11,7 +12,7 @@ const pilot = build.mode === 'collection-pilot';
 const real = ['real-collection','controlled-web'].includes(build.mode);
 const send = (action: string, extra = {}) => chrome.runtime.sendMessage({ type: `v2-${action}`, ...extra });
 type Assignment = { plannedSessionId: string; goalId: string; goalText: string | null; goalStatus: string; scenarioType: string };
-type Local = { pendingAssignment?: string; lifecycle: string; collectionAllowed: boolean; validVisits: number; pending: number; notificationPending?: number; endPhase?: string; storageFailed: boolean; accessError?: string; quarantined: boolean; quarantineClose?: string; withdrawalPhase?: string };
+type Local = { collecting?: boolean; localVisits?: number; activeDurationMs?: number; diagnostic?: {code: string; observedAt: number}; pendingAssignment?: string; lifecycle: string; collectionAllowed: boolean; validVisits: number; pending: number; notificationPending?: number; endPhase?: string; storageFailed: boolean; accessError?: string; quarantined: boolean; quarantineClose?: string; withdrawalPhase?: string };
 type Progress = { planned: number; completed: number; syntheticSessions: number; syntheticQualityPassed: number; raw: { completed: number; syntheticCompleted: number }; attempts: { attemptId: string; sessionStatus: string; reviewStatus: string; plannedSessionId: string; status: string; rawStatus: string; analysisState: string; rawQuality: { theoreticalWindows: number }; source: string; quality: { validVisits: number; validWindows: number; reasons: string[] }; deliveryConfirmed: boolean }[] };
 const scenarios: Record<string, string> = { GOAL_MAINTENANCE: '목표 유지', JUSTIFIED_DETOUR: '합리적인 우회', GRADUAL_DRIFT: '점진적인 이탈', CLEAR_DRIFT: '명확한 이탈' };
 function Participant() {
@@ -72,6 +73,9 @@ function Participant() {
       <p>유효 Visit 최소 10개, 권장 12~15개. 활성 탭·창에서 측정한 5초 이상 방문만 포함합니다.</p>
       <div className="actions"><button disabled={!canStart || busy} onClick={() => void command('start')}>세션 시작</button><button disabled={busy || !['ACTIVE','END_PENDING'].includes(local?.lifecycle ?? '')} onClick={() => void command('stop')}>세션 종료 · 수집 중지</button></div>
       <dl className="metrics"><div><dt>세션 상태</dt><dd>{local?.lifecycle ?? '확인 중'}</dd></div><div><dt>서버 수신 Visit</dt><dd>{local?.validVisits ?? 0}</dd></div><div><dt>미완료 POST/PATCH</dt><dd>{local?.pending ?? 0}</dd></div><div><dt>종료 ACK</dt><dd>{local?.endPhase ?? '—'}</dd></div><div><dt>미전송 알림 영수증</dt><dd>{local?.notificationPending ?? 0}</dd></div></dl>
+      <p role="status">{local?.collecting ? '세션 ACTIVE · 관찰 허용' : '현재 페이지 수집 중지 · 인증 Gate 유효 여부와 별개입니다.'} · 로컬 저장 Visit {local?.localVisits ?? 0} · 현재 방문의 확인된 활성 체류 {((local?.activeDurationMs ?? 0) / 1000).toFixed(1)}초</p>
+      {local?.collecting && local.diagnostic && <p role="status">{observationStatus(local.diagnostic.code)} (확인 {new Date(local.diagnostic.observedAt).toLocaleTimeString()})</p>}
+      {blockedAssignment && <p role="status">이 배정에 ACTIVE 또는 검토 PENDING 시도가 있습니다. 기존 세션을 먼저 종료하고 아래 진행 상태에서 사유를 기록해 재수집을 허용하세요. 기존 시도는 보존됩니다.</p>}
       <button disabled={busy} onClick={() => void command('retry')}>재전송 / 복구</button><button disabled={busy} onClick={() => void refresh()}>진행 상태 새로고침</button>
       {local?.storageFailed && <p role="alert">저장 오류로 안전 중지했습니다. Extension을 삭제하지 말고 관리자에게 문의하세요.</p>}
       {local?.accessError && <p role="alert">{local.accessError === 'authentication' || local.accessError === 'AUTHENTICATION_REQUIRED' ? '인증이 필요합니다. 본인 Credential로 다시 로그인하세요.' : local.accessError === 'consent' ? '현재 정책의 동의 상태를 확인하세요.' : local.accessError === 'account' ? '이전 세션 소유자의 계정으로 로그인해 미전송 요청을 확인하세요.' : '서버 연결을 확인하고 재전송하세요.'}</p>}

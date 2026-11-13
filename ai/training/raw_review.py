@@ -5,17 +5,34 @@ labelled training loader. All source fields survive; downstream annotators must 
 """
 import hashlib
 import re
+import unicodedata
 from collections import defaultdict
 from datetime import datetime
 from urllib.parse import urlsplit
 
 
-sensitive=re.compile(r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\d{6}-[1-4]\d{6}|(?:\+\d{1,3}[- .])?(?:\(\d{2,4}\)[- .]?|\b\d{2,4}[- .])\d{3,4}[- .]\d{4}\b|(?:01[016789]|\+82[- .]?1[016789])[- .]?\d{3,4}[- .]?\d{4}|bearer\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret)\s*[:=]\s*\S+|\b(?:diagnosis|prescription|patient|bank account|credit card)\b|주민등록|계좌번호|진단명|처방전|비밀번호',re.I)
+sensitive=re.compile(r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\d{6}-[1-4]\d{6}|(?:\+\d{1,3}[- .])?(?:\(\d{2,4}\)[- .]?|\b\d{2,4}[- .])\d{3,4}[- .]\d{4}\b|(?:01[016789]|\+82[- .]?1[016789])[- .]?\d{3,4}[- .]?\d{4}|bearer\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret)\s*[:=]\s*\S+|\b(?:diagnosis|prescription|patient|bank account)\b|주민등록|계좌번호|진단명|처방전|비밀번호',re.I)
+card_candidate=re.compile(r'(?<![0-9])[1-9](?:[\s-]?[0-9]){12,18}(?![0-9])')
+labelled_card=re.compile(r'\b(?:credit\s+card(?:\s+(?:number|no\.?))?|card\s+(?:number|no\.?)|pan)\s*[:=]\s*[0-9](?:[\s-]?[0-9]){12,18}(?![0-9])',re.I)
 sensitive_query=re.compile(r'\b(?:medical|diagnosis|patient|prescription|symptoms?|treatment|cancer|hiv|aids|depression|banking|finance|loan|credit|insurance|password|cookie|token)\b|의료|진료|환자|질병|증상|치료|처방|우울|암 검사|대출|신용|계좌|금융|주민|비밀번호',re.I)
 
 
+def sensitive_text(text):
+    if sensitive.search(text):
+        return True
+    normalized=unicodedata.normalize('NFKC',text)
+    if labelled_card.search(normalized):
+        return True
+    for match in card_candidate.finditer(normalized):
+        digits=[int(d) for d in re.sub(r'[^0-9]', '', match[0])]
+        total=sum((d*2-9 if d>4 else d*2) if i%2 else d for i,d in enumerate(reversed(digits)))
+        if total%10==0:
+            return True
+    return False
+
+
 def validate_visit_privacy(visit):
-    if any(sensitive.search(visit[field] or '') for field in ('title', 'content', 'searchQuery')):
+    if any(sensitive_text(visit[field] or '') for field in ('title', 'content', 'searchQuery')):
         raise ValueError('Sensitive text requires quarantine')
     if visit['searchQuery'] and sensitive_query.search(visit['searchQuery']):
         raise ValueError('Sensitive search requires quarantine')
@@ -44,7 +61,7 @@ def review_records(tables):
         goal = goals[(key[0], session['goalId'])]
         if session.get('privacyStatus', 'CLEAR') != 'CLEAR':
             raise ValueError('Quarantined review session')
-        if sensitive.search(goal['description']):
+        if sensitive_text(goal['description']):
             raise ValueError('Sensitive goal requires review')
         ordered = sorted(grouped[key], key=lambda v: v['sequence'])
         if not ordered or len({v['sequence'] for v in ordered}) != len(ordered):

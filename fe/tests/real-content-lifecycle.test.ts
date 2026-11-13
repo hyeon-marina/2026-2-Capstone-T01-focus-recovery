@@ -88,15 +88,27 @@ describe('real Content Script foreground boundary (synthetic DOM only)', () => {
     expect(snapshot.content.includes('[EMAIL]') && snapshot.content.includes('[PHONE]')).toBe(true);
     expect(JSON.stringify(messages).includes('UNSUBMITTED')).toBe(false);
   });
-  it('keeps active search focus blocked, including focus without typing; blur restores eligibility', async () => {
+  it('excludes active search focus without quarantining; blur restores eligibility', async () => {
     document.body.innerHTML += '<form role="search"><input type="search" name="q" value="UNSUBMITTED_SEARCH"></form>';
     const input = document.querySelector('input')!; input.focus();
     await import('../real/content'); await tick();
-    expect(observations().some(m => m.safe === false && m.sensitive === true)).toBe(true);
+    expect(observations().some(m => m.safe === false && m.sensitive === false && m.failureReason === 'INPUT_FOCUSED')).toBe(true);
     expect(observations().every(m => !m.snapshot)).toBe(true);
     expect(JSON.stringify(messages).includes('UNSUBMITTED_SEARCH')).toBe(false);
     input.blur(); messages = []; await tick(1000);
     expect(observations().some(m => !!m.snapshot)).toBe(true);
+  });
+  it('excludes non-HTML without marking it sensitive', async () => {
+    vi.spyOn(document, 'contentType', 'get').mockReturnValue('application/pdf');
+    await import('../real/content'); await tick();
+    expect(observations().some(m => m.sensitive === true)).toBe(false);
+    expect(observations().every(m => !m.snapshot)).toBe(true);
+  });
+  it('does not inspect an unsubmitted textarea when checking public layout', async () => {
+    document.body.innerHTML += '<form><textarea>subscription required UNSUBMITTED_DRAFT</textarea></form>';
+    await import('../real/content'); await tick();
+    expect(observations().some(m => !!m.snapshot)).toBe(true);
+    expect(JSON.stringify(messages)).not.toContain('UNSUBMITTED_DRAFT');
   });
   it('accepts a public explanation containing the term credit card through the actual content adapter', async () => {
     document.title = 'Credit card safety in public HTTPS documentation';

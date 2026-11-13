@@ -1,0 +1,21 @@
+[
+  {"id":"public-term","text":"You should not enter a credit card on untrusted pages.","public":true},
+  {"id":"masked-contacts","text":"Contact [EMAIL] or [PHONE] for public documentation.","public":true},
+  {"id":"build-number","text":"Build identifier 1234567890123456.","public":true},
+  {"id":"plain-card","text":"4111111111111111","public":false},
+  {"id":"spaced-card","text":"4111 1111 1111 1111","public":false},
+  {"id":"hyphen-card","text":"4111-1111-1111-1111","public":false},
+  {"id":"unicode-card","text":"４１１１１１１１１１１１１１１１","public":false},
+  {"id":"labelled-invalid-checksum","text":"credit card: 4111111111111112","public":false},
+  {"id":"pan-invalid-checksum","text":"PAN: 4111111111111112","public":false},
+  {"id":"email","text":"synthetic@example.org","public":false},
+  {"id":"phone","text":"010-0000-0000","public":false},
+  {"id":"other-phone","text":"02-1234-5678","public":false},
+  {"id":"password","text":"password=synthetic-only","public":false},
+  {"id":"bearer","text":"Bearer synthetic-only","public":false},
+  {"id":"api-key","text":"api_key: synthetic-only","public":false},
+  {"id":"access-token","text":"access_token=synthetic-only","public":false},
+  {"id":"cookie","text":"cookie=synthetic-only","public":false},
+  {"id":"national-id","text":"900101-1234567","public":false},
+  {"id":"health","text":"patient diagnosis","public":false}
+]

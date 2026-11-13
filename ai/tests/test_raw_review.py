@@ -1,7 +1,10 @@
 """No model/runtime imports needed for collection review conversion."""
 import copy
+import json
+from pathlib import Path
 import pytest
 from training.raw_review import review_records
+from training.raw_review import validate_visit_privacy
 
 
 def tables():
@@ -24,3 +27,25 @@ def test_lossless_ordered_unlabelled_v2_review():
 def test_metadata_or_failed_text_is_never_training_success(field,value):
     t=tables();t['visits'][0][field]=value
     with pytest.raises(ValueError):review_records(t)
+
+
+def test_public_card_explanation_is_not_a_disclosed_value():
+    v=tables()['visits'][0]
+    v['content']='You should not enter a credit card on untrusted pages.'
+    validate_visit_privacy(v)
+
+
+@pytest.mark.parametrize('value', ['4111111111111111', '4111-1111-1111-1111',
+    '４１１１１１１１１１１１１１１１', 'credit card: 4111111111111112', 'PAN: 4111111111111112'])
+def test_payment_values_are_blocked(value):
+    v=tables()['visits'][0];v['content']=value
+    with pytest.raises(ValueError, match='Sensitive text'):validate_visit_privacy(v)
+
+
+@pytest.mark.parametrize('case', json.loads((Path(__file__).resolve().parents[2]/'docs/contracts/v2/fixtures/privacy-text.json').read_text()), ids=lambda c:c['id'])
+def test_fe_be_ai_privacy_parity(case):
+    v=tables()['visits'][0];v['content']=case['text']
+    if case['public']:
+        validate_visit_privacy(v)
+    else:
+        with pytest.raises(ValueError, match='Sensitive text'):validate_visit_privacy(v)

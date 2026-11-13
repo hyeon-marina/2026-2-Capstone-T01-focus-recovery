@@ -40,6 +40,24 @@ it('initial capture targets only the active tab of the focused window', async ()
   expect((await send('start')).error).toBeUndefined();
   expect(f.capture.mock.calls.map(c => c[0])).toEqual([1]);
 });
+it('reports a missing Content Script instead of silently leaving ACTIVE with zero Visits', async () => {
+  f.capture.mockRejectedValueOnce(new Error('Could not establish connection'));
+  await send('start');
+  expect((await send('status')).diagnostic.code).toBe('CONTENT_SCRIPT_UNAVAILABLE');
+  await send('start');
+  expect((await send('status')).diagnostic.code).toBe('WAITING_OBSERVATION');
+});
+it('reports restricted site permission without quarantining', async () => {
+  f.permission.mockResolvedValue(false);
+  await send('start');
+  expect((await send('status')).diagnostic.code).toBe('SITE_PERMISSION_REQUIRED');
+  expect(f.runtime.quarantine).not.toHaveBeenCalled();
+});
+it('does not quarantine ordinary focused-input exclusions', async () => {
+  await send('observation', { raw, safe: false, sensitive: false, visible: true, failureReason: 'INPUT_FOCUSED' }, sender(1));
+  expect(f.runtime.leave).toHaveBeenCalled();
+  expect(f.runtime.quarantine).not.toHaveBeenCalled();
+});
 it('reactivates a previously stopped content timer on the native tab activation event', async () => {
   await send('start'); f.capture.mockClear();
   f.active = 2; f.events.activate({ tabId: 2, windowId: 1 });

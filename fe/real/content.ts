@@ -1,6 +1,6 @@
 import { highRiskText, maskPublicContacts, safeSearchIntent } from '../src/shared/privacy';
 import { topicTitle } from '../src/shared/metadata';
-import { cleanText, excludedPublicLayout, extractMainContent, isExcludedDocument, isExcludedMetadataDocument, isExcludedPublicDocument } from '../src/content/extraction';
+import { cleanText, excludedPublicLayout, extractMainContent, hasFocusedEditable, isSensitivePublicDocument, isExcludedDocument, isExcludedMetadataDocument, isExcludedPublicDocument } from '../src/content/extraction';
 import { extractSearchContent } from '../src/content/search';
 import { describeUrl, inspectUrl } from '../src/shared/url';
 import { publicText, publicSearchQuery } from './policy';
@@ -46,7 +46,13 @@ async function pulse() {
     if (pageContent && (document.contentType !== 'text/html' || denied || !isExcludedMetadataDocument(document) && excludedPublicLayout(document))) {
       await chrome.runtime.sendMessage({type:'v2-observation',raw,safe:true,snapshot:null,visible:document.visibilityState === 'visible',extractionFailed:true,failureReason:'EXTRACTION_ACCESS_DENIED'});return;
     }
-    if (!safe) { await chrome.runtime.sendMessage({ type: 'v2-observation', raw, safe: false, sensitive: pageContent, visible:document.visibilityState === 'visible' }); return; }
+    if (!safe) {
+      cached = undefined;
+      await chrome.runtime.sendMessage({ type: 'v2-observation', raw, safe: false,
+        sensitive: pageContent && isSensitivePublicDocument(document),
+        failureReason: hasFocusedEditable(document) ? 'INPUT_FOCUSED' : 'POLICY', visible:document.visibilityState === 'visible' });
+      return;
+    }
     if (context.metadataOnly === true && !pageContent) {
       // Only fixed metadata leaves the document. No body, title, query, video, captions or comments.
       await chrome.runtime.sendMessage({ type:'v2-observation', raw, safe:true, snapshot:context.description ? {...context.description, title:topicTitle(document.title)} : null,
