@@ -1,12 +1,12 @@
 # PR 120 재검증과 C 운영 반영 준비
 
-2026-11-13 KST. 결과는 **PARTIAL**이다. 사용자가 상태 조회와 백업·격리 복구 검증을 별도 승인했다. DB·운영 파일 암호화 백업과 격리 복구는 PASS, Chrome 프로필 백업은 접근 제한으로 사용자 조작 대기다. 운영 교체·실제 참여자 수집은 승인 전이며 실제 C 10 Visit 성공으로 보고하지 않는다. 기존 검증은 [수집 안정성 보고서](collection-reliability-validation.md)에 보존한다.
+2026-11-13 KST. 결과는 **PARTIAL**이다. 사용자가 상태 조회와 백업·격리 복구 검증을 별도 승인했다. DB 암호화 백업·격리 복구, 운영 파일·Chrome 확장 영속 데이터 암호화 백업의 무결성 검증은 PASS다. 프로필을 실제 Chrome에서 복원해 여는 논리 복구 검증은 NOT_TESTED다. 운영 교체·실제 참여자 수집은 승인 전이며 실제 C 10 Visit 성공으로 보고하지 않는다. 기존 검증은 [수집 안정성 보고서](collection-reliability-validation.md)에 보존한다.
 
 ## 코드와 PR 기준
 
 재확인 당시 PR #120은 Draft/open, HEAD `ba3e20c0f5d923ea5dc61fd93b912ff33d10b71e`, 공식 main `ff15a90bb9ce389b32a75dd57806ed7e215ddb48`이다. mergeable=true, CI/check 0, review/review thread 0. PR #118은 ancestry에 포함된다. 작업 트리는 clean이었다. 운영 `ops/c-foreground-rollout-20261113`과 미추적 PDF는 보존한다.
 
-추가 결함은 독립 `fix/119/dom-observation-performance`에서 수정했다. 코드 커밋 `77cb8f9`는 이후 PR #120에 반영할 대상이다.
+추가 결함은 독립 `fix/119/dom-observation-performance`의 `77cb8f9`에서 수정한 뒤 PR #120에 반영했다. 최종 코드 후보는 `0941d50f035165780f27d12e4ced359f202e859b`이다. 이후 보고서 커밋을 포함한 확인 당시 PR HEAD는 `a44968ba60471da2f9bcf17e3f351e682b269a99`이며 Ready for review/open, 미병합 상태다.
 
 ## 추가 성능 결함과 수정
 
@@ -68,12 +68,16 @@ GET `/api/collection/progress`와 파일 해시 등의 원문 없는 증거는 `
 - 실제 복호화 PASS. 새 `focus120-c-restore-9f7d07134c93`의 **network=none/host port0/DB tmpfs**에서 실제 백업을 복구했다. 37개 테이블의 행 수·checksum 일치, FK50개 참조 오류0, 운영 원본 전후 불변 PASS. 검증 후 테스트 컨테이너만 정상 종료했다. 운영 MySQL/Volume은 재시작/복원하지 않았다.
 - 운영 파일 archive26개 항목을 메모리에서 검증했고 source의 13개 파일 SHA는 불변이다. 세부 checksum·테이블 수량은 백업 디렉터리의 manifest/restore-validation.json에 보호된 상태로 보존한다.
 - 사용자가 Chrome 정상 종료/Terminal 실행을 위임해 수집 중지·Queue0 상태를 재확인한 뒤 Chrome 메뉴로 정상 종료했다. 강제 종료는 사용하지 않았다. 이후 Computer Use 도구가 `com.apple.Terminal` 자동 조작을 안전 사유로 거부했다. macOS의 Codex 프로필 접근 거부도 남아 있어 준비된 프로필 암호화 명령의 **사용자 직접 실행**을 요청했다. 다른 앱/프로세스로 제한을 우회하지 않는다.
-- Chrome 정상 종료 후 동일 경로를 한 번 재확인해도 macOS EPERM이었다. 프로필 백업은 아직 생성되지 않았으며, 이 검증을 생략하고 운영 교체로 넘어가지 않는다.
+- Chrome 정상 종료 후 동일 경로를 한 번 재확인해도 macOS EPERM이었다. 사용자 Terminal 실행도 EPERM으로 실패했다. 기존 실패 암호문 `chrome-profile.tar.age.partial`(10,440 bytes, SHA256 `54cbe78aab1c940b3a13840b0675c27e119bf4ed2ddc5d064a896086c51587f0`)은 보존하며 유효 백업으로 취급하지 않는다. 재실행은 noclobber에 의해 기존 partial 덮어쓰기가 거부되었다.
+- private 백업 helper를 수정했다. 원본 읽기 사전 검사, xattr/ACL 제외, 시도별 고유 암호문, 인증 복호화 후에만 최종 파일 게시를 사용한다. 기존 실패 파일은 보존한다. 합성 자체 검증 4건(기존 partial 보존, 읽기 거부 시 출력 없음, tar 실패 시 고유 암호문 보존, 완료 파일 덮어쓰기 방지) PASS이며 실제 프로필 백업 성공과 구분한다.
+- 사용자가 광범위한 접근 위험을 안내받은 뒤 Terminal의 **임시 전체 디스크 접근 권한**을 별도 승인하고 macOS 인증을 직접 완료했다. 시스템 설정에서 Terminal만 추가·ON으로 확인했으며 기존 다른 앱은 모두 OFF 상태를 유지했다. 사용자가 Terminal을 재시작하고 helper를 직접 실행했다. 검증 후 Terminal 권한을 OFF로 되돌리고 사용자가 완전히 종료했다. 실제 Terminal·Chrome 프로세스 부재를 확인했다. Codex나 다른 앱으로 프로필 접근 권한을 넓히지 않았다.
+- 실제 `chrome-profile.tar.age` SHA256 `96f4860a1815c41d0a07c387ffd01b4df7d1013a4708d62078076cd649d9e68a`, 0600. 인증 복호화 PASS, 승인된 해당 확장의 IndexedDB/Local Extension Settings 범위만 포함, 파일14개/평문 총1,979,346 bytes의 tar 구조와 두 LevelDB CURRENT→MANIFEST 참조 PASS. 평문은 메모리에서만 검증했다. 기존 실패 암호문·DB/운영 파일 백업·운영13개 파일의 해시 불변을 재확인했다. `profile-validation.json`을 새 0600 파일로 보존했다.
+- 실제 Chrome에 프로필을 복원해 열거나 Queue의 논리 내용을 비교하는 복구 검증은 **NOT_TESTED**다. 위 결과는 암호문 무결성·파일 구조 검증이다. 운영 프로필이나 Queue를 복원/변경하지 않았다.
 
 프로필 백업과 전체 백업 검증이 끝나기 전에는 운영 후보를 적용하지 않는다. 남은 프로필 절차와 전체 검증 원칙은 다음과 같다.
 
 1. 상태 화면 열기는 사용자 별도 승인을 받아 위와 같이 확인했다. 사용자가 새 동의·세션 없이 Chrome을 직접 종료한다. Codex는 Chrome을 임의 종료하지 않는다. 백업 직전에 Queue/ACK를 재확인하고 불명확한 상태에서 새 수집을 시작하지 않는다.
-2. 실제 프로필의 확장 IndexedDB와 Local Extension Settings는 macOS 접근 허용이 필요하다. 권한을 넓히지 않으려면 사용자가 승인된 백업 명령을 직접 실행하는 방식을 사용한다. Codex가 개인정보 보호 설정을 바꾸거나 다른 프로세스로 제한을 우회하지 않는다.
+2. 실제 프로필의 확장 IndexedDB와 Local Extension Settings는 macOS 접근 허용이 필요하다. 사용자가 위와 같이 별도 승인한 Terminal 임시 권한으로 백업 명령을 직접 실행하고, 검증 후 권한을 해제한다. 다른 프로세스로 접근 제한을 우회하지 않는다.
 3. 새 백업 디렉터리를 0700으로 생성한다. 기존 `.collection/backup-keys/C-20261113T122637-60ab9684/backup.agekey`(0600)를 이용하되 키를 복사/출력/Git 저장하지 않는다. 공개 recipient와 암호화 파일의 SHA를 확인한다.
 4. 기존 Extension bundle, 실행 JAR, 운영 설정/정책/인증서와 필요한 비밀 파일, 확장 관련 프로필 영속 데이터만 암호화한다. 무관한 웹사이트 기록·Cookie·다른 확장 데이터는 수집하지 않는다. participant/owner 정보가 포함된 파일은 평문 결과물로 남기지 않는다.
 5. 기존 MySQL에서 `--single-transaction --no-tablespaces --set-gtid-purged=OFF`의 일관된 schema dump를 메모리에서 age로 암호화한다. 기존 helper의 `backup`은 승인 후에만 사용한다. 운영 Volume/행/계정/정책을 바꾸지 않는다. 실제 API Export는 포함하지 않는다.
@@ -83,6 +87,10 @@ GET `/api/collection/progress`와 파일 해시 등의 원문 없는 증거는 `
 ## 승인 후 수행할 운영 교체
 
 정확한 최종 SHA와 staging 파일 해시를 확정한 뒤 다시 승인받는다. 기존 C 브랜치를 변경/삭제하지 않고 새 운영 rollout 브랜치를 생성하는 방식을 제안한다. root의 PDF와 `.collection`은 보존한다.
+
+준비된 후보는 `0941d50f035165780f27d12e4ced359f202e859b`(dirty=false)이다. BE SHA256은 `dc0a36cce8d87a8ae003c512ac4f6d58620dc8adabe6bee57b3e31b67d56a860`, Content Script는 검증한 세 MV3 실행과 같은 `2eb44729cf48f1e38279ddabf446e1a14385057e9de624b2979d79207362e5b3`다. 정책 SHA·권한은 동일하며 migration18개 SQL byte가 구버전과 같다. 공식 real packaging도 실행해 `checksums.json`까지 포함한 후보를 대조했다. 최초 packaging은 staging의 `dist-real` 부재로 FAIL했고, 검증된 후보를 staging에 복사한 다음 같은 공식 명령으로 PASS했다. 원본 코드/운영 파일은 변경하지 않았다.
+
+교체 파일은 기존 `fe/dist-real` 아래 `build-info.json`, `background.js`, `manifest.json`, `participant.js`, `content.js`, `participant/index.html`, `assets/participant-ckjKSp79.css`, `checksums.json`과 기존 `.collection/local/backend-runtime.jar`다. Backend 프로세스 기록·로그는 정상 재시작 과정에서 갱신한다. 새 운영 브랜치에서 후보 커밋을 선택하면 tracked source29개도 해당 검증본으로 갱신되며, `compose.yml` 변경은 파일만 반영하고 MySQL 컨테이너 재생성에는 사용하지 않는다. 모든 실제 변경은 별도 승인 전 미실행이다.
 
 - FE: 기존 `fe/dist-real` 절대 경로에 검증한 bundle만 반영한다. 새 경로에 별도 설치하지 않는다. 기존 Extension ID·Default·IndexedDB·HMAC key를 유지한다. Chrome 재개 후 사용자가 기존 확장을 새로고침하고 필요한 페이지를 새로고침한다.
 - BE: 검증한 JAR를 같은 운영 runtime 경로로 교체하고 기존 nonce/PID 신원을 확인한 프로세스만 정상 종료·재시작한다. 동일 정책·TLS·Source·DB와 Volume을 사용한다. **`local.py stop`은 MySQL까지 중지하므로 BE만 재시작하는 승인에 사용하지 않는다.** MySQL/healthcheck 재생성은 이번 필수 변경에서 제외한다.
