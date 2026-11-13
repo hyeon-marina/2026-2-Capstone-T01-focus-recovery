@@ -47,6 +47,8 @@
 
 진단에는 고정 코드·시각·수량·확인된 체류시간만 포함한다. 원 URL·검색어·본문·입력값·Credential을 추가로 저장/로그/Export하지 않는다. 진단은 Worker 메모리에만 있으며 재시작 후 초기화된다. 현재 상태와 코드 확인 시각을 함께 표시한다. Chrome UI/omnibox 포커스로 content 자체가 pulse를 보내지 못하는 구간은 과거 OBSERVING 코드만으로 현재 체류를 보장할 수 없다.
 
+서버 저장 후에도 POST ACK 유실 또는 `collectionAllowed=false`일 때 참여자 화면 수신 수가 0일 수 있다. 후자는 기존 소유권 보호를 위한 표시 제한이며 새 진단에서도 인증 전 기존 세션 수량을 공개하지 않는다. ACTIVE 여부, 인증/동의 오류, 로컬 저장 수, ACK 수, 미전송 Queue를 함께 확인해야 한다.
+
 ## 검증 계획과 증거
 
 실행 전 `/private/tmp/focus119-evidence/plan.txt`에 3회 독립 환경·각10 Visit·실제5초·장애 복구·실패 보존 계획을 기록했다. 증거 디렉터리는 0700이다. 신규 프로필·Extension 경로·Source/Participant/Credential/동의·MySQL DB/Volume만 쓴다. 자동화 합성 동의는 실제 참여자 동의/연구 실적이 아니다. 실패 디렉터리는 성공 실행으로 덮어쓰지 않는다.
@@ -73,6 +75,8 @@
 추가 `--page-content` 장애 실행의 사전 시도도 별도 경로에 보존한다. `synthetic-content`는 BE 회귀와의 전용 포트 충돌로 FAIL, `synthetic-content-isolated`는 재로드로 닫힌 UI 탭을 재사용해 FAIL, `synthetic-content-reload`는 요청 전 worker 이벤트 대기로 FAIL, `synthetic-content-ui-wake`는 종료 후 TIME_WAIT를 활성 listener로 오인한 preflight FAIL, `synthetic-content-recovery`는 이 unpacked headless 설정의 프로그램식 reload 후 접근 차단으로 FAIL, `synthetic-content-manager`는 실제 확장 관리자 reload 후 credential 재인증을 생략해 FAIL이었다. 수집 성공을 가정한 테스트 준비의 잘못을 고쳤으며 인증을 우회하지 않는다. `synthetic-final`은 pending이 이전 Visit PATCH만으로도 참이 될 수 있음을 드러낸 강화 테스트 FAIL이다. 새 Visit 생성과 실제 POST 실패를 별도로 기다리도록 고친 커밋 c87423e의 최종 3회가 모두 PASS였다. 실패를 삭제하거나 SKIP/PASS로 바꾸지 않았다.
 
 테스트 Chrome은 macOS arm64의 Playwright Chromium `chromium-1234`에 포함된 Chrome for Testing 151.0.7922.34, headless MV3다. 실제 C Default 프로필/headful OS 창 포커스까지 검증한 것으로 표시하지 않는다. 원문·Credential 로그 노출 여부는 별도 합성 비밀값과 고위험 테스트 마커를 로그에서 검색해 확인하며, 이 검사 결과도 비공개 증거 디렉터리에 보존한다.
+
+최종 로그 검사는 347개 로그·합성 Credential32개 및 고위험 본문/미전송 입력 마커에서 노출0이었다. 이 결과는 알려진 합성 값의 검사이며 모든 개인정보 탐지가 완전함을 의미하지 않는다.
 
 ## 변경 범위와 호환성
 
