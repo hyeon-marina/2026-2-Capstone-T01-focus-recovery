@@ -1,7 +1,9 @@
 package com.focusrecovery.domain.collection;
 
 import java.net.URI;
+import java.text.Normalizer;
 import java.util.List;
+import java.util.regex.Pattern;
 import com.focusrecovery.domain.visit.dto.CreatePageVisitRequest;
 import com.focusrecovery.global.exception.ConflictException;
 
@@ -12,6 +14,24 @@ public final class MetadataPage {
     public static final String TITLE="Public browsing metadata";
     public static final String CONTENT="METADATA_ONLY: public browsing activity; page text, title and search terms were not collected.";
     public static final String QUERY="[NOT_COLLECTED]";
+    private static final Pattern CARD_CANDIDATE = Pattern.compile("(?<![0-9])[1-9](?:[\\s-]?[0-9]){12,18}(?![0-9])", Pattern.UNICODE_CHARACTER_CLASS);
+    private static final Pattern LABELLED_CARD = Pattern.compile("\\b(?:credit\\s+card(?:\\s+(?:number|no\\.?))?|card\\s+(?:number|no\\.?)|pan)\\s*[:=]\\s*[0-9](?:[\\s-]?[0-9]){12,18}(?![0-9])", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CHARACTER_CLASS);
+    private static boolean paymentCardNumber(String text) {
+        String normalized = Normalizer.normalize(text, Normalizer.Form.NFKC);
+        if (LABELLED_CARD.matcher(normalized).find()) return true;
+        var candidates = CARD_CANDIDATE.matcher(normalized);
+        while (candidates.find()) {
+            String digits = candidates.group().replaceAll("\\D", "");
+            int sum = 0; boolean doubled = false;
+            for (int i = digits.length() - 1; i >= 0; i--) {
+                int digit = digits.charAt(i) - '0';
+                if (doubled) { digit *= 2; if (digit > 9) digit -= 9; }
+                sum += digit; doubled = !doubled;
+            }
+            if (sum % 10 == 0) return true;
+        }
+        return false;
+    }
     private static boolean validTitle(String title) {
         return TITLE.equals(title) || List.of("GIT","ACCESSIBILITY","PYTHON","HTTP_CACHE","RECYCLING","ENERGY","URBAN_CLIMATE","LIGHTING","MATERIALS","HANGUL","ART","LIBRARY","ARCHIVE","MUSIC","GEOLOGY","ASTRONOMY","WEATHER","TRANSPORT","BIOLOGY","TRAVEL","COOKING","HOBBY","OTHER").stream().anyMatch(t->("Topic: "+t).equals(title));
     }
@@ -40,8 +60,8 @@ public final class MetadataPage {
             throw new ConflictException("COLLECTION_POLICY_BLOCKED","원본 URL·본문·제목·검색어 대신 고정 메타데이터가 필요합니다.");
     }
     public static boolean publicText(String text) {
-        return text != null && !java.util.regex.Pattern.compile(
-            "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}|[0-9]{6}-[1-4][0-9]{6}|(?:\\+\\d{1,3}[- .])?(?:\\(\\d{2,4}\\)[- .]?|\\b\\d{2,4}[- .])\\d{3,4}[- .]\\d{4}\\b|(?:01[016789]|\\+82[- .]?1[016789])[- .]?[0-9]{3,4}[- .]?[0-9]{4}|bearer\\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret)\\s*[:=]\\s*\\S+|\\b(?:diagnosis|prescription|patient|bank account|credit card)\\b|주민등록|계좌번호|진단명|처방전|비밀번호",
+        return text != null && !paymentCardNumber(text) && !java.util.regex.Pattern.compile(
+            "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}|[0-9]{6}-[1-4][0-9]{6}|(?:\\+\\d{1,3}[- .])?(?:\\(\\d{2,4}\\)[- .]?|\\b\\d{2,4}[- .])\\d{3,4}[- .]\\d{4}\\b|(?:01[016789]|\\+82[- .]?1[016789])[- .]?[0-9]{3,4}[- .]?[0-9]{4}|bearer\\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret)\\s*[:=]\\s*\\S+|\\b(?:diagnosis|prescription|patient|bank account)\\b|주민등록|계좌번호|진단명|처방전|비밀번호",
             java.util.regex.Pattern.CASE_INSENSITIVE).matcher(text).find();
     }
     public static boolean publicSearchQuery(String query) {
