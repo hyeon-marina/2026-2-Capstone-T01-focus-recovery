@@ -1,11 +1,29 @@
 // Conservative public-text filter. Site review remains necessary; this is not a complete PII detector.
-const highRisk = /(?:bearer\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret)\s*[:=]\s*\S+|\b(?:diagnosis|prescription|patient|bank account|credit card)\b|주민등록|계좌번호|진단명|처방전|비밀번호)/i;
+const highRisk = /(?:bearer\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret)\s*[:=]\s*\S+|\b(?:diagnosis|prescription|patient|bank account)\b|주민등록|계좌번호|진단명|처방전|비밀번호)/i;
 const nationalId = /\d{6}-[1-4]\d{6}/;
 const email = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const phone = /(?:01[016789]|\+82[- .]?1[016789])[- .]?\d{3,4}[- .]?\d{4}/g;
 const otherPhone = /(?:\+\d{1,3}[- .])?(?:\(\d{2,4}\)[- .]?|\b\d{2,4}[- .])\d{3,4}[- .]\d{4}\b/;
+const cardCandidate = /(?<![0-9])[1-9](?:[\s-]?[0-9]){12,18}(?![0-9])/g;
+const labelledCard = /\b(?:credit\s+card(?:\s+(?:number|no\.?))?|card\s+(?:number|no\.?)|pan)\s*[:=]\s*[0-9](?:[\s-]?[0-9]){12,18}(?![0-9])/i;
+function paymentCardNumber(text: string) {
+  const normalized = text.normalize('NFKC');
+  // A term in a public explanation is not a value; labelled values still fail closed.
+  if (labelledCard.test(normalized)) return true;
+  for (const match of normalized.matchAll(cardCandidate)) {
+    const digits = match[0].replace(/\D/g, '');
+    let sum = 0, double = false;
+    for (let i = digits.length - 1; i >= 0; i--) {
+      let digit = Number(digits[i]);
+      if (double) { digit *= 2; if (digit > 9) digit -= 9; }
+      sum += digit; double = !double;
+    }
+    if (sum % 10 === 0) return true;
+  }
+  return false;
+}
 export function highRiskText(text: string) {
-  return highRisk.test(text) || nationalId.test(text);
+  return highRisk.test(text) || nationalId.test(text) || paymentCardNumber(text);
 }
 export function maskPublicContacts(text: string): string {
   if (highRiskText(text)) throw new Error('SENSITIVE_CONTENT');
@@ -14,7 +32,7 @@ export function maskPublicContacts(text: string): string {
   return masked;
 }
 export function publicText(...texts: string[]) {
-  return texts.every(text => !highRisk.test(text) && !nationalId.test(text) && !otherPhone.test(text) && text.replace(email, '').replace(phone, '') === text);
+  return texts.every(text => !highRiskText(text) && !otherPhone.test(text) && text.replace(email, '').replace(phone, '') === text);
 }
 // Queries expose intent directly, so health/financial/personal searches are excluded even without identifiers.
 export function publicSearchQuery(query: string) {

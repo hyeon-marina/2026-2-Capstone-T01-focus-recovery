@@ -7,31 +7,46 @@ import { publicText, publicSearchQuery } from './policy';
 let busy = false;
 let cached: {raw:string; identity:string | undefined; started:number; next:number; snapshot:unknown; safe:boolean; failureReason:string} | undefined;
 let timer: ReturnType<typeof setInterval>;
-function activate() { clearInterval(timer); timer = setInterval(() => void pulse(), 1000); void pulse(); }
+function activate() {
+  clearInterval(timer);
+  if (document.visibilityState === 'visible') timer = setInterval(() => void pulse(), 1000);
+  void pulse();
+}
 async function pulse() {
   if (busy) return;
   busy = true;
+  const pulseTimer = timer;
   try {
+    // Background documents cannot contribute content or quarantine the active session.
+    if (document.visibilityState !== 'visible' || !document.hasFocus()) {
+      await chrome.runtime.sendMessage({ type: 'v2-leave' });
+      return;
+    }
     const raw = location.href;
     const context = await chrome.runtime.sendMessage({ type: 'v2-context', raw });
     // No title, DOM or search-query extraction before server policy + session authorization.
     if (context?.collecting !== true) {
-      if (context?.collecting === false) clearInterval(timer);
+      // An older response must not cancel the timer installed by a newer tab activation.
+      if (context?.collecting === false && timer === pulseTimer) clearInterval(timer);
       return;
     }
     if (location.href !== raw) return;
+    if (document.visibilityState !== 'visible' || !document.hasFocus()) {
+      await chrome.runtime.sendMessage({ type: 'v2-leave' });
+      return;
+    }
     const inspected = inspectUrl(raw, context.metadataOnly === true);
     const pageContent = context.pageContent === true;
     const safe = !!inspected && !(pageContent ? isExcludedPublicDocument(document) : context.metadataOnly === true ? isExcludedMetadataDocument(document) : isExcludedDocument(document, inspected.isSearchResultPage ? inspected.url : undefined));
     const denied = /^(?:40[134]|5\d\d|error\b|page not found|not found|access denied|forbidden|unauthorized|접근 거부|페이지를 찾을 수)/i.test(document.title.trim());
     if (pageContent && highRiskText(cleanText(document.title))) {
-      await chrome.runtime.sendMessage({type:'v2-observation',raw,safe:false,sensitive:true});
+      await chrome.runtime.sendMessage({type:'v2-observation',raw,safe:false,sensitive:true,visible:document.visibilityState === 'visible'});
       return;
     }
     if (pageContent && (document.contentType !== 'text/html' || denied || !isExcludedMetadataDocument(document) && excludedPublicLayout(document))) {
       await chrome.runtime.sendMessage({type:'v2-observation',raw,safe:true,snapshot:null,visible:document.visibilityState === 'visible',extractionFailed:true,failureReason:'EXTRACTION_ACCESS_DENIED'});return;
     }
-    if (!safe) { await chrome.runtime.sendMessage({ type: 'v2-observation', raw, safe: false, sensitive: pageContent }); return; }
+    if (!safe) { await chrome.runtime.sendMessage({ type: 'v2-observation', raw, safe: false, sensitive: pageContent, visible:document.visibilityState === 'visible' }); return; }
     if (context.metadataOnly === true && !pageContent) {
       // Only fixed metadata leaves the document. No body, title, query, video, captions or comments.
       await chrome.runtime.sendMessage({ type:'v2-observation', raw, safe:true, snapshot:context.description ? {...context.description, title:topicTitle(document.title)} : null,
@@ -73,12 +88,13 @@ async function pulse() {
     }
     const result = await chrome.runtime.sendMessage({ type: 'v2-observation', raw, safe: safeText, sensitive: !safeText, failureReason,
       snapshot: safeText ? snapshot : null, visible: document.visibilityState === 'visible', extractionFailed: !snapshot && (!pageContent || !!cached && Date.now()-cached.started >= 20000) });
-    if (result?.collecting === false) clearInterval(timer);
+    if (result?.collecting === false && timer === pulseTimer) clearInterval(timer);
   } catch { /* Retry the authorization handshake on the next pulse after a worker restart. */ }
   finally { busy = false; }
 }
 chrome.runtime.onMessage.addListener(m => { if (m?.type === 'v2-capture') activate(); });
-document.addEventListener('visibilitychange', () => void pulse());
+document.addEventListener('visibilitychange', activate);
+window.addEventListener('focus', activate);
 window.addEventListener('pageshow',activate);
 window.addEventListener('popstate',activate);
 window.addEventListener('pagehide', () => { void chrome.runtime.sendMessage({ type: 'v2-leave' }).catch(() => {}); });

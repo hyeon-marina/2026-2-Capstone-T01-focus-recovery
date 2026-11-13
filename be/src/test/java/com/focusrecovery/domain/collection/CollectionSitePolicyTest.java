@@ -82,4 +82,20 @@ class CollectionSitePolicyTest {
     @Test void syntheticReleaseNeverEnablesRealProfile() throws Exception {
         setup("test");assertThat(policy.current()).isNotNull();env.setActiveProfiles("real-collection");assertThat(policy.current()).isNull();
     }
+    @Test void individualLocalAppliesTheCardValueCheckAtTheProductionVisitBoundary() throws Exception {
+        setup("individual-local");
+        Files.copy(Path.of("../docs/data-collection/TEAM_POLICY.json"),dir.resolve("policy.json"),StandardCopyOption.REPLACE_EXISTING);
+        when(jdbc.queryForObject(anyString(),eq(Integer.class),any(),any(),any())).thenReturn(1);
+        policy=new CollectionSitePolicy(env,jdbc,Clock.systemUTC(),mapper);
+        assertThat(policy.realProfile()).isTrue();
+        assertThat(policy.require().pageContent()).isTrue();
+        var safe=new com.focusrecovery.domain.visit.dto.CreatePageVisitRequest(UUID.randomUUID().toString(),1,"synthetic-tab",
+            "https://docs.github.com"+MetadataPage.MARKER+"a".repeat(64),"docs.github.com","Public HTTPS documentation",
+            "Public HTTPS documentation discusses credit card protection without disclosing cardholder information.",null,false,Instant.now(),5000L,0,0L,"SUCCESS");
+        policy.checkVisitData(safe);
+        var unsafe=new com.focusrecovery.domain.visit.dto.CreatePageVisitRequest(UUID.randomUUID().toString(),1,"synthetic-tab",
+            safe.normalizedUrl(),safe.domain(),safe.title(),safe.content()+"4111111111111111",null,false,Instant.now(),5000L,0,0L,"SUCCESS");
+        unsafe.validateV2();
+        assertThatThrownBy(()->policy.checkVisitData(unsafe)).hasFieldOrPropertyWithValue("code","COLLECTION_POLICY_BLOCKED");
+    }
 }

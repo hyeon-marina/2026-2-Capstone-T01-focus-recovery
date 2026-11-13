@@ -93,8 +93,8 @@ const statusClient = new V2StatusClient(() => runtime.snapshot());
 const serial = serialExecutor();
 async function captureAllowedTabs() {
   if (!options.pilot && !real) return;
-  const tabs = await chrome.tabs.query({});
-  await Promise.all(tabs.filter(t => t.id !== undefined && t.url && permits(t.url)).map(t => chrome.tabs.sendMessage(t.id!, { type: 'v2-capture' }).catch(() => {})));
+  const tab = await focus(stamp());
+  if (tab?.id !== undefined && tab.url && permits(tab.url)) await chrome.tabs.sendMessage(tab.id, { type: 'v2-capture' }).catch(() => {});
 }
 const boundaries = new Map<number, Stamp>();
 const documents = new Map<number, string>();
@@ -115,6 +115,7 @@ async function focus(t: Stamp, switched = false) {
     focused = next;
     await runtime.foreground(next, t, switched);
   }
+  return tab;
 }
 chrome.runtime.onMessage.addListener((m, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return;
@@ -177,7 +178,8 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       await runtime.verifyAccess();
       // Chrome's sender.url can retain the document's initial URL after pushState.
       const frame = await chrome.webNavigation.getFrame({tabId,frameId:0});
-      const collecting = typeof m.raw === 'string' && frame?.documentId === sender.documentId && frame.url === m.raw && permits(m.raw) && runtime.collecting();
+      await focus(t);
+      const collecting = tabId === focused && typeof m.raw === 'string' && frame?.documentId === sender.documentId && frame.url === m.raw && permits(m.raw) && runtime.collecting();
       return {collecting,maskContacts:build?.maskContacts === true,pageContent:build?.pageContent === true,publicWeb:build?.publicWeb === true,metadataOnly:build?.metadataOnly === true,description:collecting && build?.metadataOnly ? await descriptionFor(m.raw) : undefined};
     }
     if (m?.type === 'v2-context') return { collecting: !!sender.url && permits(sender.url) && runtime.collecting() };
@@ -191,12 +193,17 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       const frame = await chrome.webNavigation.getFrame({ tabId, frameId: 0 });
       if (!frame || frame.documentId !== sender.documentId || frame.url !== m.raw) return;
       const permitted = await chrome.permissions.contains({origins:[new URL(m.raw).origin + '/*']});
+      const description = permitted && m.safe === true ? await descriptionFor(m.raw) : undefined;
+      // Recheck after asynchronous validation, before any privacy decision or accepted Visit.
+      await focus(t);
+      if (tabId !== focused || m.visible === false || arrivedRevision !== navigationRevision.get(tabId)) {
+        await runtime.leave(tabId, t);
+        return { collecting: runtime.collecting() };
+      }
       if (build?.publicWeb && (!permitted || m.safe !== true && m.sensitive !== true)) { await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()}; }
       if (!permitted || m.safe !== true) { await runtime.quarantine('SENSITIVE_CONTENT', t.wall); return { collecting: false }; }
-      await focus(t);
       if (!m.visible) { await runtime.leave(tabId, t); return { collecting: runtime.collecting() }; }
       if (documents.get(tabId) !== sender.documentId) { documents.set(tabId, sender.documentId);boundaries.set(tabId,t); }
-      const description = await descriptionFor(m.raw);
       if (!description) return;
       const s = m.snapshot as PageSnapshot | null;
       if (s && (!validSnapshot(s, runtime.snapshot().session!.sessionId) || s.normalizedUrl !== description.normalizedUrl || s.identity !== description.identity
@@ -257,6 +264,7 @@ chrome.tabs.onActivated.addListener(info => {
     if (info.windowId === focusedWindow) {
       boundaries.set(info.tabId, t); focused = info.tabId;
       await runtime.foreground(info.tabId, t, true);
+      await captureAllowedTabs();
     }
   });
 });
@@ -265,12 +273,15 @@ chrome.windows.onFocusChanged.addListener(windowId => {
   event(async t => {
     if (windowId === chrome.windows.WINDOW_ID_NONE) {
       focused = null; focusedWindow = null; await runtime.foreground(null, t);
-    } else if (tab !== undefined) {
-      focused = tab; focusedWindow = windowId; boundaries.set(tab, t); await runtime.foreground(tab, t);
-    } else await focus(t);
+    } else {
+      if (tab !== undefined) {
+        focused = tab; focusedWindow = windowId; boundaries.set(tab, t); await runtime.foreground(tab, t);
+      }
+      await captureAllowedTabs();
+    }
   });
 });
-chrome.windows.onBoundsChanged.addListener(() => event(t => focus(t)));
+chrome.windows.onBoundsChanged.addListener(() => event(async t => { await focus(t); }));
 chrome.tabs.onRemoved.addListener(tab => event(async t => { await runtime.leave(tab, t, true); documents.delete(tab); }));
 chrome.webNavigation.onCommitted.addListener(d => {
   if (d.frameId !== 0) return;
