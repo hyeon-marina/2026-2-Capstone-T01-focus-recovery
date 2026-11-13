@@ -64,6 +64,8 @@ AI는 최근 5개의 유효 Page Visit을 기준으로 탐색 상태를 분석�
 
 ## v2 수집 환경 준비
 
+- [A/B/C 팀원 PC 현장 검증 — 설치·데이터 보존·10 Visit·Export·결과표](docs/data-collection/team-field-validation.md)
+
 실제 수집은 팀원별 독립 로컬 환경에서 현재 정책과 빌드를 확인하고 본인이 직접 동의한 뒤 시작합니다. 설치·격리 마감·재수집 절차와 검증 범위는 아래 안내를 따릅니다.
 
 - [참여자 안내서](docs/data-collection/participant-guide.md)

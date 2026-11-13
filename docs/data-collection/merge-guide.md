@@ -1,4 +1,5 @@
-> 현재 실제 텍스트 수집·v6 재동의·설치·학습 변환은 [페이지 원본 수집 가이드](page-content-collection.md)를 따릅니다. 아래 버전별 메타데이터 설명은 당시 동작 기록입니다.
+> 팀원별 설치·백업·직접 동의·수집은 [현장 검증 순서표](team-field-validation.md), v6 텍스트·학습 검수는 [페이지 원본 수집 가이드](page-content-collection.md)를 따릅니다. 이 문서는 통합 담당자의 암호화·검증·Import 절차입니다. 아래 합성 실행 결과는 당시 기술 검증 이력입니다.
+
 공식 v5 수집의 동의 ID는 그대로 보존한다. 공식 v6 재동의 후 서버가 해당 세션의 후속 이용을 허용하면 최신 privacy 응답에 현재 동의 ID가 `authorizedByConsentId`로 포함된다. Import 및 training-review는 이 권한과 수집 당시 동의, Privacy revision, 전체 철회, Tombstone을 확인한다. 검증 실패 시 원본·레지스트리·기존 결과를 보존하고 새 privacy를 발급받는다. 평문 연락처가 들어 있는 번들은 Import 단계에서 거절한다.
 
 # age Export/Import 및 데이터 통합
@@ -55,6 +56,22 @@ python3 tools/individual-local/dataset.py verify .collection/merge/incoming/B-00
 python3 tools/individual-local/dataset.py verify .collection/merge/incoming/C-001.tar.age \
   --identity .collection/merge/identity.agekey --sha256 "$C_SHA256"
 ```
+
+Windows PowerShell(**NOT_TESTED**):
+
+```powershell
+$aHash = Read-Host 'A 암호문의 확인된 SHA-256 (소문자)'
+$bHash = Read-Host 'B 암호문의 확인된 SHA-256 (소문자)'
+$cHash = Read-Host 'C 암호문의 확인된 SHA-256 (소문자)'
+python tools/individual-local/dataset.py verify .collection/merge/incoming/A-001.tar.age --identity .collection/merge/identity.agekey --sha256 $aHash
+python tools/individual-local/dataset.py verify .collection/merge/incoming/B-001.tar.age --identity .collection/merge/identity.agekey --sha256 $bHash
+python tools/individual-local/dataset.py verify .collection/merge/incoming/C-001.tar.age --identity .collection/merge/identity.agekey --sha256 $cHash
+python tools/individual-local/dataset.py inspect .collection/merge/incoming/A-001.tar.age --identity .collection/merge/identity.agekey
+python tools/individual-local/dataset.py inspect .collection/merge/incoming/B-001.tar.age --identity .collection/merge/identity.agekey
+python tools/individual-local/dataset.py inspect .collection/merge/incoming/C-001.tar.age --identity .collection/merge/identity.agekey
+```
+
+각 명령 exit 0을 확인한 뒤 다음 줄로 진행합니다. 발신자가 제공한 SHA는 CLI 출력과 같은 **소문자 64자리**를 사용합니다(Windows Get-FileHash는 `.Hash.ToLowerInvariant()` 사용).
 
 `PASS`는 외부 해시(지정한 경우), age 복호화, tar member 안전성/중복, `checksums.sha256`, Manifest 파일 목록/SHA-256/행 수, 스키마·필드·ID·소유권·FK·Visit 수치/순서/추출을 검사한 결과입니다. 현재 동의/철회 확인은 다음 단계가 별도로 필요합니다. 오류는 exit2이며 성공 데이터셋을 만들지 않습니다. 잘못된 키/파일을 바꿔가며 기존 결과를 덮지 않습니다.
 
@@ -123,7 +140,34 @@ python3 tools/individual-local/dataset.py merge \
   --registry .collection/merge/registry.sqlite --output .collection/merge/dataset-001.tar.age
 ```
 
-`--bundle-sha256`의 순서는 입력 파일 순서와 같습니다. PowerShell은 `python`과 `$aHash` 등의 변수를 사용하고 한 줄로 실행하거나 backtick으로 연결합니다. 경로에 공백이 있으면 따옴표로 감쌉니다. 실데이터에서 synthetic 예외 옵션을 사용하지 않습니다.
+`--bundle-sha256`의 순서는 입력 파일 순서와 같습니다. 경로에 공백이 있으면 따옴표로 감쌉니다. 실데이터에서 synthetic 예외 옵션을 사용하지 않습니다.
+
+Windows PowerShell 전체 예시(**실장비 NOT_TESTED**). 값은 발신자가 확인한 SHA와 통합 담당자의 공개 수신키를 입력합니다. 백틱 뒤에 공백을 붙이지 않습니다.
+
+```powershell
+$aHash = Read-Host 'A 암호문의 확인된 SHA-256'
+$bHash = Read-Host 'B 암호문의 확인된 SHA-256'
+$cHash = Read-Host 'C 암호문의 확인된 SHA-256'
+$aPrivacyHash = Read-Host 'A 최신 privacy의 확인된 SHA-256'
+$bPrivacyHash = Read-Host 'B 최신 privacy의 확인된 SHA-256'
+$cPrivacyHash = Read-Host 'C 최신 privacy의 확인된 SHA-256'
+$mergeRecipient = age-keygen -y .collection/merge/identity.agekey
+python tools/individual-local/dataset.py merge `
+  .collection/merge/incoming/A-001.tar.age `
+  .collection/merge/incoming/B-001.tar.age `
+  .collection/merge/incoming/C-001.tar.age `
+  --bundle-sha256 $aHash --bundle-sha256 $bHash --bundle-sha256 $cHash `
+  --privacy .collection/merge/incoming/A-privacy-001.json $aPrivacyHash `
+  --privacy .collection/merge/incoming/B-privacy-001.json $bPrivacyHash `
+  --privacy .collection/merge/incoming/C-privacy-001.json $cPrivacyHash `
+  --identity .collection/merge/identity.agekey --recipient $mergeRecipient `
+  --registry .collection/merge/registry.sqlite --output .collection/merge/dataset-001.tar.age
+if ($LASTEXITCODE -ne 0) { throw 'Import 실패. 원본과 Registry를 보존하세요' }
+python tools/individual-local/dataset.py verify .collection/merge/dataset-001.tar.age --identity .collection/merge/identity.agekey
+python tools/individual-local/dataset.py inspect .collection/merge/dataset-001.tar.age --identity .collection/merge/identity.agekey
+```
+
+§4/5의 수신본 verify/inspect도 PowerShell에서 `python` 및 위 `$aHash`/`$bHash`/`$cHash`를 사용해 **먼저** 실행합니다. 각 명령 exit 0을 확인한 뒤 다음 단계로 진행합니다.
 
 Import는 raw DB 테이블에 쓰지 않고 검증된 JSONL 데이터셋을 만듭니다. **부분 통합은 필요한 출처의 Export/현재 privacy 쌍만 전달**하면 됩니다. 레지스트리는 원문을 보관하지 않으므로 다음 데이터셋에 계속 포함할 원본 Export도 다시 입력해야 합니다. 레지스트리에 과거 Import가 있다고 이전 데이터가 자동으로 붙지는 않습니다.
 
@@ -223,10 +267,10 @@ Windows PowerShell (**NOT_TESTED**):
 
 ```powershell
 $ageRecipient = Read-Host '통합 담당자의 age1 공개키'
-py -3 tools/individual-local/dataset.py export --server https://localhost:9443 --ca-file .collection/local/tls/localhost.pem --credential-file .collection/local/participant.json --recipient $ageRecipient --output .collection/local/A-001.tar.age
-py -3 tools/individual-local/dataset.py privacy --server https://localhost:9443 --ca-file .collection/local/tls/localhost.pem --credential-file .collection/local/participant.json --output .collection/local/A-privacy-001.json
+python tools/individual-local/dataset.py export --server https://localhost:9443 --ca-file .collection/local/tls/localhost.pem --credential-file .collection/local/participant.json --recipient $ageRecipient --output .collection/local/A-001.tar.age
+python tools/individual-local/dataset.py privacy --server https://localhost:9443 --ca-file .collection/local/tls/localhost.pem --credential-file .collection/local/participant.json --output .collection/local/A-privacy-001.json
 ```
 
 B/C는 파일 이름만 자기 슬롯으로 바꾼다. 파일 2개와 출력 SHA-256 2개를 승인된 비공개 경로/별도 인증 경로로 담당자에게 전달한다. 개인 Credential·Owner Key·TLS/age 개인키는 전달하지 않는다. 담당자는 4~8절의 verify/inspect/merge로 **자기 개인키**를 사용해 메모리에서 복호화·Manifest/SHA/Source/Participant/계획/현재 privacy·격리/철회를 검사한다. 실패 파일은 임의 수정하지 않고 보존·격리한다. 동일 Export는 멱등이며 레지스트리를 삭제하지 않는다.
 
-#105의 title/content/searchQuery는 [고정 메타데이터 의미](real-collection-policy.md)를 가진다. 기존 Export 필드/버전은 유지하므로 원문 텍스트를 포함하는 과거 정책과 섞어 모델 학습 입력으로 자동 해석하지 않는다. metadata 표식으로 검색어를 복원하거나 HMAC 주소를 사이트에 요청하지 않는다.
+과거 v2~v4(#105)의 title/content/searchQuery는 [고정 메타데이터 의미](real-collection-policy.md)였다. **현행 v6는 실제 텍스트**이며 [페이지 수집 가이드](page-content-collection.md)의 마스킹·제외·학습 검수를 적용한다. 기존 Export 필드/버전은 호환되지만 과거 metadata 표식을 학습용 본문으로 해석하거나 검색어를 복원하지 않는다. HMAC 주소를 사이트에 요청하지 않는다.
