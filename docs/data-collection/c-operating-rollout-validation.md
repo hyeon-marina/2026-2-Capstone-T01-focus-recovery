@@ -1,6 +1,6 @@
 # PR 120 재검증과 C 운영 반영 준비
 
-2026-11-13 KST. 결과는 **PARTIAL**이다. 운영 반영·백업·실제 참여자 수집은 승인 전이며 실제 C 10 Visit 성공으로 보고하지 않는다. 기존 검증은 [수집 안정성 보고서](collection-reliability-validation.md)에 보존한다.
+2026-11-13 KST. 결과는 **PARTIAL**이다. 사용자가 상태 조회와 백업·격리 복구 검증을 별도 승인했다. DB·운영 파일 암호화 백업과 격리 복구는 PASS, Chrome 프로필 백업은 접근 제한으로 사용자 조작 대기다. 운영 교체·실제 참여자 수집은 승인 전이며 실제 C 10 Visit 성공으로 보고하지 않는다. 기존 검증은 [수집 안정성 보고서](collection-reliability-validation.md)에 보존한다.
 
 ## 코드와 PR 기준
 
@@ -61,7 +61,16 @@ GET `/api/collection/progress`와 파일 해시 등의 원문 없는 증거는 `
 
 ## 승인 후 수행할 백업과 복구 검증
 
-아직 실행하지 않았다. 아래 범위를 먼저 승인받는다.
+사용자가 아래 백업·격리 복구 검증만 승인했다. 실제 C API Export·FE 교체·BE 재시작·새 세션/동의·PR 병합은 포함하지 않는다.
+
+- 백업 디렉터리: 기존 C의 `.collection/rollout-backups/PR120-20261113-phase1`, 0700. age 키는 기존 0600 파일에 유지하고 내용은 출력/복사하지 않는다.
+- `database.sql.age`와 `operating-files.tar.age` 생성, 0600. DB dump/파일 tar의 평문은 메모리에서 age로 보내고 평문 백업 파일은 남기지 않았다. 원래 bundle/JAR/config/participant/owner/secrets/TLS를 보존했다.
+- 실제 복호화 PASS. 새 `focus120-c-restore-9f7d07134c93`의 **network=none/host port0/DB tmpfs**에서 실제 백업을 복구했다. 37개 테이블의 행 수·checksum 일치, FK50개 참조 오류0, 운영 원본 전후 불변 PASS. 검증 후 테스트 컨테이너만 정상 종료했다. 운영 MySQL/Volume은 재시작/복원하지 않았다.
+- 운영 파일 archive26개 항목을 메모리에서 검증했고 source의 13개 파일 SHA는 불변이다. 세부 checksum·테이블 수량은 백업 디렉터리의 manifest/restore-validation.json에 보호된 상태로 보존한다.
+- 사용자가 Chrome 정상 종료/Terminal 실행을 위임해 수집 중지·Queue0 상태를 재확인한 뒤 Chrome 메뉴로 정상 종료했다. 강제 종료는 사용하지 않았다. 이후 Computer Use 도구가 `com.apple.Terminal` 자동 조작을 안전 사유로 거부했다. macOS의 Codex 프로필 접근 거부도 남아 있어 준비된 프로필 암호화 명령의 **사용자 직접 실행**을 요청했다. 다른 앱/프로세스로 제한을 우회하지 않는다.
+- Chrome 정상 종료 후 동일 경로를 한 번 재확인해도 macOS EPERM이었다. 프로필 백업은 아직 생성되지 않았으며, 이 검증을 생략하고 운영 교체로 넘어가지 않는다.
+
+프로필 백업과 전체 백업 검증이 끝나기 전에는 운영 후보를 적용하지 않는다. 남은 프로필 절차와 전체 검증 원칙은 다음과 같다.
 
 1. 상태 화면 열기는 사용자 별도 승인을 받아 위와 같이 확인했다. 사용자가 새 동의·세션 없이 Chrome을 직접 종료한다. Codex는 Chrome을 임의 종료하지 않는다. 백업 직전에 Queue/ACK를 재확인하고 불명확한 상태에서 새 수집을 시작하지 않는다.
 2. 실제 프로필의 확장 IndexedDB와 Local Extension Settings는 macOS 접근 허용이 필요하다. 권한을 넓히지 않으려면 사용자가 승인된 백업 명령을 직접 실행하는 방식을 사용한다. Codex가 개인정보 보호 설정을 바꾸거나 다른 프로세스로 제한을 우회하지 않는다.
@@ -79,6 +88,7 @@ GET `/api/collection/progress`와 파일 해시 등의 원문 없는 증거는 `
 - BE: 검증한 JAR를 같은 운영 runtime 경로로 교체하고 기존 nonce/PID 신원을 확인한 프로세스만 정상 종료·재시작한다. 동일 정책·TLS·Source·DB와 Volume을 사용한다. **`local.py stop`은 MySQL까지 중지하므로 BE만 재시작하는 승인에 사용하지 않는다.** MySQL/healthcheck 재생성은 이번 필수 변경에서 제외한다.
 - 실행 후 FE/BE sourceCommit·파일 checksum·policy SHA·HTTPS·DB schema를 확인한다. runtime credential이 비워지면 사용자가 기존 Credential로 직접 재인증한다. 새 동의가 필요하면 사용자가 직접 수행한다.
 - 실패 시 수집을 중지하고 변경 단계와 Queue·서버 상태를 비교한다. 이전 bundle/JAR를 복구할 수 있으나 DB/Chrome 프로필의 자동 덮어쓰기는 하지 않는다. 이미 수신된 Visit·Consent·Retraction은 바이너리 롤백으로 되돌아가지 않는다.
+- 이전 BE `e088f03`은 일반 카드 설명문도 거절한다. 따라서 새 코드에서 허용한 Visit이 저장된 뒤 구버전으로 롤백하면 같은 ID의 ACK 복구도 판정 차이로 막힐 수 있다(검증이 replay보다 앞서는 코드 경로에 근거한 위험). 수집·Queue 상태를 확인하지 않은 자동 바이너리 롤백도 하지 않는다.
 - 실제 세션 시작/재수집, 새로운 동의, 실제 Export, PR 병합은 각각 별도 승인을 받는다. 현재 PLAN-003을 CLEAR/ACTIVE로 바꾸지 않는다. 공식 새 Attempt 경로를 이용한다.
 
 ## 실제 C 단계별 수집 결과
