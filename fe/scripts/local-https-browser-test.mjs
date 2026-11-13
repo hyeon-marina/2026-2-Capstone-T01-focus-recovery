@@ -92,7 +92,7 @@ try {
         let response;
         response=await page.goto(publicPages[n-1],{waitUntil:'domcontentloaded',timeout:60000});
         if(response) assert.equal(response.status(),200);
-        assert.ok(['docs.python.org','blog.python.org','news.ycombinator.com','books.toscrape.com','search.naver.com'].includes(new URL(page.url()).hostname));
+        assert.ok((localizedDocs?['docs.github.com']:['docs.python.org','blog.python.org','news.ycombinator.com','books.toscrape.com','search.naver.com']).includes(new URL(page.url()).hostname));
         observedPages.push({domain:new URL(page.url()).hostname,status:response?.status()??200,...(localizedDocs?{locale:new URL(page.url()).pathname.split('/')[1]}:{})});
       } else if(n===2)await page.evaluate(()=>history.pushState({},'','/public/page?page=2'));
       else await page.goto('https://example.org/public/page?page='+n);
