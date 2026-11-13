@@ -134,7 +134,16 @@ GET `/api/collection/progress`와 파일 해시 등의 원문 없는 증거는 `
 
 새 테스트 경로의 최초 실패도 보존했다. `localized-external-repeat`는 새 worktree의 JAR 부재로 브라우저 실행 전 FAIL, `localized-external-ready`는 localized 시나리오에 기존 Python/Naver 도메인 집합을 적용한 테스트 도구 결함으로 FAIL했다. 후자는 시나리오별 정확한 도메인을 확인하도록 별도 커밋했으며 원래 공개 사이트 시나리오의 검사도 유지했다. `localized-be-regression`은 일반 Chrome157의 확장 CLI 미지원으로 1148개 중 브라우저 연동3개 FAIL/SKIP0이었다. [Chrome의 공식 변경 안내](https://groups.google.com/a/chromium.org/g/chromium-extensions/c/1-g8EFx2BBY/m/my-groups)에 따라 지원되는 CFT151에서 전체를 새 스키마로 실행해 PASS했다. 실패 XML/로그는 성공 실행과 별도로 보존한다. 보안 기능을 다시 켜는 우회 플래그는 사용하지 않았다.
 
-최종 증거는 비공개 `localized-final-test-summary.json`·`localized-external-final/summary.json`·`localized-be-cft-pass-xml`에 있다. 운영 C의 Chrome157은 여전히 `0941d50`이며 locale 수정은 **추가 FE 반영 승인 전**이다. BE/AI/스키마는 `0941d50`과 source diff가 없으므로 다음 단계는 FE8개 파일만 교체 대상으로 삼는다. 기존 DB/프로필의 자동 복원은 하지 않는다.
+최종 독립 증거는 비공개 `localized-final-test-summary.json`·`localized-external-final/summary.json`·`localized-be-cft-pass-xml`에 있다. BE/AI/스키마는 `0941d50`과 source diff가 없어 추가 교체 대상은 FE8개 파일뿐이다.
+
+### 승인된 locale 수정 운영 반영
+
+2026-11-14 사용자가 추가 백업·FE 교체·이번 실패 Attempt의 공식 재수집 허용을 별도 승인했다.
+
+- 기존 백업 하위의 새 `pre-localized-20261114`에 현 DB·운영 파일21개를 age 암호화했다. 이전 백업을 덮어쓰지 않았고 평문 파일은 만들지 않았다. DB SHA256 `c460c3f134dd700f3451ac44d6b415ff7a3a1abe472d1a6f15f7456444ff38a9`, 파일 archive `fd9099b1477e19c9175cd3ed25ddf46942d5c04cf51e9413199a3f3a4c9468ed`. network=none·포트0·tmpfs MySQL에서 실제 복호화/복구, 37개 테이블 행 수/checksum·FK50개·원본 불변 PASS. 운영 Volume 복원/재시작은 하지 않았다. Chrome 프로필 백업은 첫 반영 전 파일을 보존하며 이번에 새로 읽지 않았다. 실제 Chrome 논리 복원은 NOT_TESTED다.
+- 이번 실패 Attempt에만 UI의 ‘본인 요청’/`USER_REQUEST`를 선택해 공식 재수집 허용 요청을 수행했다. reviewStatus PENDING→RECOLLECT_REQUIRED, 기존 ENDED/QUARANTINED·Visit0 유지, 이전6개 Attempt 내용 불변을 API/DB로 확인했다. 직접 SQL 상태 변경은 하지 않았다.
+- 새 운영 브랜치 `ops/c-pr120-localized-20261114`, HEAD `21826627b7f067465585b9dfec4f07055616a067`에서 기존 FE 절대 경로의8개 파일만 반영했다. 두 이전 운영 브랜치는 그대로 보존했다. 전후 DB37개 테이블 전체 행 수/checksum, 기존 JAR/PID 기록·정책·설정·인증서·Credential·PDF7개 파일 SHA 불변, 같은 MySQL 컨테이너/StartedAt/마운트 불변 PASS. Backend/MySQL 재시작·스키마 변경·프로필/Queue 초기화 없음.
+- Chrome의 동일 Extension ID/경로에서 명시적으로 새로고침했고 ‘새로고침 완료’ 및 실제 수집 화면의 `21826627b7f0`, 기존 ENDED/격리 마감·Visit0 상태를 확인했다. 재시작 후 runtime Credential은 비어 있어 사용자 직접 기존 파일 재인증·PLAN-003 시작을 요청했다. 새 동의·새 세션·운영 Export는 자동 실행하지 않았다.
 
 |단계|로컬 Visit|서버 ACK Visit|실제 서버 저장|Pending|상태|결과|
 |---|---:|---:|---:|---:|---|---|
