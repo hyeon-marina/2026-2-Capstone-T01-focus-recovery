@@ -117,12 +117,31 @@ GET `/api/collection/progress`와 파일 해시 등의 원문 없는 증거는 `
 - 독립 `fix/119/localized-public-documents`에서 회귀 테스트20개를 먼저 추가해 번역 언어8개 FAIL/기존 영문 및 차단12개 PASS를 확인했다. 공식9개 언어의 동일 `/pages` 경로 경계로 예외를 제한하며 다른 경로·미확인 locale·진짜 Token/비밀번호/카드/SSN 마커 차단과 입력값 미접근을 유지한다. 수정 후 FE1020 PASS(기존 opt-in HTTP2개는 별도 서버 통합 대상), 같은 실제 EN/KO probe PASS·한국어 본문1227자 추출을 확인했다. 새 수정본의 운영 반영은 별도 승인 전이다.
 - 실패 세션은 공식 ‘세션 종료·수집 중지’ 경로로 마감했다. ENDED/QUARANTINED·격리 마감 ACK 완료·Visit0·Retraction0/Tombstone0·AI NOT_RUN, 기존6개 Attempt 내용 불변을 확인했다. 기존 세션을 CLEAR로 바꾸거나 실패를 성공으로 처리하지 않았다. 현재 전체 Session/Attempt는 각각7개다.
 
+### Locale 수정본의 전체 재검증
+
+제품 수정 `2cfa175`, E2E 시나리오 검증 보완 `21826627b7f067465585b9dfec4f07055616a067`. [GitHub Docs 공식 언어 정의](https://github.com/github/docs/blob/main/src/languages/lib/languages.ts)의 en/es/ja/pt/zh/ru/fr/ko/de와 `/pages` 경계만 다룬다. API/동의/정책 SHA/BE/AI/저장 형식/스키마 변경은 없다.
+
+|항목|결과|
+|---|---|
+|FE 전체|1,020 PASS. 기존 opt-in HTTP2개는 아래 실제 서버 통합에서 실행 PASS. 조건 완화/추가 SKIP 없음|
+|TypeScript·공식 real build/package|PASS. 운영 후보는 clean `2182662`, API https://localhost:9443, v6 정책 SHA·Manifest 권한 불변|
+|BE·실제 MySQL·HTTP/Chrome/MOCK FastAPI|58 classes / 1,148 PASS, FAIL/ERROR/SKIP0. 지원되는 Chrome for Testing151 사용|
+|AI·로컬/데이터셋·회수 도구|276 PASS·42 PASS·5 PASS. AI deprecation 경고1. 텍스트 개인정보 규칙/공통 fixture 불변|
+|독립 실제 공개 번역 문서 반복|새 Source/Participant/동의/프로필/MySQL Volume3개, 각10 Visit. 공식9개 언어+한국어 새 문서, 실제 active 최솟값 A5459/B5336/C5320ms. Worker·Chrome 재시작/재인증·탭 전환·제외 페이지 후 정상 종료, pending0·END ACK acked·RAW_COLLECTED·AI NOT_RUN PASS|
+|독립 Export/Import/RAW 검수|3세션30 Visit24 무라벨 Window PASS, 중복 Import3 거부. 운영 C Export는 미실행|
+
+세 MV3 실행의 Content Script SHA256은 `23df48f13f51bdc89cd292a308d393dc0e6a96ffbd1f638f7f64ed5028f6512c`로 clean 운영 후보와 동일하다. E2E worktree의 dirty=true는 top-level `node_modules` 의존성 링크만 untracked였기 때문이며 tracked 변경은 없었다. 운영 후보는 같은 설치 의존성을 실제 ignored 디렉터리로 복사해 dirty=false로 다시 빌드했고 정책·Manifest·source 검증을 완화하지 않았다. 기존 dirty 후보도 별도 보존했다.
+
+새 테스트 경로의 최초 실패도 보존했다. `localized-external-repeat`는 새 worktree의 JAR 부재로 브라우저 실행 전 FAIL, `localized-external-ready`는 localized 시나리오에 기존 Python/Naver 도메인 집합을 적용한 테스트 도구 결함으로 FAIL했다. 후자는 시나리오별 정확한 도메인을 확인하도록 별도 커밋했으며 원래 공개 사이트 시나리오의 검사도 유지했다. `localized-be-regression`은 일반 Chrome157의 확장 CLI 미지원으로 1148개 중 브라우저 연동3개 FAIL/SKIP0이었다. [Chrome의 공식 변경 안내](https://groups.google.com/a/chromium.org/g/chromium-extensions/c/1-g8EFx2BBY/m/my-groups)에 따라 지원되는 CFT151에서 전체를 새 스키마로 실행해 PASS했다. 실패 XML/로그는 성공 실행과 별도로 보존한다. 보안 기능을 다시 켜는 우회 플래그는 사용하지 않았다.
+
+최종 증거는 비공개 `localized-final-test-summary.json`·`localized-external-final/summary.json`·`localized-be-cft-pass-xml`에 있다. 운영 C의 Chrome157은 여전히 `0941d50`이며 locale 수정은 **추가 FE 반영 승인 전**이다. BE/AI/스키마는 `0941d50`과 source diff가 없으므로 다음 단계는 FE8개 파일만 교체 대상으로 삼는다. 기존 DB/프로필의 자동 복원은 하지 않는다.
+
 |단계|로컬 Visit|서버 ACK Visit|실제 서버 저장|Pending|상태|결과|
 |---|---:|---:|---:|---:|---|---|
 |시작|0|0|0|0|사용자 직접 새 Session 시작, ACTIVE/CLEAR·관찰 허용 확인|PASS|
 |1 Visit|0|0|0|0|한국어 공개 Docs의 survey-token 오탐으로 QUARANTINED|FAIL|
-|5 Visit|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|미시작|NOT_TESTED|
-|10 Visit|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|미시작|NOT_TESTED|
+|5 Visit|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|첫 시도 격리로 미진행|NOT_TESTED|
+|10 Visit|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|첫 시도 격리로 미진행|NOT_TESTED|
 |종료|0|0|0|0|ENDED/QUARANTINED·격리 마감 완료. 정상 END ACK와 구분|PASS (격리 마감)|
 
 실제 C의 END ACK/RAW_COLLECTED·중복/sequence·AI NOT_RUN·Export/Import는 새 세션에 대해 아직 확인하지 않았다. 합성 테스트 PASS를 이 표에 옮기지 않는다. Google 정상 검색 DOM은 과거 CAPTCHA로 미검증이며, 실제 C 성공을 대체하지 않는다.
