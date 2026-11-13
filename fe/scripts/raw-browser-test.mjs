@@ -40,7 +40,9 @@ const fixture=createServer((req,res)=>{
   const text=`SYNTHETIC TEST ONLY. Controlled TypeScript transaction research with durable local observations and reliable browser storage. You should not enter a credit card on untrusted pages. ${req.url}`;
   const focused=faults && req.url==='/public/page-1';
   const delayed=faults && req.url==='/public/page-2';
-  res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><title>SYNTHETIC public page ${req.url.split('-').at(-1)}</title><body>${focused?'<form role="search"><input type="search" name="q" autofocus value="UNSUBMITTED_SYNTHETIC_INPUT"></form>':''}<article>${delayed?'':text}</article>${delayed?`<script>setTimeout(()=>document.querySelector('article').textContent=${JSON.stringify(text)},2000)</script>`:''}</body></html>`);
+  const large=faults && req.url==='/public/page-9';
+  const body=large?'<section>'.repeat(24)+`<p><span>${text}</span></p>`.repeat(10000)+'</section>'.repeat(24):delayed?'':text;
+  res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><title>SYNTHETIC public page ${req.url.split('-').at(-1)}</title><body>${focused?'<form role="search"><input type="search" name="q" autofocus value="UNSUBMITTED_SYNTHETIC_INPUT"></form>':''}<article>${body}</article>${delayed?`<script>setTimeout(()=>document.querySelector('article').textContent=${JSON.stringify(text)},2000)</script>`:''}</body></html>`);
 });
 await new Promise((r,j)=>{fixture.once('error',j);fixture.listen(8911,'127.0.0.1',r);});
 let context,harness;
@@ -89,6 +91,14 @@ try {
       }
       if(n===2){worker=context.serviceWorkers()[0]||await context.waitForEvent('serviceworker');await worker.evaluate(()=>{const original=globalThis.fetch;globalThis.__rawNetworkFailure=true;globalThis.fetch=(input,init)=>{if(globalThis.__rawNetworkFailure&&String(input).endsWith('/visits')){globalThis.__offlineVisitId=JSON.parse(init.body).visitId;return Promise.reject(new TypeError('Synthetic upload outage'));}return original(input,init);};});}
       await page.goto(`http://127.0.0.1:8911/public/page-${metadataOnly ? '1?page='+n : faults&&n===7?1:n}`);await page.bringToFront();
+      if(faults && n===9)await worker.evaluate(async()=>{
+        const [tab]=await chrome.tabs.query({active:true,lastFocusedWindow:true});
+        const frame=await chrome.webNavigation.getFrame({tabId:tab.id,frameId:0});
+        globalThis.__pulseTimes=[];globalThis.__recordPulses=true;
+        chrome.runtime.onMessage.addListener((message,sender)=>{
+          if(globalThis.__recordPulses && message.type==='v2-observation' && sender.documentId===frame.documentId)globalThis.__pulseTimes.push(performance.now());
+        });
+      });
       if(faults && n===4){
         const manager=await context.newPage();await manager.goto('chrome://extensions/');
         const dev=manager.locator('#devMode');
@@ -124,6 +134,15 @@ try {
         await send('retry');await page.bringToFront();
       }
       await wait(s=>s.validVisits>=n,'measured visit '+n);
+      if(faults && n===9){
+        const timing=await worker.evaluate(()=>{
+          globalThis.__recordPulses=false;
+          const samples=globalThis.__pulseTimes;
+          return {samples:samples.length,maxGapMs:Math.max(...samples.slice(1).map((t,i)=>t-samples[i]))};
+        });
+        assert.ok(timing.samples>=3);assert.ok(timing.maxGapMs<=1500,JSON.stringify(timing));
+        await writeFile(join(evidence,'large-dom-pulses.json'),JSON.stringify(timing),{mode:0o600});
+      }
       dwell.push({visit:n,elapsedMs:Date.now()-started});
       if(n===3){const cdp=await context.newCDPSession(harness);await cdp.send('ServiceWorker.enable');await cdp.send('ServiceWorker.stopAllWorkers');await cdp.detach();await wait(s=>s.validVisits>=3,'service worker recovery');}
       if(n===5){await capture('collection-progress');await context.close();context=await launch();worker=context.serviceWorkers()[0]||await context.waitForEvent('serviceworker');harness=await context.newPage();await harness.goto(`chrome-extension://${id}/participant/index.html`);assert.equal((await send('status')).collectionAllowed,false);await login();await wait(s=>s.collectionAllowed,'browser reauthentication');page=await context.newPage();}

@@ -1,6 +1,6 @@
 import { highRiskText, maskPublicContacts, safeSearchIntent } from '../src/shared/privacy';
 import { topicTitle } from '../src/shared/metadata';
-import { cleanText, excludedPublicLayout, extractMainContent, hasFocusedEditable, isSensitivePublicDocument, isExcludedDocument, isExcludedMetadataDocument, isExcludedPublicDocument } from '../src/content/extraction';
+import { cleanText, excludedPublicLayout, extractMainContent, hasFocusedEditable, isSensitivePublicDocument, isExcludedDocument, isExcludedMetadataDocument } from '../src/content/extraction';
 import { extractSearchContent } from '../src/content/search';
 import { describeUrl, inspectUrl } from '../src/shared/url';
 import { publicText, publicSearchQuery } from './policy';
@@ -37,13 +37,15 @@ async function pulse() {
     }
     const inspected = inspectUrl(raw, context.metadataOnly === true);
     const pageContent = context.pageContent === true;
-    const safe = !!inspected && !(pageContent ? isExcludedPublicDocument(document) : context.metadataOnly === true ? isExcludedMetadataDocument(document) : isExcludedDocument(document, inspected.isSearchResultPage ? inspected.url : undefined));
+    const excludedDocument = !!inspected && (pageContent || context.metadataOnly === true ? isExcludedMetadataDocument(document) : isExcludedDocument(document, inspected.isSearchResultPage ? inspected.url : undefined));
+    const excludedLayout = !!inspected && pageContent && !excludedDocument && excludedPublicLayout(document);
+    const safe = !!inspected && !excludedDocument && !excludedLayout;
     const denied = /^(?:40[134]|5\d\d|error\b|page not found|not found|access denied|forbidden|unauthorized|접근 거부|페이지를 찾을 수)/i.test(document.title.trim());
     if (pageContent && highRiskText(cleanText(document.title))) {
       await chrome.runtime.sendMessage({type:'v2-observation',raw,safe:false,sensitive:true,visible:document.visibilityState === 'visible'});
       return;
     }
-    if (pageContent && (document.contentType !== 'text/html' || denied || !isExcludedMetadataDocument(document) && excludedPublicLayout(document))) {
+    if (pageContent && (document.contentType !== 'text/html' || denied || excludedLayout)) {
       await chrome.runtime.sendMessage({type:'v2-observation',raw,safe:true,snapshot:null,visible:document.visibilityState === 'visible',extractionFailed:true,failureReason:'EXTRACTION_ACCESS_DENIED'});return;
     }
     if (!safe) {

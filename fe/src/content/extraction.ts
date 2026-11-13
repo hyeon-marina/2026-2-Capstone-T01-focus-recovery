@@ -3,10 +3,13 @@ const OMIT = 'script,style,noscript,nav,header,footer,aside,form,input,textarea,
 const PRIVATE_INPUT = 'input[type="password"],input[type="email"],input[type="tel"],input[autocomplete^="cc-"],input[autocomplete="street-address"],input[autocomplete="one-time-code"],input[autocomplete="given-name"],input[autocomplete="family-name"],input[name*="password" i],input[name*="token" i],input[name*="ssn" i],input[name*="card" i]';
 export function isVisible(element: Element): boolean {
   for (let current: Element | null = element; current; current = current.parentElement) {
-    const style = current.ownerDocument.defaultView!.getComputedStyle(current);
-    if (current.hasAttribute('hidden') || current.getAttribute('aria-hidden') === 'true' || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || style.opacity === '0' || style.contentVisibility === 'hidden') return false;
+    if (!locallyVisible(current)) return false;
   }
   return true;
+}
+function locallyVisible(element: Element): boolean {
+  const style = element.ownerDocument.defaultView!.getComputedStyle(element);
+  return !(element.hasAttribute('hidden') || element.getAttribute('aria-hidden') === 'true' || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || style.opacity === '0' || style.contentVisibility === 'hidden');
 }
 function isSearchForm(form: Element, searchUrl: URL): boolean {
   if (form.tagName !== 'FORM') return false;
@@ -48,12 +51,16 @@ export function cleanText(text: string): string {
 }
 export function textFrom(element: Element): string {
   if (element.matches(OMIT) || !isVisible(element)) return '';
+  return visibleTextFrom(element);
+}
+// Ancestors are already checked in this synchronous traversal; nothing survives between scans.
+function visibleTextFrom(element: Element): string {
   const pieces: string[] = [];
   for (const node of element.childNodes) {
     if (node.nodeType === 3) pieces.push(node.textContent ?? '');
     else if (node.nodeType === 1) {
       const child = node as Element;
-      const text = textFrom(child);
+      const text = child.matches(OMIT) || !locallyVisible(child) ? '' : visibleTextFrom(child);
       const block = /^(P|DIV|SECTION|ARTICLE|MAIN|H[1-6]|LI|PRE|BR|TR)$/.test(child.tagName);
       pieces.push(block ? `\n${text}\n` : text);
     }
