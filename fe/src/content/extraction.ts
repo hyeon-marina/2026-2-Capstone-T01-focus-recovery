@@ -42,7 +42,7 @@ export function hasFocusedEditable(doc: Document): boolean {
 export function isSensitivePublicDocument(doc: Document): boolean {
   if (doc.querySelector('input[type="password"],input[autocomplete^="cc-"],input[autocomplete="street-address"],input[autocomplete="one-time-code"],input[name*="password" i],input[name*="ssn" i],input[name*="card" i]')) return true;
   // GitHub's public docs include an unsubmitted survey field. Never read it; other token fields block.
-  if ([...doc.querySelectorAll('input[name*="token" i]')].some(input => !(input.getAttribute('name') === 'survey-token' && doc.location?.origin === 'https://docs.github.com' && (doc.location.pathname === '/en/pages' || doc.location.pathname.startsWith('/en/pages/'))))) return true;
+  if ([...doc.querySelectorAll('input[name*="token" i]')].some(input => !(input.getAttribute('name') === 'survey-token' && doc.location?.origin === 'https://docs.github.com' && /^\/(?:en|es|ja|pt|zh|ru|fr|ko|de)\/pages(?:\/|$)/.test(doc.location.pathname)))) return true;
   if (/login|sign in|로그인|결제|환자|진료|의료|medical|patient|diagnosis|password|^error|^404|^403|access denied/i.test(doc.title)) return true;
   return false;
 }
