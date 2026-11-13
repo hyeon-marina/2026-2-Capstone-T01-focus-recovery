@@ -1,6 +1,6 @@
 # PR 120 재검증과 C 운영 반영 준비
 
-2026-11-13 KST. 결과는 **PARTIAL**이다. 사용자가 상태 조회와 백업·격리 복구 검증을 별도 승인했다. DB 암호화 백업·격리 복구, 운영 파일·Chrome 확장 영속 데이터 암호화 백업의 무결성 검증은 PASS다. 프로필을 실제 Chrome에서 복원해 여는 논리 복구 검증은 NOT_TESTED다. 운영 교체·실제 참여자 수집은 승인 전이며 실제 C 10 Visit 성공으로 보고하지 않는다. 기존 검증은 [수집 안정성 보고서](collection-reliability-validation.md)에 보존한다.
+2026-11-13~14 KST. 결과는 **PARTIAL**이다. 사용자가 백업·격리 복구, FE·BE 운영 반영, 새 PLAN-003 시작을 순서대로 별도 승인하고 직접 인증·시작했다. 이후 사용자가 공개 페이지 탐색을 Codex에 위임했다. 첫 공개 문서에서 새 locale 오탐이 재현돼 Visit0·QUARANTINED로 실패했으며 공식 마감했다. 이 기록은 자동 탐색 운영 검증이며 사람의 자연스러운 탐색 학습 표본으로 확정하지 않는다. DB 암호화 백업·격리 복구 및 파일/프로필 백업 무결성은 PASS, Chrome 논리 복원은 NOT_TESTED다. 실제 C 10 Visit 성공으로 보고하지 않는다. 기존 검증은 [수집 안정성 보고서](collection-reliability-validation.md)에 보존한다.
 
 ## 코드와 PR 기준
 
@@ -101,12 +101,28 @@ GET `/api/collection/progress`와 파일 해시 등의 원문 없는 증거는 `
 
 ## 실제 C 단계별 수집 결과
 
+### 승인된 운영 반영 결과
+
+- 운영 새 브랜치 `ops/c-pr120-20261113`, HEAD `0941d50f035165780f27d12e4ced359f202e859b`. 기존 `ops/c-foreground-rollout-20261113`은 `432959e`로 보존했다. 미추적 PDF·설정·인증서 파일 불변, 작업 트리의 기존 untracked PDF 외 변경 없음.
+- 기존 절대 경로의 FE8개 파일과 BE JAR를 검증된 후보로 반영해 SHA9개 일치 확인. nonce 확인한 이전 BE PID75957만 SIGTERM으로 정상 종료, Java21의 새 BE PID93492로 시작했다. 기존 로그에 이어 기록하며 동일 TLS·설정·정책을 사용한다. HTTPS health·기존 인증/동의 API PASS.
+- 교체 직전과 직후 DB37개 테이블의 행 수·checksum 일치 검사를 통과했다. 후속 읽기 전용 검증에서도 전체 행 수·Collection Progress 불변. migration18, Session6·Attempt6·물리Visit1·Consent1·Retraction3·Tombstone3 보존. MySQL 컨테이너 ID·StartedAt·Volume·마운트 구성 불변, restartCount0.
+- 최초 운영 검증 스크립트는 Docker `Mounts` 배열의 순서를 그대로 비교해 **FAIL**했다. 반복 inspect에서 같은 구성의 반환 순서 변동을 직접 재현했다. 항목의 모든 필드를 유지하고 Destination으로 정렬한 엄격 비교를 적용해 PASS. 순서 변경 허용·RW/Source 변경 거부·항목 누락 거부의 자체 검증4건 PASS다. 최초 FAIL JSON은 덮어쓰지 않고 후속 PASS JSON을 별도 보존했다. 후속 verifier의 첫 실행도 실제 JAR의 `META-INF/build-info.properties`를 잘못된 경로로 읽어 FAIL했고, 실제 패키지 경로 확인 후 PASS했다. 제품 결함이나 수집 성공으로 위장하지 않는다.
+- Chrome을 정상 재개했다. 실제 버전157 Default 경로·기존 Extension ID·절대 로드 경로·모든 사이트 접근을 재확인했다. 수집 화면 실제 실행 빌드는 `0941d50f0351`, 기존 ENDED·격리 마감 완료·POST/PATCH0·로컬Visit0 상태를 유지한다. 재시작으로 runtime Credential이 비워져 사용자 직접 기존 파일 재인증을 요청했다. 새 동의·세션·재수집·Export는 하지 않았다.
+
+### 실제 C 첫 실패와 추가 근본 원인
+
+- 이후 사용자가 직접 기존 Credential로 재인증하고 PLAN-003 새 Session/Attempt를 시작했다. 기존6개 Attempt는 그대로 보존했다. Chrome 재시작만으로는 캐시된 구 Worker가 교체되지 않았다. 실제 `v2-status`는 ACTIVE/CLEAR·collectionAllowed=true·storageFailed=false였지만 새 collecting/diagnostic 필드가 없었다. 운영 절차에서 명시적 확장 새로고침을 먼저 수행하지 않은 부분을 바로잡았다. 기존 확장의 새로고침과 사용자 재인증 후 같은 Session이 ACTIVE·관찰 허용으로 복구됐다. 향후 재배포에서도 실제 Worker 응답까지 확인한 뒤 시작해야 한다.
+- 사용자가 탐색을 위임한 후 실제 Chrome 전경에서 GitHub Pages 공개 문서를 열고 실제12초를 기다렸다. 수집 시간은 변경하지 않았다. 실제 URL이 `/ko/pages/getting-started-with-github-pages/what-is-github-pages`였으며 SENSITIVE_CONTENT로 격리됐다. DB/로컬Visit0, pending0, 서버 privacy=QUARANTINED. 최초 실패를 별도 `c-session-first-active.json`에 보존했다.
+- `isSensitivePublicDocument()`가 GitHub Docs의 공개 설문 `survey-token` 마커를 `/en/pages`에서만 예외 처리했다. 같은 공식 한국어 문서의 마커도 인증 Token으로 취급해 조기 격리했다. 독립 Chrome157의 실제 EN/KO DOM probe에서 survey 마커 각각1개·기타 token0, 영문 sensitive=false/본문1940자, 한국어 sensitive=true/본문0으로 재현했다. 원문이나 입력값은 출력하지 않았다.
+- 독립 `fix/119/localized-public-documents`에서 회귀 테스트20개를 먼저 추가해 번역 언어8개 FAIL/기존 영문 및 차단12개 PASS를 확인했다. 공식9개 언어의 동일 `/pages` 경로 경계로 예외를 제한하며 다른 경로·미확인 locale·진짜 Token/비밀번호/카드/SSN 마커 차단과 입력값 미접근을 유지한다. 수정 후 FE1020 PASS(기존 opt-in HTTP2개는 별도 서버 통합 대상), 같은 실제 EN/KO probe PASS·한국어 본문1227자 추출을 확인했다. 새 수정본의 운영 반영은 별도 승인 전이다.
+- 실패 세션은 공식 ‘세션 종료·수집 중지’ 경로로 마감했다. ENDED/QUARANTINED·격리 마감 ACK 완료·Visit0·Retraction0/Tombstone0·AI NOT_RUN, 기존6개 Attempt 내용 불변을 확인했다. 기존 세션을 CLEAR로 바꾸거나 실패를 성공으로 처리하지 않았다. 현재 전체 Session/Attempt는 각각7개다.
+
 |단계|로컬 Visit|서버 ACK Visit|실제 서버 저장|Pending|상태|결과|
 |---|---:|---:|---:|---:|---|---|
-|시작|NOT_VERIFIED|0 (기존 상태)|0 유효|0 (UI 확인)|현재 ENDED/QUARANTINED, 격리 마감 완료, 새 세션 미시작|NOT_TESTED|
-|1 Visit|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|미시작|NOT_TESTED|
+|시작|0|0|0|0|사용자 직접 새 Session 시작, ACTIVE/CLEAR·관찰 허용 확인|PASS|
+|1 Visit|0|0|0|0|한국어 공개 Docs의 survey-token 오탐으로 QUARANTINED|FAIL|
 |5 Visit|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|미시작|NOT_TESTED|
 |10 Visit|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|미시작|NOT_TESTED|
-|종료|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|새 세션 없음|NOT_TESTED|
+|종료|0|0|0|0|ENDED/QUARANTINED·격리 마감 완료. 정상 END ACK와 구분|PASS (격리 마감)|
 
 실제 C의 END ACK/RAW_COLLECTED·중복/sequence·AI NOT_RUN·Export/Import는 새 세션에 대해 아직 확인하지 않았다. 합성 테스트 PASS를 이 표에 옮기지 않는다. Google 정상 검색 DOM은 과거 CAPTCHA로 미검증이며, 실제 C 성공을 대체하지 않는다.
