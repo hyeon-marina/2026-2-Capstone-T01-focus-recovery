@@ -1,0 +1,717 @@
+{
+  "document": "Focus Recovery 팀 데이터 수집 사용자 매뉴얼",
+  "validatedAtKst": "2026-11-13T09:28:00.906798+09:00",
+  "baseMainCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+  "upstreamMainRechecked": "same SHA before documentation commit",
+  "policy": {
+    "id": "focus-team-raw-v2",
+    "version": "6",
+    "mode": "RAW_ONLY",
+    "sha256": "31db27f078c2c80223f3887e33d1853a378e6794098f32319769f01577c2c982",
+    "validator": "PASS",
+    "planRevision": 1,
+    "assignments": {
+      "A": 54,
+      "B": 53,
+      "C": 53
+    }
+  },
+  "pdf": {
+    "pages": 30,
+    "format": "A4 portrait",
+    "sha256": "f4a71bf895cfbeeb80fd1ded8c0fcd44451397011cb5db40321aa8f513bd0654",
+    "koreanFontEmbedded": true,
+    "bodyFontPt": 10.5,
+    "codeFontPt": 9,
+    "allCodeLinesMatchMarkdownIgnoringSoftWhitespace": true,
+    "renderCommand": "pdftoppm -r 150 -png team-data-collection-manual.pdf release",
+    "pageReview": [
+      {
+        "page": 1,
+        "title": "Focus Recovery",
+        "renderedAtDpi": 150,
+        "pngSha256": "8832aec1f3ef5df0f8c6b0f71e4fd2fe2ee483d9cd42d3254a76bc99176a5cf3",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 2,
+        "title": "목차와 읽는 순서",
+        "renderedAtDpi": 150,
+        "pngSha256": "846888b4aba3cf16fa78769d93af889214d2f9d1e993af9712065a01d1f68e81",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 3,
+        "title": "1장. 프로젝트 및 수집 개요",
+        "renderedAtDpi": 150,
+        "pngSha256": "1f087c5614fdf08a582e9660355cbbeae947cc40d345b7a6c807eddb84c4553d",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 4,
+        "title": "2장. 개발 환경 준비",
+        "renderedAtDpi": 150,
+        "pngSha256": "d7efd38138df9effe2fb517c6b9b7f92126b2d38c542690a4c91c2aacf4abf73",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 5,
+        "title": "2장. 개발 환경 준비 · Windows",
+        "renderedAtDpi": 150,
+        "pngSha256": "08b544e3caa3debaf21a3244c40e58d5f53549d21adb940d1b92cf32759867e1",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 6,
+        "title": "3장. 기존 데이터 확인 및 백업",
+        "renderedAtDpi": 150,
+        "pngSha256": "fc9e3b28c110245ca58de24aa036a85133095ca89935ed9ab7555ad940f2937f",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 7,
+        "title": "3장. 업데이트 전 DB 확인",
+        "renderedAtDpi": 150,
+        "pngSha256": "5c958da9300da25324d472fcb752b9b44181b2955782d36ad41725aa796ec872",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 8,
+        "title": "3장. age 암호화 백업",
+        "renderedAtDpi": 150,
+        "pngSha256": "3dbe141cb2b8e6b2e4b73b83d24bf91e57a23ae433ec547b659208527d192fa8",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 9,
+        "title": "4장. 최신 코드 및 정책 v6 업데이트",
+        "renderedAtDpi": 150,
+        "pngSha256": "fb92c0f963dc31aa83baf190b4931731aa360ba687b0e14f73fcad4cd753d1f1",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 10,
+        "title": "4장. 빌드·정책·데이터 보존 확인",
+        "renderedAtDpi": 150,
+        "pngSha256": "1e118652f8258f4f273d57052a85d1a86847c23f3c047e94ec01b28a6dfd62e4",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 11,
+        "title": "5장. Chrome Extension 업데이트",
+        "renderedAtDpi": 150,
+        "pngSha256": "dd1fffbb4cb3c6527b269b662f81c965cb2325de9951d2742a558a45337d85f6",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 12,
+        "title": "5장. 경로가 다른 기존 확장과 최초 설치",
+        "renderedAtDpi": 150,
+        "pngSha256": "7ca827e65e5caf20ce0d83cea1443b3e1117309a4cafc9fd033e00e3075aaa13",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 13,
+        "title": "6장. HTTPS 인증서",
+        "renderedAtDpi": 150,
+        "pngSha256": "a24faacce15ee5e6229b33aecd3b31160fc4743715993b4e08235109a7029afc",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 14,
+        "title": "7장. Credential 로그인 및 직접 동의",
+        "renderedAtDpi": 150,
+        "pngSha256": "fbf9e989b3ae257a93c1c0df9749ef6db8a330bca0164e99fb8de21ce34d7834",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 15,
+        "title": "7장. 정책 v6 읽기와 본인 직접 동의",
+        "renderedAtDpi": 150,
+        "pngSha256": "b947236701ffa3f53416511291298e4cf10f9dfb261c8710a803a20e0550d54d",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 16,
+        "title": "7장. 동의 저장과 Gate 확인",
+        "renderedAtDpi": 150,
+        "pngSha256": "5a95d09c2b713e37df60be7a3c5846020f574a23951dff10b80bbbd92cb368a4",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 17,
+        "title": "8장. 실제 데이터 수집",
+        "renderedAtDpi": 150,
+        "pngSha256": "0136ea729c7c5b4f51f49c232d883bdd127a9169bca13304eb2e8e105babf8e6",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 18,
+        "title": "8장. Visit을 충분히 모으기",
+        "renderedAtDpi": 150,
+        "pngSha256": "c587e331198d1120eb495e96916c9dd3b62e0320cec2fac449ea216bf9304e41",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 19,
+        "title": "8장. 종료·전송·RAW 완료 확인",
+        "renderedAtDpi": 150,
+        "pngSha256": "542c3b2b5e1745d77a0fbae87a3bca5291555413828526a9e630005343d7ded9",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 20,
+        "title": "9장. 오류 및 재수집",
+        "renderedAtDpi": 150,
+        "pngSha256": "d64c2708deb13c11880282ccc6493ea10da3b7c52724eefae7ade474cb2b72cf",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 21,
+        "title": "9장. 동일 배정 재수집",
+        "renderedAtDpi": 150,
+        "pngSha256": "bba188dee31b56a6a70dd889a17b10e1f9ba9c74024693196922d4396f7de11d",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 22,
+        "title": "9장. 안전한 재시작과 v5 예외 복구",
+        "renderedAtDpi": 150,
+        "pngSha256": "da12d3becd24f79dd3642b80f30bf8167ed9dce273d8c143ea7e3b3a9f1136cc",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 23,
+        "title": "10장. 데이터 Export 및 제출",
+        "renderedAtDpi": 150,
+        "pngSha256": "267a6dd54c0698e67c31f3fec0c702012ecc03a675a47a247d34345838e83511",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 24,
+        "title": "10장. Windows Export 및 제출",
+        "renderedAtDpi": 150,
+        "pngSha256": "38362fad940970c5a8bf1034d54dd7de0aef0ea4171c06341c678695c2fe5c72",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 25,
+        "title": "10장. 통합 담당자 — 수신·verify",
+        "renderedAtDpi": 150,
+        "pngSha256": "a3033db2b8253aa09a92d09084c1397347916839b38c4748a403b34b6b971ea7",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 26,
+        "title": "10장. Import·merge — macOS",
+        "renderedAtDpi": 150,
+        "pngSha256": "66f3ee47ccdcd76721acdcfec31c8e51dfa8ed7e4e4d78f23548caf78baa4f56",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 27,
+        "title": "10장. Import·merge — Windows",
+        "renderedAtDpi": 150,
+        "pngSha256": "6d12d646f8982c333d64a10a5048c13dd2d7c9203b8a9588f35472b4fb61cf22",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 28,
+        "title": "10장. 팀원별 완료 결과표",
+        "renderedAtDpi": 150,
+        "pngSha256": "c5cc2da95ae13e2fa5a206d5b9ef67443c48e7ae9543ae9869c269a483959206",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 29,
+        "title": "부록 A. 근거와 화면 출처",
+        "renderedAtDpi": 150,
+        "pngSha256": "6759f0e0b7e6c28466336f7c683674b9adabc75a8d3d1ddd9d25d65b8f204e6d",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      },
+      {
+        "page": 30,
+        "title": "부록 B. 검증 기록과 배포 전 확인",
+        "renderedAtDpi": 150,
+        "pngSha256": "111c63d8d42432d9e4f3410372adb87791ba66584de225d85bc37b0e2304b6d5",
+        "visualReview": "PASS",
+        "koreanAndCodeLegibility": "PASS",
+        "captionsAndPageNumber": "PASS",
+        "textOutOfMargins": 0
+      }
+    ]
+  },
+  "markdownSha256": "0b3a21f93d8547410bd2c41911bb9bc233a131f6aaed0940646cd237721b09b6",
+  "commands": {
+    "cliArgumentParsing": {
+      "sh": 21,
+      "powershell": 19
+    },
+    "shellSyntaxBlocks": 18,
+    "images": 14,
+    "policySha256": "31db27f078c2c80223f3887e33d1853a378e6794098f32319769f01577c2c982",
+    "note": "CLI parsing only. Execution intercepted before file, network, DB operations. PowerShell token normalization does not validate Windows shell."
+  },
+  "links": [
+    {
+      "url": "https://adoptium.net/installation/",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://docs.docker.com/desktop/setup/install/mac-install/",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://docs.docker.com/desktop/setup/install/windows-install/",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://git-scm.com/downloads",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/FiloSottile/age#installation",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/blob/main/docs/data-collection/TEAM_POLICY.json",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/blob/main/docs/data-collection/TEAM_POLICY.sha256",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/blob/main/docs/data-collection/confirmed-goals-proposal.md",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/blob/main/docs/data-collection/individual-local-setup.md",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/blob/main/docs/data-collection/merge-guide.md",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/blob/main/docs/data-collection/page-content-collection.md",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/blob/main/docs/data-collection/team-field-validation.md",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/commit/b7875b12884317346c650d5bd1a4a309fb0d0550",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/issues/112",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/pull/113",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/pull/114",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://nodejs.org/en/download",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://www.google.com/chrome/",
+      "httpStatus": "200",
+      "exit": 0
+    },
+    {
+      "url": "https://www.python.org/downloads/",
+      "httpStatus": "200",
+      "exit": 0
+    }
+  ],
+  "captures": {
+    "publishedCrops": 14,
+    "historicalImagesReused": [],
+    "allNewThisTask": true,
+    "browser": "Chrome for Testing 151.0.7922.34",
+    "kind": "AUTOMATED_TECHNICAL_TEST_NOT_HUMAN_CONSENT",
+    "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+    "researchActuals": 0,
+    "edits": "rectangular crops only; no synthetic UI or altered state",
+    "files": [
+      {
+        "file": "images/manual-v6/extensions-manager.png",
+        "originalSha256": "1c058a5cda327bf5780ac40af9fef892540e60e683bbd77b2365fb9facc6954c",
+        "sha256": "a4f53076ca97eacaaabb1dbdd4d810777bdb186c4da7c1903ccb421da99f1760",
+        "crop": [
+          375,
+          195,
+          790,
+          415
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "evidence/00-extension-manager-after-reload.png",
+        "capturedAtUtc": "2026-11-13T00:24:13.425724+00:00"
+      },
+      {
+        "file": "images/manual-v6/extensions-details.png",
+        "originalSha256": "2a770a93867c891e0d28ccf8e7043367ed4e97c0f2761d5b476bba4d616b0a94",
+        "sha256": "805a4b8bf034734775dd9230c1a9e512c240453323f6200cea7a7751b777746f",
+        "crop": [
+          390,
+          998,
+          1065,
+          1100
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "evidence/00-extension-details.png",
+        "capturedAtUtc": "2026-11-13T00:11:14.148375+00:00"
+      },
+      {
+        "file": "images/manual-v6/credential-login.png",
+        "originalSha256": "4556e1aed173159f608408d31c4b8968131ba718e3367e224903eea5901b88ea",
+        "sha256": "5efe0dbc09bd1d810193a1d5a976d5046f013215d72ba485277074a321db8256",
+        "crop": [
+          140,
+          335,
+          700,
+          805
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "evidence/00-credential-login.png",
+        "capturedAtUtc": "2026-11-13T00:11:12.237986+00:00"
+      },
+      {
+        "file": "images/manual-v6/consent-policy.png",
+        "originalSha256": "0b55fc9587e92529b1aea3456fa0300b48992a96d411a5c63d74b4688a8c6550",
+        "sha256": "ab9041a5ea68df0cc56c00c70f2568f04d69fb909cb7d81be12201a5379f9226",
+        "crop": [
+          155,
+          2075,
+          690,
+          2470
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "evidence/00-policy-before-consent.png",
+        "capturedAtUtc": "2026-11-13T00:11:12.589512+00:00"
+      },
+      {
+        "file": "images/manual-v6/consent-action.png",
+        "originalSha256": "0b55fc9587e92529b1aea3456fa0300b48992a96d411a5c63d74b4688a8c6550",
+        "sha256": "66b8e20c757cc2d23e078fd1be401ab42c6ef356664b8a8c8a9704a471a90e82",
+        "crop": [
+          155,
+          2815,
+          690,
+          2963
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "evidence/00-policy-before-consent.png",
+        "capturedAtUtc": "2026-11-13T00:11:12.589512+00:00"
+      },
+      {
+        "file": "images/manual-v6/gate-banner.png",
+        "originalSha256": "e1ee3527b54e65843e4b8b27ac1670f21d599c6cb2eb24b0ced942badf8e37f4",
+        "sha256": "56f85f1037dc11dcb15d8567c29efbf8b9208a7875b4349392174cf48b729e67",
+        "crop": [
+          140,
+          235,
+          280,
+          295
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "evidence/02-extension-ready.png",
+        "capturedAtUtc": "2026-11-13T00:11:14.731513+00:00"
+      },
+      {
+        "file": "images/manual-v6/consent-gate.png",
+        "originalSha256": "e1ee3527b54e65843e4b8b27ac1670f21d599c6cb2eb24b0ced942badf8e37f4",
+        "sha256": "a7779e3735822fc3b5959f3c3e6d40846bd3947d375bf0e9e4c44fe113c378be",
+        "crop": [
+          140,
+          335,
+          700,
+          710
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "evidence/02-extension-ready.png",
+        "capturedAtUtc": "2026-11-13T00:11:14.731513+00:00"
+      },
+      {
+        "file": "images/manual-v6/assignment-ready.png",
+        "originalSha256": "e1ee3527b54e65843e4b8b27ac1670f21d599c6cb2eb24b0ced942badf8e37f4",
+        "sha256": "ff65e52014a0672647d7562caf4e38c6a2a48a6b4669d402e06ce5f0acc83667",
+        "crop": [
+          735,
+          370,
+          1305,
+          800
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "evidence/02-extension-ready.png",
+        "capturedAtUtc": "2026-11-13T00:11:14.731513+00:00"
+      },
+      {
+        "file": "images/manual-v6/session-active.png",
+        "originalSha256": "933fc2e8263400b71eb216c969b805196671e2d2b741e358f4ebba5503565f2f",
+        "sha256": "ab522a0e782e4418c80921ede66e697fc76703779fec51e056842838ce64b4f5",
+        "crop": [
+          735,
+          740,
+          1305,
+          1050
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "evidence/03-session-active.png",
+        "capturedAtUtc": "2026-11-13T00:11:14.988716+00:00"
+      },
+      {
+        "file": "images/manual-v6/visit-progress.png",
+        "originalSha256": "f5cb66fcf5fbb3f53738eb86855fdb064018174b46966a3c27ae6d010cb36dc7",
+        "sha256": "7dd736eb4e429b877c85eebe00581aa00db84f99fc2d4ad105f2e466b2778bb4",
+        "crop": [
+          735,
+          810,
+          1305,
+          1115
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "evidence/05-visit-progress.png",
+        "capturedAtUtc": "2026-11-13T00:11:41.301566+00:00"
+      },
+      {
+        "file": "images/manual-v6/session-ended.png",
+        "originalSha256": "aa8e90c7791e5dc1e57bbb33bfe5463be2da52877581c520239944411f3f058c",
+        "sha256": "41ca8d26d873f5352befda962f6d9015ac01f8b2978e4e7901b263fb503fceb4",
+        "crop": [
+          735,
+          810,
+          1305,
+          1020
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "recollect-10/evidence/14-raw-collected.png",
+        "capturedAtUtc": "2026-11-13T00:16:16.253903+00:00"
+      },
+      {
+        "file": "images/manual-v6/raw-collected.png",
+        "originalSha256": "aa8e90c7791e5dc1e57bbb33bfe5463be2da52877581c520239944411f3f058c",
+        "sha256": "30ae61ce76687ea7487f21bda354ebde90f4a676f6206ea06e9eef7c66f2e46f",
+        "crop": [
+          735,
+          1150,
+          1305,
+          1470
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "recollect-10/evidence/14-raw-collected.png",
+        "capturedAtUtc": "2026-11-13T00:16:16.253903+00:00"
+      },
+      {
+        "file": "images/manual-v6/recollect.png",
+        "originalSha256": "5971e18e575540576e1db59691e45247841ce64d9c2e7bef33874c26f8b63bfe",
+        "sha256": "874330bef7e36a27beffec625dbd5ad21487317f19d215049f8fe344f5a9caf9",
+        "crop": [
+          735,
+          1150,
+          1305,
+          1440
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "recollect-10/evidence/09-before-recollection.png",
+        "capturedAtUtc": "2026-11-13T00:15:17.364909+00:00"
+      },
+      {
+        "file": "images/manual-v6/server-health.png",
+        "originalSha256": "e915ae201016c353795edefc52e46247da3b27f7f3a33abb07490b000b16b552",
+        "sha256": "791ca4cfefc7ef6bcf359a1c480900bd6072c4ce188637ff01db6c87432a893c",
+        "crop": [
+          0,
+          0,
+          670,
+          130
+        ],
+        "newCapture": true,
+        "sourceCommit": "b7875b12884317346c650d5bd1a4a309fb0d0550",
+        "originalEvidence": "evidence/server-health.png",
+        "capturedAtUtc": "2026-11-13T00:18:16.265984+00:00"
+      }
+    ]
+  },
+  "actualTechnicalChecks": {
+    "reload": {
+      "result": "PASS",
+      "extensionIdPreserved": true,
+      "sameUnpackedPath": true,
+      "sameTechnicalProfile": true,
+      "attemptsPreserved": 2,
+      "allStoredVisits": 14,
+      "latestValidVisits": 10,
+      "lifecycle": "ENDED",
+      "endPhase": "acked",
+      "pending": 0,
+      "capturedAt": "2026-11-13T00:24:13.425Z",
+      "chrome": "151.0.7922.34",
+      "scope": "current real build reload only; older build migration not verified"
+    },
+    "backupAndSql": {
+      "result": "PASS",
+      "ciphertextSha256Matches": true,
+      "decryptToNullExit": 0,
+      "readOnlyFieldSQL": "PASS",
+      "scope": "new isolated technical C database only; no operational restore performed"
+    },
+    "exportAndMerge": {
+      "result": "PASS",
+      "exportEncrypted": true,
+      "ciphertextShaVerified": true,
+      "latestPrivacyVerified": true,
+      "merge": "single technical C source only; PARTIAL",
+      "exportedVisits": 14,
+      "attempts": 2,
+      "humanResearchSessions": 0
+    }
+  },
+  "privacyReview": {
+    "visualAllPublishedImages": "PASS: no credential/token/private key/collected page text/personal or sensitive URL shown",
+    "knownTestCredentialTextScan": "PASS",
+    "operationalParticipantEnvironmentUsed": false,
+    "privateRawEvidenceCommitted": false
+  },
+  "notVerified": [
+    "Actual A/B/C participant devices and explicit human consent",
+    "Windows full installation and PowerShell execution",
+    "OS trust UI: macOS Keychain and Windows CurrentUser Root",
+    "Migration from other historical extension builds/paths",
+    "Production database restore",
+    "New screenshots of quarantine/auth expiry/network outage"
+  ],
+  "testShutdown": "PASS: dedicated Backend/MySQL stopped normally; exit=0, OOMKilled=false, no engine error; volume/profile/files retained",
+  "issue112": "Read only; left Closed without mutation",
+  "reproductionNotes": "Rendering PNGs and full technical evidence remain in the local private temporary evidence directory. Published crops and exact hashes are retained here. CLI parse checks are not Windows execution. No product code or migrations changed."
+}
