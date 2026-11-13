@@ -98,7 +98,14 @@ describe('real Content Script foreground boundary (synthetic DOM only)', () => {
     input.blur(); messages = []; await tick(1000);
     expect(observations().some(m => !!m.snapshot)).toBe(true);
   });
-  it.each(['<input type="password">', '<input autocomplete="cc-number">', '<article>Bearer synthetic-fixture-only</article>'])('retains active sensitive-document signals', async html => {
+  it('accepts a public explanation containing the term credit card through the actual content adapter', async () => {
+    document.title = 'Credit card safety in public HTTPS documentation';
+    document.body.innerHTML = `<article>${paragraph}Public HTTPS documentation discusses credit card protection without disclosing cardholder data.</article>`;
+    await import('../real/content'); await tick();
+    expect(observations().some(m => !!m.snapshot)).toBe(true);
+    expect(observations().some(m => m.sensitive === true)).toBe(false);
+  });
+  it.each(['<input type="password">', '<input autocomplete="cc-number">', '<article>Bearer synthetic-fixture-only</article>', '<article>4111111111111111</article>'])('retains active sensitive-document signals', async html => {
     document.body.innerHTML = html; await import('../real/content'); await tick();
     expect(observations().some(m => m.safe === false && m.sensitive === true)).toBe(true);
     expect(observations().every(m => !m.snapshot)).toBe(true);
