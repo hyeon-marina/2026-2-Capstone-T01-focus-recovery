@@ -15,8 +15,11 @@ from v2.contracts import V2Error, strict_json
 
 
 class RetractionJournal:
-    def __init__(self, path):
+    def __init__(self, path, *, initialize=True):
         self.path = str(Path(path).resolve())
+        if not initialize:
+            self.snapshot()  # Runtime startup must never replace a lost/empty journal.
+            return
         fd = os.open(self.path, os.O_CREAT | os.O_RDWR, 0o600)
         os.close(fd)
         os.chmod(self.path, 0o600)
@@ -24,6 +27,13 @@ class RetractionJournal:
             db.execute("CREATE TABLE IF NOT EXISTS retractions (id TEXT PRIMARY KEY, session TEXT NOT NULL, visit TEXT NOT NULL)")
             db.execute("CREATE TABLE IF NOT EXISTS revision (id INTEGER PRIMARY KEY CHECK(id=1), value INTEGER NOT NULL)")
             db.execute("INSERT OR IGNORE INTO revision VALUES (1, 0)")
+
+    @classmethod
+    def initialize_new(cls, path):
+        # Provisioning is explicit and exclusive; recovery must restore the existing journal.
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        os.close(fd)
+        return cls(path)
 
     @contextmanager
     def connect(self):

@@ -17,6 +17,7 @@ def configured(tmp_path, monkeypatch):
     secret.write_text(SECRET)
     secret.chmod(0o600)
     journal = directory / 'journal.sqlite'
+    RetractionJournal.initialize_new(journal)  # Explicit provisioning, never implicit runtime recovery.
     monkeypatch.setenv('AI_RETRACTION_SECRET_FILE', str(secret))
     monkeypatch.setenv('AI_RETRACTION_JOURNAL', str(journal))
     monkeypatch.delenv('AI_V2_ENABLED', raising=False)
@@ -47,7 +48,7 @@ def test_raw_only_persistent_authenticated_replay_and_no_inference(tmp_path, mon
     assert journal.stat().st_mode & 0o777 == 0o600
 
 
-@pytest.mark.parametrize('fault', ['missing-secret', 'short-secret', 'public-secret', 'symlink-secret', 'public-directory', 'relative-journal'])
+@pytest.mark.parametrize('fault', ['missing-secret', 'short-secret', 'public-secret', 'symlink-secret', 'public-directory', 'relative-journal', 'missing-journal', 'empty-journal', 'corrupt-journal'])
 def test_retraction_startup_fails_closed(tmp_path, monkeypatch, fault):
     secret, journal = configured(tmp_path, monkeypatch)
     if fault == 'missing-secret': secret.unlink()
@@ -57,9 +58,15 @@ def test_retraction_startup_fails_closed(tmp_path, monkeypatch, fault):
         original = secret.with_name('original'); secret.rename(original); secret.symlink_to(original)
     if fault == 'public-directory': journal.parent.chmod(0o755)
     if fault == 'relative-journal': monkeypatch.setenv('AI_RETRACTION_JOURNAL', 'relative.sqlite')
+    if fault == 'missing-journal': journal.unlink()
+    if fault == 'empty-journal': journal.write_bytes(b'')
+    if fault == 'corrupt-journal': journal.write_bytes(b'PRIVATE_SOURCE')
     entry = importlib.import_module('retraction_main')
     with pytest.raises(RuntimeError, match='RETRACTION_CONFIG_INVALID'):
         with TestClient(entry.create_app()): pass
+    if fault == 'missing-journal': assert not journal.exists()
+    if fault == 'empty-journal': assert journal.read_bytes() == b''
+    if fault == 'corrupt-journal': assert journal.read_bytes() == b'PRIVATE_SOURCE'
 
 
 def test_missing_journal_after_start_fails_closed(tmp_path, monkeypatch):
@@ -72,3 +79,15 @@ def test_missing_journal_after_start_fails_closed(tmp_path, monkeypatch):
         response = client.post(PATH, json=body, headers={'Authorization': 'Bearer ' + SECRET})
         assert response.status_code == 503
         assert not journal.exists()
+
+
+def test_explicit_provisioning_cannot_overwrite_existing_journal(tmp_path):
+    journal = tmp_path / 'journal.sqlite'
+    store = RetractionJournal.initialize_new(journal)
+    payload = [str(uuid4()) for _ in range(3)]
+    store.retract(*payload)
+    before = journal.read_bytes()
+    with pytest.raises(FileExistsError):
+        RetractionJournal.initialize_new(journal)
+    assert journal.read_bytes() == before
+    assert RetractionJournal(journal, initialize=False).snapshot()[0] == 1

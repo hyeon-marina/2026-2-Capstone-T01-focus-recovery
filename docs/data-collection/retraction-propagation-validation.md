@@ -1,7 +1,7 @@
 # C의 회수 전파 미확인 3건: 원인·수정·운영 승인 계획
 
-2026-11-14 KST. Issue #119 / PR #120 후속. **PARTIAL: 코드·독립 검증 완료, 운영 변경 승인 전**.
-이 보고서의 운영 수치는 읽기 전용 관측이며, 실제 C의 회수 성공으로 기록하지 않는다.
+2026-11-14 KST. Issue #119 / PR #120 후속. **PARTIAL: 최초 승인 반영 후 실제 3건 전파 PASS. 추가 저널 재기동 보호를 검증 중이며 추가 반영 승인 전**.
+운영 성공과 독립 테스트를 구분하며, 추가 보호가 아직 운영에 반영됐다고 기록하지 않는다.
 
 ## 확인한 원인
 
@@ -50,7 +50,7 @@ DB migration/테이블/Visit 형식/FE/Chrome/IndexedDB/Queue/동의/정책 변�
 |AI 전체|284 PASS. 경고 1개는 기존 httpx TestClient deprecation|
 |실제 FastAPI + MySQL 복구|3개 요청을 인증키 누락으로 FAILED 재현 → BE 재시작 → 같은 ID로 모두 VERIFIED. Receiver 저장 후 BE ACK 미반영 요청 재전송 포함. BE 재시작 2회, retry 2회씩, 부모 실패 횟수 유지, Tombstone 보존, PageVisit/Window 생성 0|
 |독립 최소 Python 환경 실제 HTTP 반복|신규 저널 3회 × 요청 3건. 각 프로세스 재시작 후 재전송, 저널 각 3건/revision 3, 중복 0. 인증 없는 요청·ID 충돌·원문 추가 필드 거절. 추론 route 404|
-|운영 C 전파 복구|NOT_TESTED: 승인 전. 3건은 아직 FAILED이며 정상 자동 재시도 중|
+|운영 C 전파 복구|PASS: 승인 후 기존 스케줄러의 실제 durable ACK로 3건 모두 VERIFIED. 저널 ID 집합/revision 3 일치, target별 추가 시도 1회, 부모 오류/시도 이력 불변|
 |이번 변경의 실제 운영 Chrome 재검증|NOT_TESTED: FE/프로필은 변경하지 않음. 기존 10 Visit 검증은 별도 기존 보고서|
 
 전체 BE suite는 신규 합성 스키마와 기존 합성 fixture만 사용했다. 운영 컨테이너/Volume에
@@ -102,3 +102,46 @@ refresh가 적용됨을 검증**해야 한다. 다른 호스트/Volume에 저널
 ACK는 `AI_DURABLE_QUARANTINE_ACK_ONLY`다. Session/부모 요청은 계속 QUARANTINED이며
 외부 사본/백업/로그/학습 산출물/물리 GPU 메모리의 삭제 증거는 확보한 것으로 표시하지 않는다.
 이 후속 작업의 운영 전파 성공과 전체 개인정보 완전 삭제 완료를 구분한다.
+
+## 최초 승인 반영과 실제 3건 복구
+
+사용자가 백업·회수 서비스·BE 반영을 명시적으로 승인했다. `cc42a954e15b0067641143f5a724b075ce06f017`
+소스, JAR SHA256 `34b05f31f4d6d7b9b21a1c89d0b092dc5a5f02dee3f4253e651e07975decf6c2`를
+새 `ops/c-retraction-20261114`에 반영했다. 회수 전용 PID 2997, BE PID 3002이며 FE/Chrome/MySQL은
+교체·재시작하지 않았다. 추가 backup DB SHA256은
+`905850f29b4a6ce967d7370c2493f38f0ff424f84b362703be4154867e7e84d7`, 파일 archive SHA256은
+`3e0f7ebb610bd0701fe161b3c23e437a8d1c8fa502553dd68373e874a0d85a41`다.
+network=none/port0/tmpfs MySQL에서 37개 테이블·FK50개·원본 불변 필드 복구 PASS다.
+
+2026-11-14 10:07:44 KST 관측: AI_CACHE_AND_MEMORY target **3 VERIFIED / 현재 오류 0**,
+모두 `AI_DURABLE_QUARANTINE_ACK_ONLY`, 실제 SQLite 저널 3행/revision3, 원본 request/session/visit
+집합 일치다. 반영 직전 시도수 94/87/94에서 각각 95/88/95로 한 번 증가했다. 부모 마지막 실패
+코드 PROPAGATION_UNCONFIRMED/누적 실패 횟수는 그대로 보존했다. 이를 활성 실패 3건으로 집계하지 않는다.
+부모 QUARANTINED 및 외부 증거 BLOCKED를 유지한다.
+
+Collection Progress 전체가 반영 전과 같고 정상 세션은 유효 Visit10, ENDED/CLEAR,
+deliveryConfirmed=true, RAW_COLLECTED, AI NOT_RUN, 실제 Window0이다. FE 파일과 사용자 PDF 해시도 같다.
+
+## 추가 발견: 저널 누락을 빈 초기화로 숨기는 재기동 결함
+
+최종 복구 검토에서 새 진입점이 재기동 시 저널이 없거나 빈 파일이어도 초기화할 수 있음을
+발견했다. 운영 저널은 실제 3행을 보존 중이며 유실되지 않았다. 하지만 이미 VERIFIED된 요청은
+다시 전송되지 않으므로, 저널 유실 뒤 조용한 빈 초기화는 허용하면 안 된다.
+
+수정 전 startup 회귀에서 missing/empty 2 FAIL을 재현하고 로그를 보존했다. 런타임은
+`RetractionJournal(..., initialize=False)`로 기존 schema/revision을 검증한 뒤만 시작한다.
+회수 전용/승인된 모델 collection 진입점 모두 동일 원칙을 적용한다. 신규 배포/합성 fixture만
+`initialize_new()`로 명시적으로 생성하며 기존 파일은 O_EXCL로 거절한다. 누락/빈 파일/손상 시
+원본 파일을 바꾸지 않고 시작을 거절한다. 모델 로더도 시작하지 않는다. 독립 runner와 운영자
+신규 준비 절차도 명시적 생성 방식으로 바꿨다. DB/BE/FE 계약이나 정책을 바꾸지 않는다.
+
+추가 운영 범위는 검증 후 별도 승인받는다: 같은 저널3행·같은 인증키를 유지하고 회수 서비스의
+Python main/journal 두 파일만 교체·재시작한다. BE PID/JAR, Chrome/FE, MySQL/Volume은 그대로 둔다.
+새 저널·키의 암호화 백업과 독립 메모리 SQLite 복구 검증을 포함하고 기존 저널을 재초기화하지 않는다.
+
+
+추가 보호 최종 독립 검증: AI 전체 **289 PASS**(최초 284에서 신규 경계 5개 추가),
+BE 전체 **60 classes / 1,164 PASS, FAIL/ERROR/SKIP 0**(새 합성 스키마/실제 receiver/HTTP/MySQL/Chrome),
+독립 최소 Python 실제 HTTP **신규 저널3회×요청3건·각 재기동 PASS**.
+누락/빈 파일/손상 시 재초기화하지 않음, 기존 파일에 신규 초기화 거절, 승인된 모델 entrypoint가
+저널 누락 시 모델 Thread를 시작하지 않음까지 검증했다. 추가 C 반영은 별도 승인 전이다.

@@ -40,7 +40,7 @@ async def lifespan(app):
     os.environ['HF_HUB_OFFLINE'] = '1'
     os.environ['TRANSFORMERS_OFFLINE'] = '1'
     # Single worker plus a durable journal. GPU memory is never claimed physically erased.
-    journal = RetractionJournal(os.environ['AI_RETRACTION_JOURNAL'])
+    journal = RetractionJournal(os.environ['AI_RETRACTION_JOURNAL'], initialize=False)
     install_retractions(app, service, journal, os.environ['AI_RETRACTION_SECRET'])
     threading.Thread(target=load, daemon=True).start()
     yield

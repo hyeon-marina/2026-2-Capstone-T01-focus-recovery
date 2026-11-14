@@ -56,6 +56,7 @@ def main():
         privacy_env=env.copy()
         privacy_env.update(AI_RETRACTION_SECRET_FILE=str(secret.resolve()),AI_RETRACTION_JOURNAL=str((a.output/'privacy-journal.sqlite').resolve()))
         privacy_env.pop('AI_V2_ENABLED',None);privacy_env.pop('AI_V2_PROFILE',None)
+        subprocess.run([a.ai_python,'-c','import sys; from v2.retractions import RetractionJournal; RetractionJournal.initialize_new(sys.argv[1])',privacy_env['AI_RETRACTION_JOURNAL']],cwd=ROOT/'ai',env=privacy_env,check=True)
         with (a.output/'privacy-receiver.log').open('ab') as log:
             proc=subprocess.Popen([a.ai_python,'-m','uvicorn','retraction_main:app','--app-dir',str(ROOT/'ai'),'--host','127.0.0.1','--port','8899','--workers','1','--no-access-log','--no-server-header'],env=privacy_env,stdout=log,stderr=log)
         processes.append(proc)
