@@ -300,7 +300,12 @@ python3 tools/collection/prepare-internal-tls.py \
 # backend-ca.key/backend.key는 보호·분리 보관. 컨테이너에는 필요한 파일만 mount.
 mkdir -p "$NEW_STATE_DIRECTORY/ai-journal"
 chmod 700 "$NEW_STATE_DIRECTORY" "$NEW_STATE_DIRECTORY/ai-journal"
+# 최초 신규 배포만 명시적으로 생성. 기존 경로가 있으면 실패하며 덮어쓰지 않음.
+PYTHONPATH=ai python3 -c 'import sys; from v2.retractions import RetractionJournal; RetractionJournal.initialize_new(sys.argv[1])' \
+  "$NEW_STATE_DIRECTORY/ai-journal/retractions.sqlite"
 ```
+
+재기동은 기존 저널을 검증해 읽기만 시작하며, 저널 누락/빈 파일/손상이 있으면 AI 적재 전에 거절합니다. 기존 배포의 복구에 신규 초기화 명령을 사용하지 말고 승인된 저널 백업과 회수 요청을 대조해 복원합니다.
 
 Secret 도구는 신규 디렉터리만 허용하고5개 mode600 파일을 만듭니다. MySQL root/app, BE TLS keystore, BE–AI/회수 서비스 키는 평문을 출력하지 않습니다. BE/AI는 별도 host UID/GID로 실행하고 해당 UID가 파일을 읽을 수 있어야 합니다. DB root 키는 BE/AI에 mount하지 않습니다. TLS 인증서 만료 확인/교체와 서비스 키 교체는 담당자가 종료·Queue drain·모든 서비스 동기 반영·재시작 검증 후 수행합니다. 기존 Credential TTL/재발급 절차는 위 절차를 재사용합니다.
 

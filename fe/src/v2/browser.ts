@@ -14,6 +14,7 @@ import type { Stamp } from './state';
 import { allowedSite, validPolicy, publicText, publicSearchQuery, type SitePolicy } from '../../real/policy';
 import { validSnapshot } from './contract';
 import type { PageSnapshot } from '../shared/types';
+import { MAX_OBSERVATION_GAP_MS } from './collector';
 declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string; metadataOnly?: boolean; pageContent?: boolean; maskContacts?: boolean; publicWeb?: boolean };
 
 export function installV2Browser(options: { uiPath: string; pilot: boolean; participant: boolean; real?: boolean }) {
@@ -58,6 +59,9 @@ const runtime = new V2Runtime(new V2Repository(API_BASE_URL), { ...v2HttpTranspo
 });
 const reportAttempts = new Map<string, string>();
 const reportedFailures = new Set<string>();
+// Ephemeral, fixed codes only: never retain a URL, document text, input value or credential.
+let diagnostic = { code: 'WAITING_OBSERVATION', observedAt: Date.now() };
+const diagnose = (code: string) => { diagnostic = { code, observedAt: Date.now() }; };
 async function syncReport() {
   if (!options.participant) return;
   const s = runtime.snapshot();
@@ -79,8 +83,12 @@ async function syncReport() {
 }
 function snapshot() {
   const s = runtime.snapshot();
-  if (!options.participant) return s;
+  const diagnostics = { diagnostic, collecting: runtime.collecting(),
+    localVisits: s.collectionAllowed ? s.compactedCount + s.posts.entries.length : 0,
+    activeDurationMs: s.collectionAllowed ? s.candidates.find(c => c.id === s.tabs[s.foreground ?? -1])?.behavior.activeDurationMs ?? 0 : 0 };
+  if (!options.participant) return { ...s, ...diagnostics };
   return { lifecycle: s.accessError === 'account' ? 'ACCOUNT_BLOCKED' : s.lifecycle, collectionAllowed: s.collectionAllowed, accessError: s.accessError, storageFailed: s.storageFailed,
+    ...diagnostics,
     validVisits: s.collectionAllowed ? s.compactedCount + s.posts.entries.filter(e => e.phase === 'acked').length : 0,
     pending: s.collectionAllowed ? [...s.posts.entries, ...s.behaviors.entries].filter(e => e.phase !== 'acked').length : 0,
     notificationPending: s.collectionAllowed ? s.notifications.filter(r => !r.shownAck || r.selection && !r.selectionAck).length : 0,
@@ -94,7 +102,14 @@ const serial = serialExecutor();
 async function captureAllowedTabs() {
   if (!options.pilot && !real) return;
   const tab = await focus(stamp());
-  if (tab?.id !== undefined && tab.url && permits(tab.url)) await chrome.tabs.sendMessage(tab.id, { type: 'v2-capture' }).catch(() => {});
+  if (!runtime.collecting()) return;
+  if (tab?.id === undefined) { diagnose('NO_FOREGROUND_TAB'); return; }
+  if (!tab.url || !permits(tab.url)) { diagnose('POLICY'); return; }
+  if (real && !await chrome.permissions.contains({ origins: [new URL(tab.url).origin + '/*'] })) { diagnose('SITE_PERMISSION_REQUIRED'); return; }
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: 'v2-capture' });
+    diagnose('WAITING_OBSERVATION');
+  } catch { diagnose('CONTENT_SCRIPT_UNAVAILABLE'); }
 }
 const boundaries = new Map<number, Stamp>();
 const documents = new Map<number, string>();
@@ -161,7 +176,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
         await focus(t);
         await captureAllowedTabs();
       }
-      if (m?.type === 'v2-retry') { await runtime.retry(); await runtime.flushNotifications(); }
+      if (m?.type === 'v2-retry') { await runtime.retry(); await runtime.flushNotifications(); await captureAllowedTabs(); }
       if (m?.type === 'v2-alert') return statusClient.candidate();
       if (m?.type === 'v2-shown') {
         const candidate = await statusClient.candidate();
@@ -186,7 +201,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     if (m?.type === 'v2-leave') { await runtime.leave(tabId, t); return; }
     if (real && m?.type === 'v2-observation') {
       if (typeof m.raw !== 'string' || !runtime.collecting()) return { collecting: false };
-      if (!permits(m.raw)) { await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()}; }
+      if (!permits(m.raw)) { diagnose('POLICY'); await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()}; }
       // Refresh server consent/release before accepting any ordinary document content.
       await runtime.verifyAccess();
       if (!permits(m.raw)) return { collecting: false };
@@ -197,11 +212,15 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       // Recheck after asynchronous validation, before any privacy decision or accepted Visit.
       await focus(t);
       if (tabId !== focused || m.visible === false || arrivedRevision !== navigationRevision.get(tabId)) {
+        if (tabId === focused) diagnose('NOT_FOCUSED_OR_STALE');
         await runtime.leave(tabId, t);
         return { collecting: runtime.collecting() };
       }
-      if (build?.publicWeb && (!permitted || m.safe !== true && m.sensitive !== true)) { await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()}; }
-      if (!permitted || m.safe !== true) { await runtime.quarantine('SENSITIVE_CONTENT', t.wall); return { collecting: false }; }
+      if ((build?.publicWeb || build?.pageContent) && (!permitted || m.safe !== true && m.sensitive !== true)) {
+        diagnose(!permitted ? 'SITE_PERMISSION_REQUIRED' : m.failureReason === 'INPUT_FOCUSED' ? 'INPUT_FOCUSED' : 'POLICY');
+        await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()};
+      }
+      if (!permitted || m.safe !== true) { diagnose('SENSITIVE_CONTENT'); await runtime.quarantine('SENSITIVE_CONTENT', t.wall); return { collecting: false }; }
       if (!m.visible) { await runtime.leave(tabId, t); return { collecting: runtime.collecting() }; }
       if (documents.get(tabId) !== sender.documentId) { documents.set(tabId, sender.documentId);boundaries.set(tabId,t); }
       if (!description) return;
@@ -218,8 +237,12 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       if (previous && (previous.raw !== m.raw || previous.content !== generation)) boundaries.set(tabId,t);
       contentGenerations.set(tabId,{raw:m.raw,content:generation});
       if (arrivedRevision !== navigationRevision.get(tabId)) return { collecting: runtime.collecting() };
+      const state = runtime.snapshot();
+      const current = state.candidates.find(c => c.id === state.tabs[tabId]);
+      const gap = current?.cursor && current.cursor.epoch === t.epoch && t.mono - current.cursor.mono > MAX_OBSERVATION_GAP_MS;
       await runtime.observe({tabId,document:sender.documentId,target:description.identity,generation,stamp:t,enteredAt:boundaries.get(tabId) ?? t,
         permitted,safe:true,snapshot:s,extractionFailed:m.extractionFailed === true,failureReason:['POLICY','EXTRACTION_NO_CONTENT','EXTRACTION_DOM_ERROR','EXTRACTION_RENDER_TIMEOUT','EXTRACTION_ACCESS_DENIED'].includes(m.failureReason) ? m.failureReason : undefined});
+      diagnose(gap ? 'OBSERVATION_GAP' : s ? 'OBSERVING' : ['POLICY','EXTRACTION_NO_CONTENT','EXTRACTION_DOM_ERROR','EXTRACTION_RENDER_TIMEOUT','EXTRACTION_ACCESS_DENIED'].includes(m.failureReason) ? m.failureReason : 'WAITING_CONTENT');
       await syncReport();await runtime.compact(t);return { collecting:runtime.collecting() };
     }
     if (m?.type !== 'v2-observation'  || typeof m.raw !== 'string' || !fixtureId(m.raw) || fixtureId(m.raw) !== m.id) return;

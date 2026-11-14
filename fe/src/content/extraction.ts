@@ -3,10 +3,13 @@ const OMIT = 'script,style,noscript,nav,header,footer,aside,form,input,textarea,
 const PRIVATE_INPUT = 'input[type="password"],input[type="email"],input[type="tel"],input[autocomplete^="cc-"],input[autocomplete="street-address"],input[autocomplete="one-time-code"],input[autocomplete="given-name"],input[autocomplete="family-name"],input[name*="password" i],input[name*="token" i],input[name*="ssn" i],input[name*="card" i]';
 export function isVisible(element: Element): boolean {
   for (let current: Element | null = element; current; current = current.parentElement) {
-    const style = current.ownerDocument.defaultView!.getComputedStyle(current);
-    if (current.hasAttribute('hidden') || current.getAttribute('aria-hidden') === 'true' || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || style.opacity === '0' || style.contentVisibility === 'hidden') return false;
+    if (!locallyVisible(current)) return false;
   }
   return true;
+}
+function locallyVisible(element: Element): boolean {
+  const style = element.ownerDocument.defaultView!.getComputedStyle(element);
+  return !(element.hasAttribute('hidden') || element.getAttribute('aria-hidden') === 'true' || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || style.opacity === '0' || style.contentVisibility === 'hidden');
 }
 function isSearchForm(form: Element, searchUrl: URL): boolean {
   if (form.tagName !== 'FORM') return false;
@@ -30,25 +33,34 @@ export function isExcludedDocument(doc: Document, searchUrl?: URL): boolean {
   return false;
 }
 export function isExcludedMetadataDocument(doc: Document): boolean {
-  if (doc.contentType !== 'text/html' || doc.querySelector('input[type="password"],input[autocomplete^="cc-"],input[autocomplete="street-address"],input[autocomplete="one-time-code"],input[name*="password" i],input[name*="ssn" i],input[name*="card" i]')) return true;
-  // GitHub's public docs include an unsubmitted survey field. Never read it; other token fields block.
-  if ([...doc.querySelectorAll('input[name*="token" i]')].some(input => !(input.getAttribute('name') === 'survey-token' && doc.location?.origin === 'https://docs.github.com' && (doc.location.pathname === '/en/pages' || doc.location.pathname.startsWith('/en/pages/'))))) return true;
-  if (/login|sign in|로그인|결제|환자|진료|의료|medical|patient|diagnosis|password|^error|^404|^403|access denied/i.test(doc.title)) return true;
-  // Passive search/newsletter/comment controls cannot leak: this mode never reads their values or body text.
-  // Interacting with any editable control still stops the visit/session; auth/payment markers always block.
+  return doc.contentType !== 'text/html' || isSensitivePublicDocument(doc) || hasFocusedEditable(doc);
+}
+export function hasFocusedEditable(doc: Document): boolean {
   return !!doc.activeElement?.matches('input:not([type="hidden"]),textarea,select,[contenteditable="true"],[role="textbox"]');
+}
+// Markers are high risk even when hidden. Never inspect form values.
+export function isSensitivePublicDocument(doc: Document): boolean {
+  if (doc.querySelector('input[type="password"],input[autocomplete^="cc-"],input[autocomplete="street-address"],input[autocomplete="one-time-code"],input[name*="password" i],input[name*="ssn" i],input[name*="card" i]')) return true;
+  // GitHub's public docs include an unsubmitted survey field. Never read it; other token fields block.
+  if ([...doc.querySelectorAll('input[name*="token" i]')].some(input => !(input.getAttribute('name') === 'survey-token' && doc.location?.origin === 'https://docs.github.com' && /^\/(?:en|es|ja|pt|zh|ru|fr|ko|de)\/pages(?:\/|$)/.test(doc.location.pathname)))) return true;
+  if (/login|sign in|로그인|결제|환자|진료|의료|medical|patient|diagnosis|password|^error|^404|^403|access denied/i.test(doc.title)) return true;
+  return false;
 }
 export function cleanText(text: string): string {
   return text.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').replace(/\r\n?/g, '\n').split('\n').map(line => line.replace(/[\t\u00a0 ]+/g, ' ').trim()).filter(Boolean).join('\n').trim();
 }
 export function textFrom(element: Element): string {
   if (element.matches(OMIT) || !isVisible(element)) return '';
+  return visibleTextFrom(element);
+}
+// Ancestors are already checked in this synchronous traversal; nothing survives between scans.
+function visibleTextFrom(element: Element): string {
   const pieces: string[] = [];
   for (const node of element.childNodes) {
     if (node.nodeType === 3) pieces.push(node.textContent ?? '');
     else if (node.nodeType === 1) {
       const child = node as Element;
-      const text = textFrom(child);
+      const text = child.matches(OMIT) || !locallyVisible(child) ? '' : visibleTextFrom(child);
       const block = /^(P|DIV|SECTION|ARTICLE|MAIN|H[1-6]|LI|PRE|BR|TR)$/.test(child.tagName);
       pieces.push(block ? `\n${text}\n` : text);
     }
@@ -77,5 +89,5 @@ export function isExcludedPublicDocument(doc: Document): boolean {
 }
 export function excludedPublicLayout(doc: Document): boolean {
   return !!doc.querySelector('meta[content="noai"],meta[content="noindex"], [data-paywall],.paywall,[itemprop="isAccessibleForFree"][content="false"],input[autocomplete="email"]')
-    || /subscribe to (?:continue|read)|subscription required|구독 후 열람|유료 기사|access denied/i.test(doc.body?.textContent ?? '');
+    || /subscribe to (?:continue|read)|subscription required|구독 후 열람|유료 기사|access denied/i.test(doc.body ? textFrom(doc.body) : '');
 }

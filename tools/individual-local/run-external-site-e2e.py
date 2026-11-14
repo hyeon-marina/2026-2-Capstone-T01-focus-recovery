@@ -20,6 +20,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--automated-test-only',action='store_true',required=True)
     p.add_argument('--verify-v4-upgrade',action='store_true',help='A starts from exact official v4 policy and automated consent, then upgrades without replacing owner/credential')
+    p.add_argument('--localized-public-docs',action='store_true',help='Exercise all nine official GitHub Pages locales, including the C Korean redirect regression')
     p.add_argument('--test-subnet-prefix',help='Optional dedicated test IPv4 /24 prefix, e.g. 10.253.240; preserves existing networks')
     p.add_argument('--tls-port-base', type=int, default=19543, help='First of three consecutive local test HTTPS ports')
     p.add_argument('--output',type=Path,required=True);p.add_argument('--chrome',required=True)
@@ -64,6 +65,7 @@ def main():
             assert 'INSTITUTION_BLOCKED' not in state['blockers'] and state['blockers']==['CONSENT_REQUIRED']
             assert state['planRevision']==1 and not state['ready']
             env=os.environ.copy();env.update(FOCUS105_LOCAL_DIRECTORY=str(d),FOCUS105_AUTOMATED_EXTERNAL='1',FOCUS_TEST_TLS_PORT=str(a.tls_port_base+i),CHROMIUM_PATH=a.chrome)
+            if a.localized_public_docs:env['FOCUS119_LOCALIZED_DOCS']='1'
             with (d/'external-chrome.log').open('ab') as log:
                 subprocess.run(['node','scripts/local-https-browser-test.mjs'],cwd=local.ROOT/'fe',env=env,stdout=log,stderr=log,check=True,timeout=360)
             state=ds.request(server,credential,'/api/collection/local-status',ca);assert state['ready'] and not state['blockers']
@@ -73,17 +75,21 @@ def main():
             command([*base,'export','--server',server,'--ca-file',ca,'--credential-file',credential,'--recipient',recipient,'--output',bundle])
             command([*base,'verify',bundle,'--identity',key,'--sha256',ds.digest(bundle.read_bytes())])
             manifest,files,_=ds.load_bundle(bundle,key)
-            assert set(v['domain'] for v in files['visits'])=={'docs.python.org','blog.python.org','news.ycombinator.com','books.toscrape.com','search.naver.com'}
+            assert set(v['domain'] for v in files['visits'])==({'docs.github.com'} if a.localized_public_docs else {'docs.python.org','blog.python.org','news.ycombinator.com','books.toscrape.com','search.naver.com'})
             assert len(files['visits'])==10 and all(v['activeDurationMs']>=5000 for v in files['visits'])
             assert sum(v['tabSwitchCount'] for v in files['visits'])>=1
             assert all('?' not in v['normalizedUrl'] and '__focus_page__' in v['normalizedUrl'] for v in files['visits'])
             assert all(not v['content'].startswith('METADATA_ONLY:') and not v['title'].startswith('Topic:') and len(v['content'])<=5000 for v in files['visits'])
             assert [ds.digest(v['title'].encode()) for v in sorted(files['visits'],key=lambda v:v['sequence'])]==[p['titleSha256'] for p in chrome['observedPages']]
-            assert any(v['isSearchResultPage'] and v['searchQuery']=='Python venv documentation' for v in files['visits'])
+            if a.localized_public_docs:
+                assert chrome['scenario']=='LOCALIZED_PUBLIC_DOCS'
+                assert [p['locale'] for p in chrome['observedPages']]==['en','ko','es','ja','pt','zh','ru','fr','de','ko']
+                assert all(not v['isSearchResultPage'] and v['searchQuery'] is None for v in files['visits'])
+            else:assert any(v['isSearchResultPage'] and v['searchQuery']=='Python venv documentation' for v in files['visits'])
             private=d/'privacy.json'
             command([*base,'privacy','--server',server,'--ca-file',ca,'--credential-file',credential,'--output',private])
             privacy.append(ds.read_privacy(private,ds.digest(private.read_bytes())));bundles.append(bundle)
-            rows.append(dict(slot=slot,policyDigest=expected,assignments=54 if slot=='A' else 53,chrome=chrome,exportVerified=True,storedVisits=len(files['visits']),tabSwitches=sum(v['tabSwitchCount'] for v in files['visits']),contentCodePoints=[len(v['content']) for v in sorted(files['visits'],key=lambda v:v['sequence'])],titleHashesMatchBrowser=True,searchQueryVerified=True,v4UpgradeVerified=a.verify_v4_upgrade and slot=='A'))
+            rows.append(dict(slot=slot,policyDigest=expected,assignments=54 if slot=='A' else 53,chrome=chrome,exportVerified=True,storedVisits=len(files['visits']),tabSwitches=sum(v['tabSwitchCount'] for v in files['visits']),contentCodePoints=[len(v['content']) for v in sorted(files['visits'],key=lambda v:v['sequence'])],titleHashesMatchBrowser=True,searchQueryVerified='NOT_APPLICABLE' if a.localized_public_docs else True,v4UpgradeVerified=a.verify_v4_upgrade and slot=='A'))
             print('PASS AUTOMATED EXTERNAL '+slot,flush=True)
             cli(d,'stop')
         hashes=[ds.digest(b.read_bytes()) for b in bundles]
@@ -95,7 +101,7 @@ def main():
         training=ds.training_review(root/'AUTOMATED-TEST-merged.age',ds.digest((root/'AUTOMATED-TEST-merged.age').read_bytes()),privacy,review,key,recipient)
         assert (training['sessions'],training['visits'],training['windows'])==(3,30,24)
         assert ds.verify_artifact(review,key)[1]['result']=='PASS'
-        report=dict(result='PASS',kind='AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT',actualParticipantConsents=0,actualHumanResearchSessions=0,source='Real public Python Docs, Python Blog, Hacker News, Books to Scrape, Naver Search HTTPS; no mocking',trainingReview=training,sources=rows,rawCompleted=3,validVisits=30,merge='PARTIAL',duplicateImports=3,osTrustInstallation='NOT_TESTED_CERTIFICATE_SPKI_PIN_ONLY')
+        report=dict(result='PASS',kind='AUTOMATED_EXTERNAL_SITE_TECHNICAL_E2E_NOT_HUMAN_CONSENT',actualParticipantConsents=0,actualHumanResearchSessions=0,source='Real public GitHub Pages documentation in nine official locales; no mocking' if a.localized_public_docs else 'Real public Python Docs, Python Blog, Hacker News, Books to Scrape, Naver Search HTTPS; no mocking',trainingReview=training,sources=rows,rawCompleted=3,validVisits=30,merge='PARTIAL',duplicateImports=3,osTrustInstallation='NOT_TESTED_CERTIFICATE_SPKI_PIN_ONLY')
         (root/'summary.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
         print('PASS: real public-site automated technical path; human consent/actuals=0',flush=True)
     finally:

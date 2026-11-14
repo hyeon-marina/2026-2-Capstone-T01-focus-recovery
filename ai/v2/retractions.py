@@ -1,4 +1,4 @@
-"""Durable synthetic retraction boundary. Production main never installs the internal route.
+"""Durable retraction boundary. The public main never installs the internal route.
 
 SQLite coordinates workers sharing one local file, not separate hosts/volumes. The acknowledgement
 proves durable quarantine, not deletion of GPU/model memory or every worker's physical cache.
@@ -15,8 +15,11 @@ from v2.contracts import V2Error, strict_json
 
 
 class RetractionJournal:
-    def __init__(self, path):
+    def __init__(self, path, *, initialize=True):
         self.path = str(Path(path).resolve())
+        if not initialize:
+            self.snapshot()  # Runtime startup must never replace a lost/empty journal.
+            return
         fd = os.open(self.path, os.O_CREAT | os.O_RDWR, 0o600)
         os.close(fd)
         os.chmod(self.path, 0o600)
@@ -24,6 +27,13 @@ class RetractionJournal:
             db.execute("CREATE TABLE IF NOT EXISTS retractions (id TEXT PRIMARY KEY, session TEXT NOT NULL, visit TEXT NOT NULL)")
             db.execute("CREATE TABLE IF NOT EXISTS revision (id INTEGER PRIMARY KEY CHECK(id=1), value INTEGER NOT NULL)")
             db.execute("INSERT OR IGNORE INTO revision VALUES (1, 0)")
+
+    @classmethod
+    def initialize_new(cls, path):
+        # Provisioning is explicit and exclusive; recovery must restore the existing journal.
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        os.close(fd)
+        return cls(path)
 
     @contextmanager
     def connect(self):
@@ -59,14 +69,13 @@ class RetractionJournal:
             raise V2Error(503, "AI_NOT_READY") from None
 
 
-def install_synthetic_retractions(app, service, journal, service_secret):
-    """Called exclusively by test-source fixtures, with an explicit shared journal and secret.
+def install_retractions(app, service, journal, service_secret):
+    """Explicitly installed by private entrypoints or isolated tests, never public main.
 
-    No environment switch in main enables this API. Separate hosts require a coordinated store
-    and worker acknowledgement protocol before deployment can be approved.
+    Separate hosts require a coordinated store and worker acknowledgement protocol.
     """
     if len(service_secret) < 32:
-        raise ValueError("synthetic service secret required")
+        raise ValueError("retraction service secret required")
     service.privacy_store = journal
     service.refresh_privacy()
 
@@ -91,3 +100,7 @@ def install_synthetic_retractions(app, service, journal, service_secret):
             return JSONResponse(status_code=422, content=V2Error().body())
         except V2Error as exc:
             return JSONResponse(status_code=exc.status, content=exc.body())
+
+
+# Keep the existing fixture import compatible.
+install_synthetic_retractions = install_retractions

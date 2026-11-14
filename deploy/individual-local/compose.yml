@@ -14,7 +14,8 @@ services:
     secrets: [mysql-root, mysql-app]
     volumes: [local-db:/var/lib/mysql]
     healthcheck:
-      test: [CMD-SHELL, 'mysqladmin ping --silent']
+      # The image starts a socket-only temporary server while initializing a new volume.
+      test: [CMD-SHELL, 'MYSQL_PWD="$$(cat /run/secrets/mysql-app)" mysql --protocol=TCP -h127.0.0.1 -ufocus_collection --database=focus_collection --execute="SELECT 1" >/dev/null']
       interval: 5s
       timeout: 5s
       retries: 30

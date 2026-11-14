@@ -95,6 +95,15 @@ describe('v2 observation boundaries', () => {
     c.observe(observation(12000, { stamp: time(12000, 'worker-2') }));
     expect(c.current(1)?.behavior.activeDurationMs).toBe(1999);
   });
+  it('recovers after a delayed pulse while counting only the verified intervals', () => {
+    const c = setup(); c.observe(observation(1000));
+    c.observe(observation(10000));
+    expect(c.current(1)?.behavior.activeDurationMs).toBe(1000);
+    for(let t=11000;t<=13000;t+=1000)c.observe(observation(t));
+    expect(c.ready()).toEqual([]);
+    c.observe(observation(14000));
+    expect(c.ready()[0].activeDurationMs).toBe(5000);
+  });
   it('queues behavior on first 300000 crossing and departure, not each pulse', () => {
     const c = setup(); advance(c, 1000, 5000);
     const post = c.ready()[0]; c.state.behaviors.entries = [{ visitId: post.visitId, sessionId: post.sessionId, sequence: 1,

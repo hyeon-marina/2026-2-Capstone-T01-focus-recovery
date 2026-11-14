@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import socket
 import subprocess
 import sys
 import time
@@ -25,8 +26,13 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',required=True,type=Path);p.add_argument('--chrome',required=True);p.add_argument('--metadata-only',action='store_true');a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',required=True,type=Path);p.add_argument('--chrome',required=True);p.add_argument('--metadata-only',action='store_true');p.add_argument('--page-content',action='store_true',help='Exercise public-text adapter, focused input exclusion, delayed DOM and lost POST/PATCH/END ACKs');a=p.parse_args()
+    if a.metadata_only and a.page_content:p.error('Choose metadata-only or page-content')
     os.umask(0o077);root=a.output.resolve();root.mkdir(parents=True,exist_ok=False,mode=0o700)
+    for port in (33111,33112,33113,18101,18102,18103,8911):
+        with socket.socket() as sock:
+            sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+            sock.bind(('127.0.0.1',port))
     java=Path(os.environ['JAVA_HOME'])/'bin/java' if os.environ.get('JAVA_HOME') else 'java'
     gradle='gradlew.bat' if os.name=='nt' else './gradlew'
     subprocess.run([gradle,'writeCollectionTestClasspath','--console=plain'],cwd=ROOT/'be',check=True)
@@ -39,6 +45,7 @@ def main():
     policy={k:'synthetic-only-not-approval' for k in ['approvalRef','contractApprovalRef','retentionRef','institutionRef','modelEvidenceRef','privacyEvidenceRef','startAuthorizationRef']}
     policy.update(status='SYNTHETIC',buildId='controlled-web-101',policyId='SYNTHETIC-101',policyVersion='1',notBefore=(now-timedelta(minutes=1)).isoformat().replace('+00:00','Z'),expiresAt=(now+timedelta(hours=4)).isoformat().replace('+00:00','Z'),sites=[dict(origin='http://127.0.0.1:8911',pathPrefix='/public/')])
     policy['metadataOnly']=a.metadata_only
+    if a.page_content:policy.update(metadataOnly=True,pageContent=True,maskContacts=True)
     policyfile=root/'site-policy.json';private(policyfile,json.dumps(policy))
     def launch(config,path):
         env=os.environ.copy();env['FOCUS101_FIXTURE_FILE']=str(path)
@@ -56,6 +63,7 @@ def main():
     def browser(slot,directory,withdraw=False):
         env=os.environ.copy();env.update(FOCUS101_SERVER='http://127.0.0.1:'+str(18101+'ABC'.index(slot)),FOCUS101_SLOT=slot,FOCUS101_EVIDENCE=str(directory),COLLECTION_SITE_POLICY_FILE=str(policyfile),CHROMIUM_PATH=a.chrome)
         if withdraw:env['FOCUS101_WITHDRAW_ONLY']='1'
+        if a.page_content:env['FOCUS119_FAULTS']='1'
         with (directory/('withdrawal-browser.log' if withdraw else 'browser.log')).open('wb') as log:
             subprocess.run(['npm.cmd' if os.name=='nt' else 'npm','run','test:raw:browser'],cwd=ROOT/'fe',env=env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=240)
     def sql(config,query):

@@ -6,6 +6,11 @@ import org.junit.jupiter.api.Test;
 import com.focusrecovery.domain.visit.dto.CreatePageVisitRequest;
 
 class MetadataPageTest {
+    @Test void sharedFrontendBackendAiPrivacyCorpus() throws Exception {
+        var cases=tools.jackson.databind.json.JsonMapper.builder().build().readTree(java.nio.file.Files.readString(java.nio.file.Path.of("../docs/contracts/v2/fixtures/privacy-text.json")));
+        for (var c:cases) assertThat(MetadataPage.publicText(c.path("text").asText()))
+            .as(c.path("id").asText()).isEqualTo(c.path("public").asBoolean());
+    }
     CreatePageVisitRequest request(String origin,String prefix,String title,String content,String query,boolean search) {
         return new CreatePageVisitRequest(UUID.randomUUID().toString(),1,"tab",origin+prefix+MetadataPage.MARKER+"a".repeat(64),java.net.URI.create(origin).getHost(),title,content,query,search,Instant.now(),5000L,0,0L,"SUCCESS");
     }

@@ -1,6 +1,8 @@
 package com.focusrecovery.domain.privacy.service;
 
 import java.net.*;
+import java.io.IOException;
+import static com.focusrecovery.domain.privacy.service.RetractionWorkService.AiOutcome.*;
 import java.net.http.*;
 import java.time.Duration;
 import java.util.*;
@@ -42,25 +44,42 @@ public class RetractionDispatcher {
         if (id.targetType().equals("BE_PAYLOADS")) {
             try { work.scrub(claim); } catch (RuntimeException e) { work.failPayload(claim); }
         } else if (id.targetType().equals("AI_CACHE_AND_MEMORY")) {
-            boolean confirmed = false;
-            try {
-                String secret = environment.getProperty("focus-recovery.v2.retraction.service-secret", "");
-                URI uri = ai.baseUrl().resolve("/internal/v2/visit-retractions");
-                // Synthetic trust boundary: no redirects, no non-loopback cleartext service calls.
-                if (secret.length() < 32 || !("https".equals(uri.getScheme()) || "http".equals(uri.getScheme()) && (Set.of("127.0.0.1", "localhost").contains(uri.getHost()) || java.util.Arrays.equals(environment.getActiveProfiles(),new String[]{"real-collection"}) && "ai".equals(uri.getHost())))) throw new IllegalStateException();
-                var request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(5))
-                    .header("Content-Type", "application/json").header("Authorization", "Bearer " + secret)
-                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(Map.of("retractionId", id.retractionId(), "sessionId", claim.sessionId(), "visitId", claim.visitId())))).build();
-                var response = http.send(request, HttpResponse.BodyHandlers.ofString());
-                var body = mapper.readTree(response.body());
-                confirmed = response.statusCode() == 200 && body.isObject() && body.size() == 4
-                    && body.path("retractionId").asString("").equals(id.retractionId().toString())
-                    && body.path("visitId").asString("").equals(claim.visitId().toString())
-                    && body.path("status").asString("").equals("QUARANTINED")
-                    && body.path("durable").isBoolean() && body.path("durable").booleanValue();
-            } catch (InterruptedException e) { Thread.currentThread().interrupt();
-            } catch (Exception e) { /* Persist only a fixed code, never remote exception bodies. */ }
-            work.finishAi(claim, confirmed);
+            work.finishAi(claim, propagate(claim));
         }
     }
+    private RetractionWorkService.AiOutcome propagate(RetractionWorkService.Claim claim) {
+        String secret = environment.getProperty("focus-recovery.v2.retraction.service-secret", "");
+        if (secret.length() < 32) return AI_RETRACTION_AUTH_NOT_CONFIGURED;
+        URI uri;
+        try {
+            uri = URI.create(environment.getProperty("focus-recovery.v2.retraction.base-url", ai.baseUrl().toString()))
+                .resolve("/internal/v2/visit-retractions");
+            // Keep the existing trust boundary; a separate local privacy receiver need not enable inference.
+            if (uri.getUserInfo() != null || uri.getHost() == null || !("https".equals(uri.getScheme()) || "http".equals(uri.getScheme()) &&
+                (Set.of("127.0.0.1", "localhost").contains(uri.getHost()) || Arrays.equals(environment.getActiveProfiles(), new String[]{"real-collection"}) && "ai".equals(uri.getHost()))))
+                return AI_RETRACTION_DESTINATION_BLOCKED;
+        } catch (IllegalArgumentException e) { return AI_RETRACTION_DESTINATION_BLOCKED; }
+        HttpResponse<String> response;
+        try {
+            var request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(5))
+                .header("Content-Type", "application/json").header("Authorization", "Bearer " + secret)
+                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(Map.of("retractionId", claim.id().retractionId(), "sessionId", claim.sessionId(), "visitId", claim.visitId())))).build();
+            response = http.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (HttpTimeoutException e) { return AI_RETRACTION_TIMEOUT;
+        } catch (InterruptedException e) { Thread.currentThread().interrupt(); return AI_RETRACTION_INTERRUPTED;
+        } catch (IOException e) { return AI_RETRACTION_UNREACHABLE;
+        } catch (Exception e) { return AI_RETRACTION_AUTH_NOT_CONFIGURED; }
+        if (response.statusCode() == 401 || response.statusCode() == 403) return AI_RETRACTION_AUTH_REJECTED;
+        if (response.statusCode() != 200) return AI_RETRACTION_HTTP_REJECTED;
+        try {
+            var body = mapper.readTree(response.body());
+            return body.isObject() && body.size() == 4
+                && body.path("retractionId").asString("").equals(claim.id().retractionId().toString())
+                && body.path("visitId").asString("").equals(claim.visitId().toString())
+                && body.path("status").asString("").equals("QUARANTINED")
+                && body.path("durable").isBoolean() && body.path("durable").booleanValue()
+                ? CONFIRMED : AI_RETRACTION_INVALID_ACK;
+        } catch (Exception e) { return AI_RETRACTION_INVALID_ACK; }
+    }
+
 }
