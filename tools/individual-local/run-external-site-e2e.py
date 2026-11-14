@@ -12,6 +12,7 @@ import sys
 import uuid
 import ssl
 import urllib.request
+from urllib.parse import urlsplit
 import local
 import dataset as ds
 
@@ -78,7 +79,8 @@ def main():
             command([*base,'export','--server',server,'--ca-file',ca,'--credential-file',credential,'--recipient',recipient,'--output',bundle])
             command([*base,'verify',bundle,'--identity',key,'--sha256',ds.digest(bundle.read_bytes())])
             manifest,files,_=ds.load_bundle(bundle,key)
-            assert set(v['domain'] for v in files['visits'])==({'docs.github.com'} if a.localized_public_docs else {'docs.python.org','blog.python.org','news.ycombinator.com','books.toscrape.com','search.naver.com'})
+            expected_domains=({urlsplit(page['url']).hostname for page in json.loads((local.ROOT/'fe/tests/fixtures/public-document-pages.json').read_text())} if a.public_articles else {'docs.github.com'} if a.localized_public_docs else {'docs.python.org','blog.python.org','news.ycombinator.com','books.toscrape.com','search.naver.com'})
+            assert set(v['domain'] for v in files['visits'])==expected_domains
             assert len(files['visits'])==10 and all(v['activeDurationMs']>=5000 for v in files['visits'])
             assert sum(v['tabSwitchCount'] for v in files['visits'])>=1
             assert all('?' not in v['normalizedUrl'] and '__focus_page__' in v['normalizedUrl'] for v in files['visits'])
