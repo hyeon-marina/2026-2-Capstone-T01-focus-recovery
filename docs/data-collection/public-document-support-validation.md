@@ -1,7 +1,7 @@
 # 공개 블로그·본문 프레임 지원 검증 — Issue #121
 
 기준 main: 70f9f9c4bd84b3cf7f8208a2ec9fff4b5dbfa236 (PR #120 병합).
-현재 상태: 코드 수정·전체 회귀·독립 Chrome MV3 E2E PASS. **승인된 C FE 반영·재인증·기존 데이터 보존 확인 PASS. 실제 C의 새 블로그 Visit 수집은 NOT_TESTED**.
+현재 상태: 코드 수정·전체 회귀·독립 Chrome MV3 E2E 및 **실제 C Chrome157의 새10 Visit/END ACK/RAW_COLLECTED PASS**. 기존 PLAN-003 검토 상태의 예상 밖 변경은 원인 미확인으로 후속 #123에서 추적한다. 수집 경로 PASS와 이 미해결 사항을 구분한다.
 작업 브랜치: `fix/121/public-document-support`. 실행 코드 기준 `bd10802ab563c3407b873f8be5d13d6874eb5b6b`; 이후 `594ceff6cf561d8a1649bab51ee597e2bbc22d11`은 외부 E2E 도메인 검증만 보완했다.
 
 ## 원인과 수정 범위
@@ -107,3 +107,32 @@ python3 tools/individual-local/run-regression.py --mysql-fixture <retained-SYNTH
 - BE/회수 서비스의 기존 PID·nonce 및 loopback, MySQL container/start/Volume 일치 PASS. 검증된 회수 target3개와 저널3행/revision3 일치 및 부모 실패 이력 보존 PASS. 기존 정상10 Visit RAW 세션/AI NOT_RUN/실제 Window0과 동의도 유지한다. 새 Session/Attempt/Consent/Export는 생성하지 않았다.
 
 운영 증거는 비공개 `/private/tmp/focus121-evidence/rollout/`의 `fe-rollout.json`, `runtime-verification.json`, 프로필 검증 및 암호화 백업 디렉터리의 `post-apply-integrity.json`에 있다. 실제 C에서 새 블로그의 1→5→10 Visit/ACK/RAW 검증은 사용자의 새 수집 결정과 직접 시작 이후 수행해야 한다. 따라서 C의 신규 블로그 수집 성공 또는 Issue 전체 완료로 표시하지 않는다.
+
+## 실제 C 새 세션 검증 (2026-11-14 KST)
+
+이 절은 위 반영 시점의 NOT_TESTED를 갱신하는 후속 실측 결과다. 사용자가 실제 C 10 Visit 검증을 요청하고, 공식 재수집 사유 기록과 PLAN-006 새 세션 시작을 직접 수행했다. 기존 동의는 유효했으며 새 동의/자격정보/설정/배포는 생성·변경하지 않았다. 탐색·종료는 에이전트 보조로 수행한 **운영 기술 검증**이다. 이를 자연스러운 사람 행동, AI 정답 라벨 또는 합성 독립 테스트 세션으로 혼동하지 않는다. 학습 데이터 채택은 별도 검수 대상이다.
+
+기존 Chrome157 Default·확장 ID/로드 경로·실행 코드63251de를 사용했다. 고정 공개10페이지 corpus와 같은 실제 글을 전경에서 관찰했고 Naver iframe 원문 제목 hash를 포함해 **저장된 제목 hash10개 모두 독립 실측 corpus와 일치**했다. 원문/입력값/URL/ID를 진단 결과로 Export하지 않고 개수·길이·시간·SHA 및 고정 진단만 기록했다.
+
+|단계|UI 로컬 Visit|UI 서버 ACK|실제 MySQL|UI pending|세션/Privacy|결과|
+|---|---:|---:|---:|---:|---|---|
+|시작|0|0|0|0|ACTIVE/CLEAR|PASS|
+|첫 Naver Visit|1|1|1|0|ACTIVE/CLEAR|PASS|
+|5 Visit|5|5|5|0|ACTIVE/CLEAR|PASS|
+|10 Visit|10|10|10|0|ACTIVE/CLEAR|PASS|
+|공식 종료|10|10|10|0|ENDED/CLEAR·END acked|PASS|
+
+- Naver1/Tistory2/WordPress2/Blogger1/레거시2/기술 글2. 각 실제 활성 체류5초 이상, 최종 저장값 최소26,751ms. Naver 본문1,884자. 본문/제목 길이 및 전처리 계약 유지. 직접 시계를 늘리거나 가짜 본문/Visit을 만들지 않았다.
+- 서버 `deliveryConfirmed=true`, `RAW_COLLECTED`, `AI NOT_RUN`, 실제 AI Window0, 새 세션 격리·회수·Tombstone0. Visit ID 해시와 sequence1~10은 모든 중간 관측과 최종 DB에서 동일하며 중복/충돌0이다. UI END_PENDING/draining 이후 ENDED/acked 전이를 확인했다.
+- **실패3건을 숨기지 않는다.** 8번째 글 주소 입력의 첫 문자 누락으로 Google 검색 화면이 열린 검증 조작 오류가 있었다. 초기에는 AX 요소 번호를 HTTP 상태로 잘못 판별했으며 그 게이트웨이 오류 설명을 철회했다. 새로고침 포함 잘못된 주소 관찰 중 고정 `EXTRACTION_RENDER_TIMEOUT`3건(동일 observedAt2건 포함)이 기록됐다. 모두 정확한 글 URL 진입 이전 시각임을 확인했고 삭제하지 않았다. 이들을 3개의 독립 페이지 실패로 간주하거나 정상 글 추출 결함으로 단정하지 않는다.
+- 주소를 원자적으로 paste한 뒤 주소 입력값·실제 주소를 정확히 검증하도록 조작 절차를 보완했다. 정확한 실제 글에서 다음 Visit이 정상 생성됐고, 최종 RAW 판정은 실패 이력을 포함한 실제 서버 결과다. 오류 검색어/본문을 정상 Visit으로 대체하지 않았다.
+- 보존 기준점은 37테이블 기존310행의 **SQL 서버 SHA256만** 기록했고 저장 전64hex를 강제 검증했다. 시작/종료 후 기존310행 전부 존재, 이전 Visit16개 동일, 새10개 추가 후 총26개다. Session/Consent/Source·Participant/Credential·격리/회수/Target/Tombstone의 기존 원본 필드는 일치한다. BE/회수 서비스 PID·nonce·loopback 및 MySQL container/start/Volume, VERIFIED3/저널3/revision3·부모 실패 이력도 유지한다.
+- 기준점/감사 조회의 최초 두 스크립트는 자동 승인 검토에서 평문 메타데이터 가능성을 이유로 거절되어 실행되지 않았다. API 레코드 저장을 제거하고 모든 행을 SQL SHA256으로 제한·검증했으며, 감사 사유도 SQL CASE의 고정 whitelist와 숫자 시각만 출력하는 안전한 대안으로 검증했다. 원문/자격정보를 우회 출력하지 않았다.
+
+### 별도 미해결 사항 #123
+
+세션 시작 과정에 PLAN-006 이전5 Visit Attempt 외에 PLAN-003 이전 정상10 Visit Attempt도 USER_REQUEST로 바뀌었다. 서버에는 약8초 간격으로 해당 두 공식 LOCAL_RECOLLECT 감사 기록이 있지만 사용자는 PLAN-006만 눌렀다고 확인했다. 두 기존 Attempt의 review_status/reason_code만 변경됐고 다른 원본 필드는 동일하다. 정상003의 RAW 집계 제외를 강제 복원하거나 감사 이력을 삭제하지 않았다.
+
+BE는 단일 UUID만 갱신하며 현재 소스에서 일괄 갱신은 확인되지 않았다. FE의 동일한 버튼 이름, RAW_ONLY에서도 AI 포함 재수집 상태가 먼저 보이는 점, 정상 RAW 행의 즉시 재수집 허용 UI는 개선 필요가 확인된다. 그러나 이번 두 요청의 UI 인과는 아직 재현하지 못했다. **원인 미확인 상태를 해결 완료/사용자 실수로 표시하지 않는다.** 후속 [Issue #123](https://github.com/SKHU-AI-Projects-Archive/2026-2-Capstone-T01-focus-recovery/issues/123)에 조사·대상 확인 보호·회귀 범위를 분리했다. 운영 복구/추가 반영은 별도 승인 대상이다.
+
+원문 없는 비공개 증거는 `/private/tmp/focus121-evidence/c-live-20261114/`의 `plan.json`, `metrics-*.json`, `collection-result.json`, `failure-timeline.json`, `preservation-result.json`, `service-identity.json`에 보존한다. 새 실제 C 데이터의 Export·Import/AI 학습 검수 및 Chrome 백업 논리 복원은 이번에도 NOT_TESTED/미실행이다. Issue #121은 자동 종료하거나 PR을 병합하지 않는다.
