@@ -1,7 +1,7 @@
 # 공개 블로그·본문 프레임 지원 검증 — Issue #121
 
 기준 main: 70f9f9c4bd84b3cf7f8208a2ec9fff4b5dbfa236 (PR #120 병합).
-현재 상태: 코드 수정·전체 회귀·독립 Chrome MV3 E2E PASS. **C 운영 반영/실제 C 새 기능은 NOT_TESTED**.
+현재 상태: 코드 수정·전체 회귀·독립 Chrome MV3 E2E PASS. **승인된 C FE 반영·재인증·기존 데이터 보존 확인 PASS. 실제 C의 새 블로그 Visit 수집은 NOT_TESTED**.
 작업 브랜치: `fix/121/public-document-support`. 실행 코드 기준 `bd10802ab563c3407b873f8be5d13d6874eb5b6b`; 이후 `594ceff6cf561d8a1649bab51ee597e2bbc22d11`은 외부 E2E 도메인 검증만 보완했다.
 
 ## 원인과 수정 범위
@@ -93,3 +93,17 @@ python3 tools/individual-local/run-regression.py --mysql-fixture <retained-SYNTH
 6. 실패 시 새 수집/전송 상태를 먼저 확인한다. 검증한 이전 FE 파일만 복구할 수 있으며, DB/프로필/Queue/ACK를 과거 백업으로 자동 덮어쓰지 않는다. 현재 상태와 원인을 보존한 뒤 호환되는 코드 복구와 후속 변경 승인을 판단한다.
 
 모든 웹사이트 수집을 보장하지 않는다. 유료·로그인·개인/민감 페이지, PDF/이미지 전용 글, 검증 불가 프레임은 정상 제외/진단 대상이다. 다른 OS·브라우저/외부 구조 변경과 공개 댓글 컴포넌트 변경은 별도 위험이다. 미확인 상태를 PASS로 쓰지 않는다.
+
+## 승인 후 C 반영 기록 (2026-11-14 KST)
+
+수집 실행 코드/공식 real 후보는 `63251de9f6633131295ee4e23c5bf885d5c534f6`으로 고정했다. 이후 이 문서만 수정하며 FE 코드를 재변경하지 않는다. 후보 Content Script SHA256은 독립 E2E와 같은 `bfc2243388ed26bbd1974e0aade9593427d0a7fce405ae87ec929828f2c97c84`다.
+
+- 사용자는 암호화 백업·FE8파일 교체·동일 확장 reload만 승인했다. 실제 수집 시작/재수집/새 동의/운영 Export/PR 병합은 승인 범위에서 제외했다. 기존 세션은 이미 ENDED/POST·PATCH0/END acked였으며 사용자가 직접 Chrome을 정상 종료하고 이후 기존 Credential 파일로 재인증했다.
+- 새 `ops/c-public-documents-20261114` 브랜치에서 검증 후보를 기존 `fe/dist-real`에 반영했다. 기존 운영 브랜치5개·미추적 PDF·설정/JAR/인증서·ID/로드 경로/Chrome157 Default를 보존했다. 실제 Chrome UI에서 동일 확장의 명시적 reload 완료와 `63251de9f663` 표시를 확인했다.
+- 새 `.collection/rollout-backups/ISSUE121-public-documents-20261114`에 현재 DB 및 기존 운영 파일21개를 age 암호화했다. network=none/host port0/tmpfs MySQL에서 복구한 뒤 **37테이블의 모든 필드·행 및 외래키50개**를 비교했다. Chrome 재인증 후에도 다시 같은 반영 전 백업과 비교하여 PASS했다. 운영 Volume에는 복원하지 않았다.
+- 현재 확장의 IndexedDB/Local Extension Settings만 파일14개를 암호화 백업했다. 인증 복호화·파일 범위/길이·LevelDB CURRENT/MANIFEST 참조2개 검증 PASS. 평문 파일을 쓰지 않았다. **백업본을 실제 Chrome에 논리 복원하는 시험은 NOT_TESTED**이며 기존 프로필을 덮어쓰지 않았다.
+- 백업 도구의 기존 경로 보호 검사 중단 및 macOS 프로필 읽기 거절은 실패 로그로 보존했다. 기존 백업/사용자 파일은 변경하지 않았다. 사용자 Terminal의 Chrome 앱 데이터 개별 권한만 임시 사용한 뒤 OFF로 복원했다. 전체 디스크 접근은 사용하지 않았다.
+- 재인증 후 UI의 기존 로컬5/서버5 Visit, ENDED, pending0, END acked 및 기존 정상·격리·부족 Attempt가 복원됨을 확인했다. 인증 전 표시0을 데이터 유실이나 새 수집 성공으로 해석하지 않았다. 기존 부족 Attempt를 성공 처리하지 않았다.
+- BE/회수 서비스의 기존 PID·nonce 및 loopback, MySQL container/start/Volume 일치 PASS. 검증된 회수 target3개와 저널3행/revision3 일치 및 부모 실패 이력 보존 PASS. 기존 정상10 Visit RAW 세션/AI NOT_RUN/실제 Window0과 동의도 유지한다. 새 Session/Attempt/Consent/Export는 생성하지 않았다.
+
+운영 증거는 비공개 `/private/tmp/focus121-evidence/rollout/`의 `fe-rollout.json`, `runtime-verification.json`, 프로필 검증 및 암호화 백업 디렉터리의 `post-apply-integrity.json`에 있다. 실제 C에서 새 블로그의 1→5→10 Visit/ACK/RAW 검증은 사용자의 새 수집 결정과 직접 시작 이후 수행해야 한다. 따라서 C의 신규 블로그 수집 성공 또는 Issue 전체 완료로 표시하지 않는다.
