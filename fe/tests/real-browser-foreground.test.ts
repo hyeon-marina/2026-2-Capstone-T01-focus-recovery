@@ -153,3 +153,15 @@ it('ends a replaced frame at the last confirmed observation rather than creditin
  await send('context',{raw,contentRaw:childRaw},sender(1));
  expect(f.runtime.leave).toHaveBeenCalledWith(1,cursor,true);
 });
+it('keeps an already recorded unsupported-frame failure bound to its candidate',async()=>{
+ f.runtime.state.tabs[1]='failed-candidate';
+ f.runtime.state.candidates=[{id:'failed-candidate',document:'doc-1',excluded:'EXTRACTION_FAILED'}];
+ f.runtime.leave.mockClear();
+ await send('observation',{raw,safe:true,visible:true,snapshot:null,extractionFailed:true,failureReason:'EXTRACTION_ACCESS_DENIED',diagnosticCode:'FRAME_UNSUPPORTED'},sender(1));
+ expect(f.runtime.leave).not.toHaveBeenCalled();
+});
+it('reports a loading frame without creating an extraction-failure candidate',async()=>{
+ await send('observation',{raw,safe:true,visible:true,snapshot:null,extractionFailed:false,failureReason:'EXTRACTION_ACCESS_DENIED',diagnosticCode:'FRAME_UNAVAILABLE'},sender(1));
+ expect(f.runtime.observe).not.toHaveBeenCalled();
+ expect((await send('status')).diagnostic.code).toBe('FRAME_UNAVAILABLE');
+});

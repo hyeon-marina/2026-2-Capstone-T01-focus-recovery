@@ -40,6 +40,9 @@ await build({configFile:resolve('vite.real.content.config.ts'),build:{outDir:ext
 const fixture=createServer((req,res)=>{
   const path=req.url.split('?')[0];
   const child=publicDocuments && /^\/public\/article-[0-9]+$/.test(path);
+  if(publicDocuments&&path==='/public/unsupported'){
+    res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>SYNTHETIC unsupported frame</title><iframe src="http://localhost:8911/public/article-99" style="width:100%;height:750px"></iframe>');return;
+  }
   if(!child && !/^\/public\/page-[0-9]+(?:\?page=[0-9]+)?$/.test(req.url)){res.writeHead(404);res.end();return;}
   const n=Number(path.split('-').at(-1));
   const text=`SYNTHETIC TEST ONLY. Controlled TypeScript transaction research with durable local observations and reliable browser storage. You should not enter a credit card on untrusted pages. ${path}`;
@@ -170,6 +173,15 @@ try {
       if(n===3){const cdp=await context.newCDPSession(harness);await cdp.send('ServiceWorker.enable');await cdp.send('ServiceWorker.stopAllWorkers');await cdp.detach();await wait(s=>s.validVisits>=3,'service worker recovery');}
       if(n===5){await capture('collection-progress');await context.close();context=await launch();worker=context.serviceWorkers()[0]||await context.waitForEvent('serviceworker');harness=await context.newPage();await harness.goto(`chrome-extension://${id}/participant/index.html`);assert.equal((await send('status')).collectionAllowed,false);await login();await wait(s=>s.collectionAllowed,'browser reauthentication');page=await context.newPage();}
       console.log(`SYNTHETIC ${slot}: measured visit ${n}/10`);
+    }
+    if(publicDocuments){
+      const before=(await send('progress')).attempts[0].collectionFailures;
+      await page.goto('http://127.0.0.1:8911/public/unsupported');await page.bringToFront();
+      await wait(s=>s.diagnostic?.code==='FRAME_UNSUPPORTED','unsupported source diagnostic');
+      await page.waitForTimeout(6500);
+      const after=(await send('progress')).attempts[0].collectionFailures;
+      assert.equal(after,before+1,'one unsupported document must not create a failure on every observation');
+      assert.equal((await send('status')).validVisits,10);assert.equal((await send('status')).quarantined,false);
     }
     await send('stop');await wait(s=>s.lifecycle==='ENDED'&&s.endPhase==='acked'&&s.pending===0,'end ack and drained queue');
     if(faults){

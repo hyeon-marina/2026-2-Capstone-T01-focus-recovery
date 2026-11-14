@@ -121,7 +121,7 @@ const frameDiagnostics = new Set(['FRAME_UNAVAILABLE','FRAME_UNSUPPORTED','FRAME
 async function discardSourceGap(tabId: number, t: Stamp) {
   const state = runtime.snapshot();
   const current = state.candidates.find(c => c.id === state.tabs[tabId]);
-  if (!current) return;
+  if (!current || current.excluded) return;
   // A newly discovered replacement has no trusted navigation timestamp for its last interval.
   await runtime.leave(tabId, current.cursor ?? t, true);
   boundaries.set(tabId,t);
@@ -256,6 +256,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
         await runtime.leave(tabId, t);
         return { collecting: runtime.collecting() };
       }
+      if (!source && m.diagnosticCode === 'FRAME_UNAVAILABLE') { await discardSourceGap(tabId,t); diagnose('FRAME_UNAVAILABLE'); return {collecting:runtime.collecting()}; }
       if (!source && (contentFrames.has(tabId) || frameDiagnostics.has(m.diagnosticCode))) await discardSourceGap(tabId,t);
       if ((build?.publicWeb || build?.pageContent) && (!permitted || m.safe !== true && m.sensitive !== true)) {
         diagnose(frameDiagnostics.has(m.diagnosticCode) ? m.diagnosticCode : !permitted ? 'SITE_PERMISSION_REQUIRED' : m.failureReason === 'INPUT_FOCUSED' ? 'INPUT_FOCUSED' : 'POLICY');
