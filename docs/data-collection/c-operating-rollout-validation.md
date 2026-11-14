@@ -1,12 +1,103 @@
-# PR 120 재검증과 C 운영 반영 준비
+# PR 120 재검증과 C 운영 수집 결과
 
-2026-11-13~14 KST. 결과는 **PARTIAL**이다. 사용자가 백업·격리 복구, FE·BE 운영 반영, 새 PLAN-003 시작을 순서대로 별도 승인하고 직접 인증·시작했다. 이후 사용자가 공개 페이지 탐색을 Codex에 위임했다. 첫 공개 문서에서 새 locale 오탐이 재현돼 Visit0·QUARANTINED로 실패했으며 공식 마감했다. 이 기록은 자동 탐색 운영 검증이며 사람의 자연스러운 탐색 학습 표본으로 확정하지 않는다. DB 암호화 백업·격리 복구 및 파일/프로필 백업 무결성은 PASS, Chrome 논리 복원은 NOT_TESTED다. 실제 C 10 Visit 성공으로 보고하지 않는다. 기존 검증은 [수집 안정성 보고서](collection-reliability-validation.md)에 보존한다.
+2026-11-14 KST. **SUCCESS — 기존 C 운영 환경에서 실제 Chrome MV3의 10 Visit 생성·IndexedDB 저장·POST/PATCH ACK·MySQL 저장·정상 종료·RAW_COLLECTED를 확인했다.** 사용자가 직접 인증·세션 시작을 수행하고 공개 문서 탐색을 Codex에 위임했다. 이 결과는 운영 수집 경로 검증이며 사람의 자연스러운 탐색 학습 표본으로 확정하지 않는다. 첫 실패와 후속 성공은 별도 Session/Attempt 및 증거로 보존한다. 운영 Export·PR 병합·Issue 종료는 하지 않았다.
+
+## 1. 작업 결과와 근본 원인
+
+- 실제 C의 첫 새 시도는 공개 GitHub Docs가 `/ko/pages/...`로 전환된 뒤 Visit0·SENSITIVE_CONTENT로 실패했다. 기존 예외가 공개 설문 `survey-token`을 영문 `/en/pages`에서만 허용한 것이 원인이다. 독립 Chrome157 EN/KO DOM과 수정 전 번역8개 FAIL로 재현한 뒤 공식9개 언어의 같은 `/pages` 경계만 허용하도록 고쳤다. 다른 Token·비밀번호·카드·SSN 마커, 입력값 미접근, 고위험 텍스트 차단은 유지했다.
+- 대규모 DOM의 중복 조상 가시성 검사는 실제 50,030 요소에서 3,202ms를 재현해 선형 순회로 고쳤다. 같은 Chrome151에서320.9ms, Chrome157 독립 프로필에서302.6ms로 개선됐다. 과거 PLAN-003의 정확한 Visit0 트리거였다고 단정하지 않는다.
+- 최초 운영 반영에서 Codex가 Chrome 재시작 뒤 명시적 확장 새로고침을 먼저 수행하지 않아 구 Worker가 남았다. 실제 상태 응답의 새 진단 필드 부재로 확인하고 동일 확장을 새로고침·사용자 재인증해 바로잡았다. 이후 반영에서는 새로고침 완료와 실제 실행 화면을 확인한 뒤 시작했다.
+- Issue112의 전경 탭 수정과 PR118의 FE/BE 카드 검사 수정은 기존 구현을 보존했다. C의 실제 구 JAR `e088f03`에는 PR118 BE 수정이 없어 1차 승인 때 검증된 `0941d50`으로 정합화했다. 기존의 오래된 PLAN-003 격리 사유 전체는 재현하지 못했으며 추측으로 CLEAR 처리하지 않았다.
+
+## 2. 코드 상태와 영향
+
+작업 브랜치는 `fix/119/collection-reliability`, 최종 실행 FE 코드는 `21826627b7f067465585b9dfec4f07055616a067`이다. 후속 커밋은 보고서다. PR120은 Ready for review/open·미병합, Issue119는 open으로 유지한다. 확인 당시 main은 `ff15a90bb9ce389b32a75dd57806ed7e215ddb48`, CI/check와 review는0이며 로컬 검증을 CI PASS로 표기하지 않는다.
+
+공식 main 대비 변경 파일과 역할은 다음과 같다.
+
+|범위|파일|변경 목적|
+|---|---|---|
+|FE 수집|`fe/real/content.ts`, `fe/src/content/extraction.ts`, `fe/src/v2/browser.ts`|입력 포커스/고위험 신호 분리, 공개 본문·성능·locale 결함, 전경/관찰/연결 진단|
+|FE 화면|`fe/participant/index.tsx`, `fe/src/v2/local-status.ts`|Gate와 실제 ACTIVE 구분, 고정 진단 코드·복구 안내|
+|FE 회귀|`fe/tests/extraction-performance.test.ts`, `fe/tests/localized-public-documents.test.ts`, `fe/tests/privacy-parity.test.ts`, `fe/tests/real-browser-foreground.test.ts`, `fe/tests/real-content-lifecycle.test.ts`, `fe/tests/v2-collector.test.ts`|수정 전 실패 재현 및 성능·프라이버시·포커스·SPA·늦은 응답·체류 경계 검증|
+|실제 브라우저 도구|`fe/scripts/content-performance-test.mjs`, `fe/scripts/local-https-browser-test.mjs`, `fe/scripts/raw-browser-test.mjs`|실제 DOM 비용, 공식 번역 문서, 장애·재시작·ACK 유실 경계|
+|AI·공통 계약|`ai/training/raw_review.py`, `ai/tests/test_raw_review.py`, `docs/contracts/v2/fixtures/privacy-text.json`, `be/src/test/java/com/focusrecovery/domain/collection/MetadataPageTest.java`|일반 카드 설명과 실제 번호의 FE/BE/AI 판정 일치, 실제 위험·연락처 처리 유지|
+|로컬/E2E|`deploy/individual-local/compose.yml`, `tools/individual-local/run-external-site-e2e.py`, `tools/individual-local/run-synthetic-e2e.py`|안전한 MySQL 종료 계약, 독립 공개 문서·실패 Queue 복구 반복|
+|보고서|`docs/data-collection/collection-reliability-validation.md`, 이 문서|전체 경로·재현·실패·승인·검증 결과|
+
+5초 체류·4초 복귀·1.5초 관찰 간격·본문 최소 길이, 불변 Visit ID·sequence·멱등 계약, IndexedDB format2와 DB migration18은 유지한다. 최종 locale 추가 반영에는 BE/AI/스키마 source 변경이 없어 FE8개 파일만 교체했다. 기존 v1 Window5 학습기는 변경하지 않았다. 현 v2 원본 검수는 Window3/Stride1이며 사람 라벨·실제 모델 학습은 별도 작업이다.
+
+## 3. 운영 반영 결과
+
+|대상|최종 확인|
+|---|---|
+|운영 브랜치|`ops/c-pr120-localized-20261114` / `2182662`. 이전 `ops/c-pr120-20261113` / `0941d50`, `ops/c-foreground-rollout-20261113` / `432959e` 보존|
+|실제 FE|기존 `fe/dist-real` 절대 경로, source2182662/dirty=false, Content Script SHA256 `23df48f13f51bdc89cd292a308d393dc0e6a96ffbd1f638f7f64ed5028f6512c`. 독립3회와 동일|
+|실제 BE|JAR source0941d50, Java21/PID93492. 1차 승인 때만 정상 재시작했고 locale 추가 적용 때는 재시작 없음. BE main source는 FE2182662와 동일|
+|Chrome·프로필|157.0.8103.51/macOS27.2 arm64, `/Users/hyeon/Library/Application Support/Google/Chrome/Default`를 종료 검증 후에도 직접 확인|
+|Extension|ID `aocfmndihdfimoocmdafcbkgifbpdhbl`, `/Users/hyeon/Project/2026-2-Capstone-T01-focus-recovery/fe/dist-real` 유지. 삭제/재설치·권한 확대 없음|
+|정책·Gate|focus-team-raw-v2/6, RAW_ONLY, focus-page-content-v6, Plan revision1, SHA `31db27f078c2c80223f3887e33d1853a378e6794098f32319769f01577c2c982` 유지. 기존 동의·Credential 사용|
+|DB·Volume|mysql8.4, `focus-local-cddfab90d1f8-mysql-1` / `focus-local-cddfab90d1f8_local-db`. 컨테이너 ID·StartedAt·마운트 불변, restartCount0, schema18|
+|영속 데이터|IndexedDB format2·Queue 유지. 종료 후 local10/POST ACK10/PATCH ACK10/pending0, END ACK acked를 실제 readonly transaction으로 확인|
+|사용자 파일|미추적 `team-data-collection-manual.pdf` SHA 불변. 설정·인증서·기존 브랜치·backup/key 보존|
+
+백업은 승인된 두 시점에 age 암호화했다. 실제 복호화·network=none/포트0/tmpfs MySQL의37개 테이블·FK50개 복구 검증 PASS. 운영 DB/프로필을 복원하지 않았다. 프로필 파일14개·LevelDB 참조 무결성은 PASS이나 **실제 Chrome 논리 복원은 NOT_TESTED**다. 백업 시점은 수집 전이며 이번10 Visit의 수집 후 새 스냅샷은 실행하지 않았다. 실패 시 수집/전송 상태를 먼저 확인하고 FE/JAR를 검증본으로 되돌릴 수 있으나 DB·프로필 자동 덮어쓰기는 하지 않는다. 특히 구 BE e088f03의 카드 판정으로 되돌리면 ACK 재전송도 거절될 수 있다. 추가 배포·백업/복구·새 동의·세션·Export·병합에는 해당 사용자 승인 경계를 계속 적용한다.
+
+## 4. 실제 C 재시도 1→10 Visit
+
+사용자가 직접 기존 파일로 인증·PLAN-003 새 세션을 시작했다. Codex가 위임받은 공개 GitHub Pages 배포·도메인·HTTPS 문서10개를 실제 Chrome 전경 탭에서 탐색했다. Content Script의 실제 측정값만 사용했으며 시간을 조작하거나 Visit/본문을 만들지 않았다.
+
+|단계|로컬 Visit|서버 ACK Visit|실제 서버 저장|Pending|상태|결과|
+|---|---:|---:|---:|---:|---|---|
+|시작|0|0|0|0|ACTIVE/CLEAR, 관찰 허용|PASS|
+|1 Visit|1|1|1|0|ACTIVE/CLEAR|PASS|
+|5 Visit|5|5|5|0|ACTIVE/CLEAR|PASS|
+|10 Visit|10|10|10|0|ACTIVE/CLEAR|PASS|
+|종료|10|10|10|0|ENDED/CLEAR, END ACK acked|PASS|
+
+POST와 PATCH는 각각10개 ACK를 확인했다. 1/5/10/종료 단계에서 IndexedDB의 불변 Visit ID+sequence 지문과 MySQL 지문을 대조했고 최초 ID들을 그대로 유지했다. 마지막 지문은 `96af8fdd768ab7bbd0c2d1a2684b3288929a4c231561417fb21acbef60ac5c1c`다. 실제 최종 활성 체류는22.690~94.622초, 제목25~48자·본문1227~5000자, extraction SUCCESS10개, sequence1~10, 중복ID0·순서 충돌0이다.
+
+## 5. 데이터 품질과 이력 보존
+
+- Session ENDED, privacy CLEAR, END ACK acked, 전달 확인 true, RAW_COLLECTED, 유효 Visit10·referencesValid=true·RAW 사유0. 실제 AI Window0, AI NOT_RUN, 이론상 검수 Window8이다. 화면의 AI 포함 품질 미완료/일반 RECOLLECT_REQUIRED 표시는 RAW_ONLY의 원본 수집 판정과 구분하며 AI Window나 라벨을 자동 생성하지 않았다.
+- DB 내부 집계에서 HMAC page 식별자10개, normalized_url의 원문 query/fragment 저장0, 길이·체류·PATCH version 계약10개 PASS, 미마스킹 이메일/국내 전화 패턴0을 확인했다. 원문·URL·입력값·Credential·HMAC key를 진단 로그에 출력하지 않았다. 이 집계는 사람의 개인정보 검수를 대체하지 않는다.
+- 전체 Session8·Attempt8·물리Visit11·Consent1·Retraction3·Tombstone3이다. 과거 물리Visit1과 실패7개 Attempt는 보존했다. 승인된 추가 백업을 격리 메모리 DB에 복원해37개 테이블의 기존284개 행을 해시 비교했다. 불변 필드/행 삭제0, 예상 밖 변경0이다. 새 행은 Session1·Attempt1·scope1·Visit10·공식 재수집 audit1뿐이며 기존 실패 Attempt의 review/reason 변경은 승인된 USER_REQUEST만 허용했다.
+- 최초 전체 행 비교는 과거 회수 작업의 재시도 카운터 때문에 FAIL했다. 컬럼별 진단은 privacy_retraction의 attempts와 retraction_target의 attempts/next_attempt_at만 차이임을 확인했다. Worker 소유 가변 필드를 코드의 수명주기 계약으로 분리하고 불변 요청·대상·원본·Consent·Tombstone을 엄격히 대조했다. 카운터30행이 후퇴하지 않은 것도 확인했다. 최초 FAIL/진단/최종 계약 검증을 모두 별도 보존했으며 운영 행을 바꾸지 않았다.
+- 운영 Export audit0, 실제 C Export/Import/AI 검수는 **NOT_TESTED·미승인**이다. 사용자 직접 시작+Codex 자동 탐색이라는 출처를 보존하며 연구용 사람 행동 표본 채택은 별도 검토해야 한다.
+
+## 6. 테스트 결과와 증거
+
+|범위|최종 결과|
+|---|---|
+|FE|1,020 PASS, TypeScript·공식 real build/package PASS. 기본 runner의 기존 opt-in HTTP2개는 BE 실제 서버 통합에서 별도 PASS. 추가 SKIP/조건 완화 없음|
+|BE·MySQL|58 classes/1,148 PASS, FAIL/ERROR/SKIP0. 실제 MySQL·HTTP·브라우저·MOCK FastAPI fixture 실행|
+|AI·도구|AI276 PASS, 로컬/데이터셋42 PASS, 회수5 PASS. 공통 개인정보 fixture PASS|
+|독립 실제 MV3 반복|신규3환경×10 Visit, CFT151·실제 Content Script/Spring/MySQL. locale·Worker/Chrome 재시작·재인증·종료 ACK·RAW 품질 PASS. 동일 Content Script SHA가 실제 C와 일치|
+|장애/개인정보 회귀|기존 신규3회×10 Visit에서 실제 POST 실패 Queue·ACK 유실·같은 ID 재전송·포커스/해제·SPA·늦은 응답·5초/4초 경계·MySQL/서버 재시작·격리/회수/재수집 PASS. locale 수정은 이 전송/저장 코드를 변경하지 않음|
+|독립 Export/Import/검수|신규3세션30 Visit24 무라벨 Window PASS, 중복 Import3 거부|
+|실제 C Chrome157 MV3|수정 전 첫 시도 FAIL(Visit0/격리) 보존 → 수정 후 새 Session에서10 Visit·END ACK·RAW_COLLECTED PASS|
+|실제 C 장애 주입|수집 후 네트워크 단절/Worker·브라우저 재시작을 운영 데이터에 강제로 주입하지 않음: NOT_TESTED. 해당 경계는 위 독립 환경에서 PASS|
+
+이전 일반 Chrome157 CLI 확장 로드 실패3건, 새 E2E 준비/도메인 assertion 실패, 실제 C 최초 격리는 모두 보존한다. 성공 재실행으로 실패를 덮어쓰지 않았다. 상세 수량/실측치/ID 지문은 비공개 `/private/tmp/focus120-final-check/c-operating-final-summary.json`, `c-retry-session-*.json`, `c-retry-idb-*.json`, `c-final-storage-contracts.json`, `c-historical-contract-preservation.json`, `localized-final-test-summary.json`에 있다. 원문·키·프로필·DB/Export는 Git에 포함하지 않는다.
+
+## 7. 미해결 사항과 다음 조치
+
+|항목|확인 사실·영향·대응|
+|---|---|
+|기존 AI 회수 전파3건|AI_CACHE_AND_MEMORY target은 FAILED/PROPAGATION_UNCONFIRMED. 코드상 미확인 ACK가 재시도 횟수/시각을 갱신하며 요청/격리/Tombstone은 유지한다. 외부 ACK 미수신의 구체적 운영 원인은 미확정이다. 과거 외부 사본/메모리 회수 완료를 주장하지 않으며 임의 VERIFIED/CLEAR 처리나 재시도 비활성화는 하지 않는다. 책임자의 전파 endpoint·외부 증거 확인이 별도 필요하다. 신규 세션에는 Retraction/Tombstone0이며 정상 CLEAR다.|
+|연구용 데이터 채택|이번 C10개는 사용자 동의/시작과 Codex 위임 탐색으로 얻은 운영 검증 데이터다. 자연스러운 사람 행동·정답 라벨로 간주하지 않는다. Export/사람 검수/라벨링·후속 학습은 사용자 검토와 별도 승인 후 수행한다.|
+|브라우저·외부 구조|실제 C Chrome157/macOS27.2, 독립 CFT151 검증 범위다. 다른 OS/브라우저와 Google 정상 검색 결과는 NOT_TESTED(기존 CAPTCHA 우회 안 함). 외부 DOM 변화는 진단 코드로 재확인해야 한다. 과거 PLAN-003의 모든 트리거를 재현한 것은 아니다.|
+|복구·백업|Chrome 논리 복원과 수집 후 최신 백업은 NOT_TESTED/미실행이다. 기존 암호화 백업은 수집 전 시점이다. 운영 데이터/프로필 자동 복원은 하지 않으며 필요 시 새 승인으로 현 상태를 백업·격리 검증한다.|
+|AI 학습 범위|v2 Window3/Stride1 검수와 무라벨 분리까지 지원한다. 실제 AI 실행·사람 라벨·v2 학습기/평가는 수행하지 않았으며 v1 Window5 학습기는 유지한다.|
+|화면·리뷰|검증 후 Mac이 잠겨 마지막 수집 화면 복귀는 수행하지 못했다. 정상 종료 ACK와 Default 프로필 확인은 잠금 전에 완료했다. PR120 미병합·Issue119 open 상태로 사용자 검토를 기다린다.|
+
+## 이전 검증·승인·최초 실패 이력 (보존)
 
 ## 코드와 PR 기준
 
 재확인 당시 PR #120은 Draft/open, HEAD `ba3e20c0f5d923ea5dc61fd93b912ff33d10b71e`, 공식 main `ff15a90bb9ce389b32a75dd57806ed7e215ddb48`이다. mergeable=true, CI/check 0, review/review thread 0. PR #118은 ancestry에 포함된다. 작업 트리는 clean이었다. 운영 `ops/c-foreground-rollout-20261113`과 미추적 PDF는 보존한다.
 
-추가 결함은 독립 `fix/119/dom-observation-performance`의 `77cb8f9`에서 수정한 뒤 PR #120에 반영했다. 최종 코드 후보는 `0941d50f035165780f27d12e4ced359f202e859b`이다. 이후 보고서 커밋을 포함한 확인 당시 PR HEAD는 `a44968ba60471da2f9bcf17e3f351e682b269a99`이며 Ready for review/open, 미병합 상태다.
+추가 결함은 독립 `fix/119/dom-observation-performance`의 `77cb8f9`에서 수정한 뒤 PR #120에 반영했다. 1차 코드 후보는 `0941d50f035165780f27d12e4ced359f202e859b`이다. 이후 보고서 커밋을 포함한 당시 PR HEAD는 `a44968ba60471da2f9bcf17e3f351e682b269a99`이며 Ready for review/open, 미병합 상태였다.
 
 ## 추가 성능 결함과 수정
 
@@ -153,4 +244,4 @@ GET `/api/collection/progress`와 파일 해시 등의 원문 없는 증거는 `
 |10 Visit|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|NOT_VERIFIED|첫 시도 격리로 미진행|NOT_TESTED|
 |종료|0|0|0|0|ENDED/QUARANTINED·격리 마감 완료. 정상 END ACK와 구분|PASS (격리 마감)|
 
-실제 C의 END ACK/RAW_COLLECTED·중복/sequence·AI NOT_RUN·Export/Import는 새 세션에 대해 아직 확인하지 않았다. 합성 테스트 PASS를 이 표에 옮기지 않는다. Google 정상 검색 DOM은 과거 CAPTCHA로 미검증이며, 실제 C 성공을 대체하지 않는다.
+위 마지막 표는 locale 수정 전 최초 실패 세션의 기록이다. 후속 실제 C 재시도10 Visit·정상 END ACK·RAW_COLLECTED 결과는 문서 상단에 별도로 기록했다. 독립 테스트 성공을 실제 C 결과로 옮기지 않았다. 실제 C Export/Import와 Google 정상 검색 DOM은 여전히 NOT_TESTED다.
