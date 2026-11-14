@@ -251,3 +251,9 @@ GET `/api/collection/progress`와 파일 해시 등의 원문 없는 증거는 `
 2026-11-14 후속 읽기 전용 진단에서 회수 인증키 및 loopback AI receiver 부재를 확인했다.
 코드/독립 검증과 별도 운영 승인 계획은 [회수 전파 검증](retraction-propagation-validation.md)에 기록한다.
 위 본문의 기존 수집 성공과 당시 미확인 3건 기록은 보존한다. 후속 운영 반영은 아직 승인 전이다.
+
+
+후속 최종 상태(2026-11-14): 사용자 승인 후 기존 회수3건의 실제 durable ACK와 저널3행을
+확인했고, 추가 저널 재기동 보호까지 승인 반영했다. 정상 RAW10·기존 이력·298개 원본 행은
+보존됐다. 이 결과는 위 최초 미확인 기록을 삭제하지 않고
+[회수 전파 최종 검증](retraction-propagation-validation.md)에 분리 기록한다.

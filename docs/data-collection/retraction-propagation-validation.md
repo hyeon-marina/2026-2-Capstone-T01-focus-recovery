@@ -1,7 +1,7 @@
 # C의 회수 전파 미확인 3건: 원인·수정·운영 승인 계획
 
-2026-11-14 KST. Issue #119 / PR #120 후속. **PARTIAL: 최초 승인 반영 후 실제 3건 전파 PASS. 추가 저널 재기동 보호를 검증 중이며 추가 반영 승인 전**.
-운영 성공과 독립 테스트를 구분하며, 추가 보호가 아직 운영에 반영됐다고 기록하지 않는다.
+2026-11-14 KST. Issue #119 / PR #120 후속. **SUCCESS: 기존 3건의 실제 영속 격리 전파와 저널 재기동 보호를 승인된 C 운영에 반영·검증 완료**.
+이 성공은 회수 전파/데이터 보존 범위이며 외부 사본·GPU·모델의 완전 삭제를 뜻하지 않는다.
 
 ## 확인한 원인
 
@@ -58,7 +58,7 @@ DB migration/테이블/Visit 형식/FE/Chrome/IndexedDB/Queue/동의/정책 변�
 체류시간을 생성하지 않았다. 이번 범위에서 FE 코드는 바뀌지 않았으며 기존 FE 검증은
 [C 운영 검증 보고서](c-operating-rollout-validation.md)의 이전 결과와 구분한다.
 
-## 승인 후에만 적용할 구체적인 운영 계획
+## 최초 승인 계획 (아래 실행 결과로 완료)
 
 대상 root: `/Users/hyeon/Project/2026-2-Capstone-T01-focus-recovery`.
 적용 후보의 commit/JAR/파일/wheel SHA256은 비공개 `candidate/candidate.json`에 고정한다.
@@ -135,7 +135,7 @@ deliveryConfirmed=true, RAW_COLLECTED, AI NOT_RUN, 실제 Window0이다. FE 파�
 원본 파일을 바꾸지 않고 시작을 거절한다. 모델 로더도 시작하지 않는다. 독립 runner와 운영자
 신규 준비 절차도 명시적 생성 방식으로 바꿨다. DB/BE/FE 계약이나 정책을 바꾸지 않는다.
 
-추가 운영 범위는 검증 후 별도 승인받는다: 같은 저널3행·같은 인증키를 유지하고 회수 서비스의
+추가 운영 범위는 검증 후 별도 승인받았으며 아래와 같이 완료했다: 같은 저널3행·같은 인증키를 유지하고 회수 서비스의
 Python main/journal 두 파일만 교체·재시작한다. BE PID/JAR, Chrome/FE, MySQL/Volume은 그대로 둔다.
 새 저널·키의 암호화 백업과 독립 메모리 SQLite 복구 검증을 포함하고 기존 저널을 재초기화하지 않는다.
 
@@ -144,4 +144,44 @@ Python main/journal 두 파일만 교체·재시작한다. BE PID/JAR, Chrome/FE
 BE 전체 **60 classes / 1,164 PASS, FAIL/ERROR/SKIP 0**(새 합성 스키마/실제 receiver/HTTP/MySQL/Chrome),
 독립 최소 Python 실제 HTTP **신규 저널3회×요청3건·각 재기동 PASS**.
 누락/빈 파일/손상 시 재초기화하지 않음, 기존 파일에 신규 초기화 거절, 승인된 모델 entrypoint가
-저널 누락 시 모델 Thread를 시작하지 않음까지 검증했다. 추가 C 반영은 별도 승인 전이다.
+저널 누락 시 모델 Thread를 시작하지 않음까지 검증했다. 추가 C 반영은 아래 별도 승인 후 완료했다.
+
+
+## 추가 승인 반영과 최종 결과
+
+사용자가 ‘저널 백업·회수 서비스 보완 반영’을 명시적으로 승인했다.
+`8d590b300c3905e89b359735a775aced944b4c3a`를 새 `ops/c-retraction-guard-20261114`에
+반영하고 실제 실행 Python main/journal 두 파일만 교체했다. 회수 서비스는 nonce와 리스닝
+PID를 대조해 2997→4333으로 정상 재시작했다. BE PID3002/JAR는 그대로다.
+이전 운영 브랜치 5개·PDF·FE 파일·정책 SHA·MySQL 컨테이너/StartedAt/Volume은 보존했다.
+
+현재 저널의 일관된 SQLite snapshot과 같은 인증키/주소·프로세스 기록 등 5개 파일을
+`PR120-retraction-20261114/post-propagation/retraction-state.tar.age`로 추가 암호화했다.
+암호문 SHA256은 `764445986f5efe4f6bce3bb74bc9a46022a568bb4d8cf3c3499eda285c9ed995`이다.
+복호화 후 독립 메모리 SQLite에서 integrity_check=ok, 저널3행/revision3·ID 집합 일치와
+파일 내용/권한을 검증했다. 운영 저널을 복원하거나 재초기화하지 않았고, 재시작 전후
+**실제 저널 파일 바이트도 동일**했다. 비밀값/원문은 출력하거나 Git에 넣지 않았다.
+
+최종 읽기 전용 대조 시각: 2026-11-14 10:26:58 KST.
+
+|항목|최종 실제 결과|
+|---|---|
+|AI_CACHE_AND_MEMORY|VERIFIED 3 / 활성 전파 오류 0 / 실제 durable ACK와 저널 일치|
+|실패 이력|부모 마지막 오류·실패 횟수 보존. target 추가 시도 각 1회 후 증가 없음|
+|격리·회수|원본 요청·Tombstone·부모/세션 QUARANTINED 유지. 외부 증거 BLOCKED 유지|
+|정상 수집 데이터|10 유효 Visit, ENDED/CLEAR, deliveryConfirmed=true, RAW_COLLECTED, AI NOT_RUN, 실제 Window0|
+|DB 무결성|37개 테이블/298개 원본 행의 불변 필드·행 수 동일. 삭제/예상 밖 변경0. 격리 복구 FK50 PASS|
+|MySQL|동일 컨테이너 ID/StartedAt/Volume, restartCount0, migration/복원 없음|
+|운영 실행|회수 서비스8d590b3/PID4333, BE cc42a95/PID3002. 127.0.0.1:18000만 LISTEN, 추론 route404|
+|로컬 보호|저널/키600·디렉터리700·동일 소유자. FE/정책/PDF hash 불변. Chrome/IndexedDB/Queue 조작 없음|
+|추가 금지 범위|새 동의/세션/재수집/RAW Export/AI 모델/PR 병합/Issue 종료 미실행|
+
+최종 검증 첫 실행은 lsof가 자동 포함하는 파일 디스크립터 `f6` 레코드를 예상하지 못해
+FAIL했다. PID/loopback 검증 조건을 유지하고 FD 메타데이터를 명시적으로 파싱해 재실행
+PASS했다. 최초 로그 `final-integrity.log`와 최종 `final-integrity-after-format.log`를 모두
+보존했다. 제품 코드/운영 설정을 이 검증 실패 때문에 변경하지 않았다.
+
+Mac OS 재부팅 전체 복구와 반영 후 Chrome/IndexedDB의 직접 논리 검사는 NOT_TESTED다.
+실제 운영 저널을 지우거나 손상시키는 장애 시험은 하지 않았다. 해당 실패 경계는 동일
+수정본의 독립 환경에서 검증했다. Mac 재부팅 후에는 같은 저널/키로 회수 서비스를 먼저
+기동해야 하며, 외부 사본/백업/로그/학습 산출물/GPU의 완전 삭제는 별도 책임자 증거가 필요하다.
