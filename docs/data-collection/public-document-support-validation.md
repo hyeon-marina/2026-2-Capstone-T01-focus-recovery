@@ -1,7 +1,8 @@
 # 공개 블로그·본문 프레임 지원 검증 — Issue #121
 
 기준 main: 70f9f9c4bd84b3cf7f8208a2ec9fff4b5dbfa236 (PR #120 병합).
-현재 상태: 구현·회귀 및 독립 E2E 검증 진행 중. C 운영 반영 전.
+현재 상태: 코드 수정·전체 회귀·독립 Chrome MV3 E2E PASS. **C 운영 반영/실제 C 새 기능은 NOT_TESTED**.
+작업 브랜치: `fix/121/public-document-support`. 실행 코드 기준 `bd10802ab563c3407b873f8be5d13d6874eb5b6b`; 이후 `594ceff6cf561d8a1649bab51ee597e2bbc22d11`은 외부 E2E 도메인 검증만 보완했다.
 
 ## 원인과 수정 범위
 
@@ -9,6 +10,21 @@
 - 일반 블로그의 비시맨틱 본문과 오래된 테이블/줄바꿈 글을 인식하지 못했다. 알려진 본문 루트와 일관된 문단 그룹/텍스트 밀도가 있는 국소 컨테이너를 지원한다. body 전체 fallback/메뉴·링크 목록 수집은 하지 않는다.
 - 공개 뉴스레터의 수동 email autocomplete 필드가 전체 layout 제외를 유발했다. 입력값은 읽지 않고 모든 폼/입력을 제외하며, 포커스 시 관찰을 제외한다. 로그인/카드/주소/OTP·Token 등 보호는 유지한다.
 - 티스토리의 익명 댓글 작성·닫힌 수정/삭제 password UI가 공개 본문까지 격리했다. 별도 읽을 수 있는 공개 본문이 있고, 알려진 댓글 범위의 정확한 비활성 컨트롤인 경우만 구분한다. 댓글 범위 전체를 본문에서 제외한다. 일반 password 마커, autocomplete 인증정보, 열린 수정창, 실제 password 포커스, 카드/Token 등은 계속 차단한다. 값은 읽지 않는다.
+- 큰 wrapper를 본문보다 우선하거나 빈 로딩 본문을 주변 글로 대체할 수 있었다. 구체적인 본문 루트를 우선하면서 모든 기존 루트의 고위험 검사는 유지한다.
+- iframe 교체 직전의 미확인 관찰 구간이 이전 문서 체류로 더해질 수 있었다. 마지막 확인 cursor까지만 종료한다. 4초 상태에서 실제 iframe 교체·내부 SPA 후 이전 Visit이 생성되지 않는 회귀를 추가했다.
+- 지원 불가 프레임을 매 pulse마다 재결합하면 실패가 반복 저장될 수 있었다. 기존 excluded 후보는 유지하고, 아직 로딩 중인 프레임은 종료 실패 후보를 만들지 않는다. 실제 6.5초 반복 관찰에서 실패1건·정상10 Visit 보존을 확인했다.
+
+## 변경 파일과 호환성
+
+|영역|주요 파일|영향|
+|---|---|---|
+|문서 인식|`fe/src/content/extraction.ts`, 신규 `article-frame.ts`|블로그/레거시 본문, 폼·댓글 제외, 검증 가능한 본문 프레임 선택|
+|연결/수명|`fe/real/content.ts`, `fe/src/v2/browser.ts`|별도 child grant, 전경·문서·URL 재검증, 교체/SPA/캐시 무효화, 확인된 체류만 인정|
+|진단|`fe/src/v2/local-status.ts`|원문 없는 고정 프레임 실패/대기 안내|
+|회귀|`page-content`, `article-frame`, `real-content-lifecycle`, `real-browser-foreground` 테스트|수정 전 실패, 입력값 getter 금지, 개인정보·늦은 응답·교체·제외 멱등성|
+|독립 E2E|`raw-browser-test`, `local-https-browser-test`, `quarantine-browser-test`, `public-document-probe`, 공개10페이지 fixture 및 Python runner3개|실제 MV3/BE/MySQL, 실제 공개 페이지, 프레임 개인정보 및 복구 검증|
+
+BE·AI 구현/공통 개인정보 regex는 변경하지 않았다. FE/BE/AI 공통 fixture 및 검수는 기존 회귀로 검증한다. 새 DB migration/IndexedDB format 변경/권한 추가/정책 변경은 없고 불변 Visit ID·sequence·POST/PATCH/END 멱등 계약을 유지한다.
 
 ## 문서·개인정보 경계
 
@@ -26,16 +42,54 @@ Manifest all_frames=false와 권한은 유지한다. Content Script의 소유자
 4. 별도 새 HTTPS 환경에서 프레임 안의 실제 합성 고위험 텍스트 → 0/N Visit 격리·공식 마감·재수집·이전 행/동의 보존을 확인한다. 운영 세션은 사용하지 않는다.
 5. BE 전체/실제 MySQL·HTTP/회수 receiver·AI/데이터셋 검수를 실행한다. 최초 실패를 보존하고 최종 실행과 분리한다.
 
-## 현재까지의 증거
+## 최종 독립 검증 결과
 
 증거 디렉터리 `/private/tmp/focus121-evidence` (원문/Secret/실제 참여자 데이터는 Git에 포함하지 않음).
 수정 전 iframe/layout7 FAIL, 바깥 paywall 우회1 FAIL, newsletter/legacy2 FAIL, 줄바꿈1 FAIL,
-댓글 생성/수정 UI 및 반복 문서 스캔 FAIL을 각각 보존했다. 수정 중 controlled3×10은 실제 MV3/BE/MySQL·저장/ACK/RAW 및 장애 복구 PASS이며, 실행 중 보강이 있었으므로 최종 동일 코드 반복의 대체 증거로 쓰지 않는다.
+댓글 생성/수정 UI·반복 문서 스캔·본문 우선순위2 FAIL·프레임 체류1 FAIL·실패 중복/로딩2 FAIL을 각각 보존했다. 수정 중 `synthetic-documents-first`와 `synthetic-documents-final`도 PASS지만 최종 동일 실행 코드 증거와 구분한다. 최종 재시도만으로 최초 실패를 덮어쓰지 않았다.
 
-실제 사이트 DOM 사전 점검은 네이버·티스토리·WordPress·Blogger·레거시 에세이·기술 글10개에서 본문 인식을 확인했다. 이는 아직 Visit/서버 저장 E2E 성공을 의미하지 않는다. 초기 Tistory 실패(댓글 마커), 레거시 실패, probe 작업 디렉터리 실수도 로그에 보존했다.
+|검증|실제 결과와 증거|
+|---|---|
+|FE 전체|`fe-full-dedup.log`: **1,065 PASS, 기존 opt-in HTTP2 SKIP**. skip을 성공으로 계산하지 않는다. 실제 HTTP2 사례는 BE 통합 실행 대상이다. TypeScript PASS.|
+|공식 real build/package|`real-build-c-origin.log`, `real-package-c-origin.log`: PASS. 기존 C origin `https://localhost:9443`, 공식 v6 SHA 유지. Manifest는 기존 C와 동일하며 `all_frames=false`; 권한 storage/alarms/webNavigation/tabs 유지. 초기 일반 빌드의 다른 localhost origin 산출물은 배포 후보에서 제외한다.|
+|BE 전체|최신 전체 재실행 `be-release.log`/`be-release-summary.json`: **60 classes/1,164 PASS, FAIL/ERROR/SKIP0**. 실제 MySQL 새 스키마·HTTP·Chrome·FastAPI MOCK 모델/별도 실제 privacy-only receiver를 구분한다.|
+|AI/도구|`ai-full.log`: **289 PASS**, 경고1. `tools-release.log`: **42 PASS +4 subtests**. 개인정보·Window·순서/참조·라벨 분리·회수 제외·Export/Import 검증.|
+|제어 페이지3×10|`synthetic-documents-release/validation.json`: **PASS 30 Visit**, 실제 CFT151 MV3 Content Script·Spring Boot·독립 MySQL3개·신규 프로필3개. iframe5개 이상/내부 SPA·실제4초 교체·지연 DOM·일반/레거시·입력 제외·광고·재방문·탭 이동. 시계 증가/가짜 Visit/본문 대체 없음.|
+|실제 공개 사이트3×10|`external-public-release/summary.json`: **PASS 30 Visit**, 네이버 동일 재현 URL/티스토리2/Blogger/WordPress2/레거시2/기술 글2. mock 없음. 각 실행10개 MySQL 저장, 브라우저 제목 hash 일치, 본문50~5000 계약, extractionFailures0, 탭/Worker/Chrome 재시작·재인증. 모든 세션 ENDED/CLEAR·END ACK acked·pending0·RAW_COLLECTED·AI NOT_RUN·DB 실제 Window0.|
+|프레임 개인정보·재수집|`frame-privacy-release.log`: **PASS**, 0/N Visit 고위험 합성 문자열 격리·공식 마감, paywall 제외 후 다른 정상 글 계속, 중복 재수집 요청 멱등, 부족 Attempt 보존 후 새 Session/Attempt. v5→v6 DB 행/원래10 Visit·Credential 보존; 이후 sessions5/attempts5/consents2/visits23/retractions2/tombstones2. 격리2 Visit 제외 Export21, 검수20 Visit/16개 검수 Window.|
+|대규모 DOM|최종 MV3 각 환경 `large-dom-pulses.json`: 최대 **1107.9/1100.8/1100.4ms**, 모두 기존1500ms 이하. 별도 사전 50,030 DOM 요소 전체 추출316.7ms, 순회선형성 검증. 필요한 위험 검사는 생략하지 않는다.|
+|장애·무결성|제어3환경 모두 POST/PATCH/END ACK 유실·오프라인 Queue·Worker/Chrome 재시작·재인증·동일 ID 재전송·서버/MySQL 재시작 PASS. 각10개 고유 Visit, sequence1~10, pending0/END acked. Import 중복3개 멱등, ID 충돌/plan 불일치/과거 privacy replay 거절, 철회 후 해당 합성 세션 제외20 Visit.|
+
+실제 사이트 DOM 사전 점검10 ready는 Visit 성공의 대체 증거로 쓰지 않았다. 초기 Tistory/레거시 실패와 probe 작업 디렉터리 오류는 로그에 남겼다. 외부 E2E의 Export 도메인 assertion은 기존 표준 corpus만 기대하던 테스트 도구 오류를 실행 전 실제 고정 corpus와 일치하도록 확장했으며, 다른 시나리오의 기대값은 유지했다.
+
+독립 환경의 모든 동의는 `AUTOMATED_TEST_ONLY` 기술 검증 소유자만 사용했다. 실제 C 동의를 대신 생성하지 않았고, 이 테스트 데이터를 실제 연구 참여자 데이터셋으로 사용하지 않는다. 전체 팀 계획160개 중3개만 검증한 합성 merge의 `PARTIAL`은 정상이며 전체 수집 완료를 뜻하지 않는다. 검수의24개 Window는 크기3/stride1의 학습 검수 결과로, RAW_ONLY 수집 DB의 실제 AI Window0과 다르다. v1 크기5 학습기/사람 라벨 생성/모델 학습은 변경·실행하지 않았다.
+
+재현 명령(독립 디렉터리·포트·서브넷, JDK21/CFT151 및 Python 의존성 필요):
+
+```sh
+npm --prefix fe test
+npm --prefix fe run typecheck
+python3 tools/individual-local/run-synthetic-e2e.py --output <new-private-output> --chrome <CFT> --page-content --public-documents
+python3 tools/individual-local/run-external-site-e2e.py --automated-test-only --public-articles --output <new-private-output> --chrome <CFT> --test-subnet-prefix <unused-prefix> --tls-port-base <unused-port>
+python3 tools/individual-local/run-quarantine-upgrade-e2e.py --output <new-private-output> --chrome <CFT> --test-subnet <unused-subnet> --public-documents
+python3 tools/individual-local/run-regression.py --mysql-fixture <retained-SYNTHETIC-101-fixture> --output <new-private-output> --ai-python <venv-python> --chrome <CFT>
+```
+
+독립 DB/Volume·실패 증거·암호화 번들은 보존했고 운영 로그/설정/원문/키는 Git에 포함하지 않았다.
 
 ## 운영 반영 경계와 남은 범위
 
 현재 실제 C 세션은 사용자 탐색 중일 수 있다. 자동 종료/새 동의/재수집/Export/확장 교체/reload/Backend·MySQL 재시작을 하지 않는다. 최종 후보 검증 후 세션 종료·Queue drain·암호화 백업/복구·동일 확장 ID/경로/Profile/정책 확인과 별도 승인을 받은 FE만 반영한다. 운영 반영 전까지 실제 C에서 새 기능이 검증됐다고 표시하지 않는다.
+
+읽기 전용 확인: C Git `ops/c-retraction-guard-20261114`/`8d590b3`, FE `21826627b7f0`, 기존 미추적 `team-data-collection-manual.pdf` 유지. 해당 C 커밋과 이번 코드의 BE·AI·정책 diff0이므로 BE/회수 서비스/MySQL 재시작은 반영 대상이 아니다.
+
+운영 변경은 별도 승인 후 아래 순서로 진행해야 한다.
+
+1. 사용자에게 진행 중 실제 세션을 직접 정상 종료하도록 안내한다. 로컬/서버 Visit·POST/PATCH/END ACK·pending0·privacy를 비교하고, pending/격리/저장 오류가 있으면 반영을 중단한다.
+2. 현 FE8파일·설정/실행 버전과 현재 C DB를 새 비공개 디렉터리에 일관되고 암호화된 백업으로 보존한다. 독립 네트워크 없는 MySQL에서 복호화·참조/행 무결성을 검증한다. Chrome 프로필/IDB는 Chrome 정상 종료와 OS 접근 허용 경계 안에서만 일관된 백업/검증한다. 이전 프로필 백업만으로 현재 복구를 보장하지 않는다.
+3. 기존 운영 브랜치를 유지한 별도 ops 브랜치에 검증된 FE tracked 변경만 반영한다. `/Users/hyeon/Project/2026-2-Capstone-T01-focus-recovery/fe/dist-real`의 `background.js`, `content.js`, `participant.js`, `build-info.json`, `manifest.json`, `checksums.json`, `participant/index.html`, 기존 `assets/participant-ckjKSp79.css`만 검증 후보로 반영한다. 동일 Default/로드 경로/ID `aocfmndihdfimoocmdafcbkgifbpdhbl` 유지. 정책 SHA `31db27f078c2c80223f3887e33d1853a378e6794098f32319769f01577c2c982` 및 Manifest/권한 비교. 별도 새 프로필 설치나 재설치 금지.
+4. 승인된 기존 확장 reload 후 사용자가 직접 재인증한다. 새 동의·세션·재수집은 별도 사용자 직접 조작이다. 기존 미전송 Queue/과거 Session/Attempt/Consent/회수 저널·Tombstone 보존을 재확인한다.
+5. 승인된 실제 수집에서 네이버/일반 블로그를 포함해 1→5→10 Visit의 실제 활성 시간·ID/sequence·IDB·POST/PATCH ACK·MySQL을 비교하고 공식 END/RAW까지 확인한다. 운영 Export는 이 반영 승인에 포함하지 않는다.
+6. 실패 시 새 수집/전송 상태를 먼저 확인한다. 검증한 이전 FE 파일만 복구할 수 있으며, DB/프로필/Queue/ACK를 과거 백업으로 자동 덮어쓰지 않는다. 현재 상태와 원인을 보존한 뒤 호환되는 코드 복구와 후속 변경 승인을 판단한다.
 
 모든 웹사이트 수집을 보장하지 않는다. 유료·로그인·개인/민감 페이지, PDF/이미지 전용 글, 검증 불가 프레임은 정상 제외/진단 대상이다. 다른 OS·브라우저/외부 구조 변경과 공개 댓글 컴포넌트 변경은 별도 위험이다. 미확인 상태를 PASS로 쓰지 않는다.
