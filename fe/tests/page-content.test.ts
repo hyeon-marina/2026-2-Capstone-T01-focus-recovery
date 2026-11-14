@@ -116,3 +116,13 @@ it('does not rescan the whole document for every anonymous-comment password fiel
  try {expect(isSensitivePublicDocument(document)).toBe(false);expect(queries.mock.calls.length).toBeLessThan(10);}
  finally{queries.mockRestore();}
 });
+it('prefers the actual blog article over a larger page wrapper while retaining risk checks',()=>{
+ document.body.innerHTML='<main>PUBLIC_WRAPPER_ONLY'.repeat(1)+'<div class="se-main-container"><p>Public article paragraphs describe reliable browser observations and durable local storage.</p></div><div>PUBLIC_WRAPPER_ONLY</div></main>';
+ const content=extractMainContent(document,true,true);expect(content?.includes('Public article paragraphs')).toBe(true);expect(content).not.toContain('PUBLIC_WRAPPER_ONLY');
+ document.querySelector('main')!.insertAdjacentHTML('beforeend','<p>Bearer synthetic-fixture-only</p>');
+ expect(()=>extractMainContent(document,true,true)).toThrow('SENSITIVE_CONTENT');
+});
+it('does not replace a delayed empty blog body with unrelated wrapper text',()=>{
+ document.body.innerHTML='<main><div class="se-main-container"></div><div>Unrelated wrapper description that is long enough to resemble article text.</div></main>';
+ expect(extractMainContent(document,true,true)).toBeNull();
+});

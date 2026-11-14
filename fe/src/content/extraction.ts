@@ -1,5 +1,5 @@
 import { highRiskText, maskPublicContacts, publicText } from '../shared/privacy';
-export const OMIT = 'script,style,noscript,nav,header,footer,aside,form,input,textarea,select,button,option,iframe,canvas,svg,video,audio,[contenteditable],[hidden],[inert],[aria-hidden="true"],[role="navigation"],[role="menu"],[role="dialog"],[role="alert"],[role="banner"],[role="contentinfo"],[role="complementary"],.ad,.ads,.advertisement,[data-ad],[id*="google_ads"],.comments,.comment-list,#comments,#comment-area,.tt-comment-cont,.tt-area-reply,.social-share,.menu,.navigation,.navbar,.sidebar,.cookie-banner,.sr-only';
+export const OMIT = 'script,style,noscript,nav,header,footer,aside,form,input,textarea,select,button,option,iframe,canvas,svg,video,audio,[contenteditable],[hidden],[inert],[aria-hidden="true"],[role="navigation"],[role="menu"],[role="dialog"],[role="alert"],[role="banner"],[role="contentinfo"],[role="complementary"],.ad,.ads,.advertisement,[data-ad],[id*="google_ads"],.comments,.comment-list,.u_cbox,.commentbox,.comment-area,#respond,#comments,#comment-area,.tt-comment-cont,.tt-area-reply,.social-share,.menu,.navigation,.navbar,.sidebar,.cookie-banner,.sr-only';
 const COMMENT_AREA = '.comments,.comment-list,#comments,#comment-area,.tt-comment-cont,.tt-area-reply';
 const PRIVATE_INPUT = 'input[type="password"],input[type="email"],input[type="tel"],input[autocomplete^="cc-"],input[autocomplete="street-address"],input[autocomplete="one-time-code"],input[autocomplete="given-name"],input[autocomplete="family-name"],input[name*="password" i],input[name*="token" i],input[name*="ssn" i],input[name*="card" i]';
 export function isVisible(element: Element): boolean {
@@ -87,6 +87,7 @@ function visibleTextFrom(element: Element): string {
   }
   return pieces.join('');
 }
+const ARTICLE_BODY = '.post-content,.entry-content,.article-body,.se-main-container,.contents_style,.tt_article_useless_p_margin,.blog-content,[itemprop="articleBody"],#postViewArea';
 const ARTICLE_ROOTS = 'article,main,[role="main"],.post-content,.entry-content,.article-body,.document,.post-body,.story-body,#main,#hnmain,.se-main-container,.contents_style,.tt_article_useless_p_margin,.blog-content,[itemprop="articleBody"],#postViewArea';
 export function mainContentRoots(doc: Document): Element[] {
   const explicit = [...doc.querySelectorAll(ARTICLE_ROOTS)];
@@ -132,12 +133,15 @@ export function hasMainContent(doc: Document): boolean {
 export function extractMainContent(doc: Document, publicPage = false, maskContacts = false): string | null {
   if (publicPage ? isExcludedPublicDocument(doc) : isExcludedDocument(doc)) return null;
   const roots = mainContentRoots(doc);
-  const texts = roots.map(textFrom).map(cleanText).filter(Boolean);
+  const contents = roots.map(root => ({root,text:cleanText(textFrom(root))})).filter(item => !!item.text);
+  const texts = contents.map(item => item.text);
   if (publicPage && texts.some(highRiskText)) throw new Error('SENSITIVE_CONTENT');
   if (publicPage && !maskContacts && texts.some(t => !publicText(t))) throw new Error('SENSITIVE_CONTENT');
-  if (!texts.length) return null;
+  const preferred = new Set(roots.filter(root => root.matches(ARTICLE_BODY)));
+  const selectedTexts = contents.filter(item => !preferred.size || preferred.has(item.root)).map(item => item.text);
+  if (!selectedTexts.length) return null;
   // FE/BE contract: at most 5,000 Unicode code points, preserving surrogate pairs.
-  const selected = texts.sort((a, b) => b.length - a.length)[0];
+  const selected = selectedTexts.sort((a, b) => b.length - a.length)[0];
   const main = maskContacts ? maskPublicContacts(selected) : selected;
   const text = publicPage ? [...new Set(main.split('\n'))].join('\n') : main;
   return [...text].slice(0, 5000).join('');
