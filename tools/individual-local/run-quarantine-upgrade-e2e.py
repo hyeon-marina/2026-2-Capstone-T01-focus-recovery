@@ -15,6 +15,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--chrome', required=True)
     parser.add_argument('--test-subnet', help='Optional unused Docker subnet for this new project')
+    parser.add_argument('--public-documents',action='store_true',help='Exercise actual Content Script privacy and exclusion inside a source frame')
     options = parser.parse_args()
     os.umask(0o077)
     output = options.output.resolve()
@@ -31,6 +32,7 @@ def main():
     def browser(recovery):
         env = dict(os.environ, FOCUS105_LOCAL_DIRECTORY=str(directory), FOCUS105_AUTOMATED_EXTERNAL='1',
                    FOCUS112_RECOVERY='1' if recovery else '0', CHROMIUM_PATH=options.chrome)
+        if recovery and options.public_documents:env['FOCUS121_FRAME_PRIVACY']='1'
         subprocess.run(['node', 'scripts/local-https-browser-test.mjs'], cwd=local.ROOT/'fe', env=env, check=True)
 
     def request(path, method='GET'):

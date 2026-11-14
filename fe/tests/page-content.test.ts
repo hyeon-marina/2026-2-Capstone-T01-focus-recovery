@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { beforeEach, expect, it } from 'vitest';
-import { extractMainContent, isExcludedPublicDocument } from '../src/content/extraction';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { extractMainContent, isExcludedPublicDocument, isSensitivePublicDocument } from '../src/content/extraction';
 import { publicText, publicSearchQuery } from '../real/policy';
 import { describeMetadataUrl } from '../real/url';
 import { validSnapshot } from '../src/v2/contract';
@@ -58,4 +58,61 @@ it('excludes unclassified telephone formats and prioritizes credentials across a
  expect(()=>extractMainContent(document,true,true)).toThrow('CONTACT_EXCLUDED');
  document.body.innerHTML += '<main>session_token=synthetic-value</main>';
  expect(()=>extractMainContent(document,true,true)).toThrow('SENSITIVE_CONTENT');
+});
+
+it.each(['se-main-container','contents_style','blog-content'])('extracts a public %s blog article without semantic HTML', className=>{
+ document.body.innerHTML=`<div class="${className}"><p>Public article about ordinary software development.</p><p>Another complete paragraph explains the public example in detail.</p></div>`;
+ expect(extractMainContent(document,true,true)?.includes('ordinary software')).toBe(true);
+});
+it('recognizes a coherent generic paragraph container without collecting surrounding page chrome',()=>{
+ document.body.innerHTML='<nav>NOT_ARTICLE</nav><div class="unknown-layout"><p>Public software documentation explains ordinary browser navigation.</p><p>A second complete paragraph describes reliable observation and storage.</p></div><footer>NOT_ARTICLE</footer>';
+ const body=extractMainContent(document,true,true);expect(!!body).toBe(true);expect(body).not.toContain('NOT_ARTICLE');
+});
+it('does not turn a navigation link list into a generic article',()=>{
+ document.body.innerHTML='<div><p><a href="/one">A complete link to the first public document in this navigation directory</a></p><p><a href="/two">Another complete link to the second public document in this navigation directory</a></p></div>';
+ expect(extractMainContent(document,true,true)).toBeNull();
+});
+it('collects a public article with a passive newsletter email field without inspecting the field value',()=>{
+ document.body.innerHTML='<article>Public browser documentation about reliable observations and durable storage.</article><form><input type="email" autocomplete="email" value="PRIVATE_NEWSLETTER_VALUE"></form>';
+ const input=document.querySelector('input')!;
+ Object.defineProperty(input,'value',{get(){throw new Error('Input value must never be read');}});
+ const content=extractMainContent(document,true,true);expect(content?.includes('Public browser documentation')).toBe(true);expect(content).not.toContain('PRIVATE_NEWSLETTER_VALUE');
+ input.focus();expect(extractMainContent(document,true,true)).toBeNull();
+});
+it('supports coherent legacy table-cell articles without reading the whole page',()=>{
+ document.body.innerHTML='<nav>NOT_ARTICLE</nav><table><tr><td><p>A complete public paragraph about ordinary browser navigation and document rendering.</p><p>A second public paragraph explains reliable observation and durable storage.</p></td></tr></table>';
+ const content=extractMainContent(document,true,true);expect(content?.includes('document rendering')).toBe(true);expect(content).not.toContain('NOT_ARTICLE');
+});
+it('recognizes a coherent legacy essay with line breaks in a table cell',()=>{
+ document.body.innerHTML='<table><tr><td><font>'+Array.from({length:12},(_,i)=>`Public essay paragraph ${i} explains the design of ordinary web documents in detail.<br><br>`).join('')+'</font></td></tr></table>';
+ expect(extractMainContent(document,true,true)?.includes('Public essay paragraph')).toBe(true);
+});
+it('omits inactive anonymous-comment password controls from a separate public article',()=>{
+ document.body.innerHTML='<div class="contents_style"><p>Public article content describes ordinary web development and reliable browser behavior.</p></div><div class="tt-comment-cont"><form><input type="password" name="password" value="PRIVATE_COMMENT_PASSWORD"><textarea>PRIVATE_COMMENT_DRAFT</textarea></form></div>';
+ const field=document.querySelector('input')!;Object.defineProperty(field,'value',{get(){throw new Error('Password value must never be read');}});
+ const content=extractMainContent(document,true,true);expect(content?.includes('Public article content')).toBe(true);expect(content).not.toContain('PRIVATE_COMMENT');
+ field.focus();expect(isExcludedPublicDocument(document)).toBe(true);
+});
+it.each(['<input type="password">','<input name="token">','<input autocomplete="cc-number">'])('keeps authentication/high-risk markers blocked around public comment widgets: %s',markup=>{
+ document.body.innerHTML='<article>Public article with ordinary public technical information.</article><div class="tt-comment-cont"><form>'+markup+'</form></div>';
+ expect(isExcludedPublicDocument(document)).toBe(true);
+});
+it('omits the known nameless Tistory anonymous-comment password field without weakening other password markers',()=>{
+ document.body.innerHTML='<article><div class="contents_style"><p>Public article content describes ordinary development and reliable browser observations.</p></div><div class="tt-comment-cont"><form><div class="tt-box-account"><input type="password"></div><textarea>PRIVATE_DRAFT</textarea></form></div></article>';
+ const input=document.querySelector('input')!;Object.defineProperty(input,'value',{get(){throw new Error('Input value must never be read');}});
+ expect(extractMainContent(document,true,true)?.includes('Public article content')).toBe(true);
+ input.focus();expect(isExcludedPublicDocument(document)).toBe(true);
+});
+it('omits closed known comment-management password forms while blocking an opened credential control',()=>{
+ document.body.innerHTML='<article><div class="contents_style"><p>Public article content explains ordinary browser documents and reliable observations.</p></div><div class="tt-area-reply"><form class="tt_form_pwd"><div class="tt_box_pwd" style="display:none"><input type="password" value="PRIVATE_COMMENT_PASSWORD"></div></form><p>PRIVATE_COMMENT_TEXT</p></div></article>';
+ expect(extractMainContent(document,true,true)?.includes('Public article content')).toBe(true);
+ expect(extractMainContent(document,true,true)).not.toContain('PRIVATE_COMMENT');
+ (document.querySelector('.tt_box_pwd') as HTMLElement).style.display='block';expect(isExcludedPublicDocument(document)).toBe(true);
+});
+
+it('does not rescan the whole document for every anonymous-comment password field',()=>{
+ document.body.innerHTML='<div class="contents_style"><p>Public article content with enough ordinary text for safe article recognition.</p></div><div class="tt-comment-cont">'+'<form><input type="password" name="password"></form>'.repeat(300)+'</div>';
+ const queries=vi.spyOn(document,'querySelectorAll');
+ try {expect(isSensitivePublicDocument(document)).toBe(false);expect(queries.mock.calls.length).toBeLessThan(10);}
+ finally{queries.mockRestore();}
 });

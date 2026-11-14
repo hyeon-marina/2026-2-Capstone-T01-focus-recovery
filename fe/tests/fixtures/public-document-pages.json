@@ -1,0 +1,12 @@
+[
+  {"label":"naver","url":"https://blog.naver.com/insaweb/221650456057","frame":"mainFrame"},
+  {"label":"wordpress-essay","url":"https://www.joelonsoftware.com/2000/04/06/things-you-should-never-do-part-i/"},
+  {"label":"blogger","url":"https://blog.python.org/"},
+  {"label":"legacy-essay","url":"https://paulgraham.com/avg.html"},
+  {"label":"technical-article","url":"https://martinfowler.com/articles/microservices.html"},
+  {"label":"tistory","url":"https://notice.tistory.com/2707"},
+  {"label":"wordpress-second","url":"https://www.joelonsoftware.com/2002/11/11/the-law-of-leaky-abstractions/"},
+  {"label":"legacy-second","url":"https://paulgraham.com/progbot.html"},
+  {"label":"technical-second","url":"https://martinfowler.com/bliki/TwoHardThings.html"},
+  {"label":"tistory-second","url":"https://notice.tistory.com/2706"}
+]

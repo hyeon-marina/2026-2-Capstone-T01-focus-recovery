@@ -123,3 +123,63 @@ describe('real Content Script foreground boundary (synthetic DOM only)', () => {
     expect(observations().every(m => !m.snapshot)).toBe(true);
   });
 });
+
+
+describe('public article frames', () => {
+  function frame(html = `<article>${paragraph.repeat(2)}</article>`) {
+    document.body.innerHTML = '<iframe id="mainFrame" src="https://example.org/article"></iframe>';
+    const element = document.querySelector('iframe')!;
+    vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({ x:0,y:0,left:0,top:0,right:1000,bottom:700,width:1000,height:700,toJSON(){} });
+    const doc = element.contentDocument!;
+    doc.open(); doc.write(`<html><title>Public blog article</title><body>${html}</body></html>`); doc.close();
+    return { element, doc };
+  }
+  function grants() {
+    (chrome.runtime.sendMessage as any).mockImplementation(async (m: any) => {
+      messages.push(m);
+      if (m.type !== 'v2-context') return {};
+      return { ...(await replyContext()), ...(m.contentRaw ? { source: { url:m.contentRaw, frameId:1, documentId:'frame-doc' },description:{...description,identity:'b'.repeat(64)} } : {}) };
+    });
+  }
+  it('collects the main article of a visible same-origin frame under its own grant', async () => {
+    frame(); grants(); await import('../real/content'); await tick();
+    expect(observations().some(m => m.snapshot?.content.includes(paragraph.trim()) && m.source?.documentId === 'frame-doc')).toBe(true);
+  });
+  it('does not read the article title or body until frame policy authorization', async () => {
+    const {doc}=frame(); const title=vi.spyOn(doc,'title','get');
+    (chrome.runtime.sendMessage as any).mockImplementation(async (m:any)=>{messages.push(m);return m.type==='v2-context'?(m.contentRaw?{collecting:false}:replyContext()):{};});
+    await import('../real/content');await tick();expect(title).not.toHaveBeenCalled();
+    expect(observations().every(m=>!m.snapshot)).toBe(true);
+  });
+  it('does not bypass an outer paywall through a public article frame',async()=>{
+    frame();grants();document.body.insertAdjacentHTML('afterbegin','<div data-paywall>Restricted</div>');
+    await import('../real/content');await tick();expect(observations().every(m=>!m.snapshot)).toBe(true);
+  });
+  it('blocks sensitive frame DOM without sending the frame body',async()=>{
+    frame(`<input type="password"><article>${paragraph.repeat(2)}</article>`);grants();await import('../real/content');await tick();
+    expect(observations().some(m=>m.sensitive===true)).toBe(true);expect(observations().every(m=>!m.snapshot)).toBe(true);
+  });
+  it('excludes focused frame inputs and resumes without reading their values',async()=>{
+    const {doc}=frame(`<article>${paragraph.repeat(2)}</article><form><input name="q" value="PRIVATE_DRAFT"></form>`);grants();doc.querySelector('input')!.focus();
+    await import('../real/content');await tick();
+    expect(observations().some(m=>m.failureReason==='INPUT_FOCUSED'&&!m.sensitive)).toBe(true);
+    expect(JSON.stringify(messages)).not.toContain('PRIVATE_DRAFT');
+    (doc.querySelector('input') as HTMLInputElement).blur();messages=[];await tick(1000);
+    expect(observations().some(m=>!!m.snapshot)).toBe(true);
+  });
+  it('invalidates cached content when a frame is replaced at the same URL',async()=>{
+    frame();grants();await import('../real/content');await tick();messages=[];
+    frame(`<article>Replacement public article with different content. ${paragraph}</article>`);await tick(1000);
+    expect(observations().some(m=>m.snapshot?.content.includes('Replacement public article'))).toBe(true);
+  });
+  it('invalidates cached content on source-frame SPA navigation',async()=>{
+    const {doc}=frame();grants();await import('../real/content');await tick();messages=[];
+    doc.defaultView!.history.pushState({},'', '/another-article');doc.body.innerHTML=`<article>New source route content. ${paragraph}</article>`;await tick(1000);
+    expect(observations().some(m=>m.source?.url.endsWith('/another-article')&&m.snapshot?.content.includes('New source route content.'))).toBe(true);
+  });
+  it('does not accept a detached frame after a late authorization response',async()=>{
+    const {element}=frame();
+    (chrome.runtime.sendMessage as any).mockImplementation(async (m:any)=>{messages.push(m);if(m.type!=='v2-context')return {};if(m.contentRaw){element.remove();return {...await replyContext(),source:{url:m.contentRaw,frameId:1,documentId:'old-frame'}};}return replyContext();});
+    await import('../real/content');await tick();expect(observations().every(m=>!m.snapshot)).toBe(true);
+  });
+});

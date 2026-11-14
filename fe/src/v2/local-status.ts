@@ -26,6 +26,11 @@ const observationMessages: Record<string, string> = {
   EXTRACTION_DOM_ERROR: '본문 추출 중 오류가 발생했습니다. 다른 공개 문서에서 계속할 수 있습니다.',
   EXTRACTION_RENDER_TIMEOUT: '본문 렌더링 대기시간을 초과했습니다. 페이지가 준비되면 다시 관찰합니다.',
   EXTRACTION_ACCESS_DENIED: 'HTML 본문에 접근할 수 없습니다. 다른 공개 문서에서 계속할 수 있습니다.',
+  FRAME_UNAVAILABLE: '본문 프레임이 아직 준비되지 않았거나 접근할 수 없습니다. 준비되면 다시 관찰합니다.',
+  FRAME_UNSUPPORTED: '검증할 수 없는 본문 프레임입니다. 출처·접근 제한을 우회하지 않습니다.',
+  FRAME_AMBIGUOUS: '여러 큰 프레임 중 실제 본문을 구분할 수 없어 수집을 보류했습니다.',
+  FRAME_POLICY_BLOCKED: '본문 프레임의 URL·정책·문서 검증을 통과하지 못해 이 관찰을 제외했습니다.',
+  FRAME_SOURCE_STALE: '본문 프레임이 바뀌어 이전 응답을 폐기했습니다. 새 문서를 다시 관찰합니다.',
   SENSITIVE_CONTENT: '고위험 개인정보 신호로 세션을 격리했습니다.',
 };
 export const observationStatus = (code: string) => observationMessages[code] ?? '관찰 상태 확인 중';

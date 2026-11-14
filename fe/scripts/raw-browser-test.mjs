@@ -11,6 +11,8 @@ assert.match(server??'',/^http:\/\/127\.0\.0\.1:1810[123]$/);assert.match(slot??
 const policy=JSON.parse(await readFile(process.env.COLLECTION_SITE_POLICY_FILE,'utf8'));
 const metadataOnly = policy.metadataOnly === true && policy.pageContent !== true;
 const faults=process.env.FOCUS119_FAULTS==='1';
+const publicDocuments=process.env.FOCUS121_DOCUMENTS==='1';
+if(publicDocuments)assert.ok(faults,'public-document checks include the existing fault suite');
 if(faults)assert.equal(policy.pageContent,true);
 const dwell=[];
 let offlineVisitId;
@@ -36,13 +38,26 @@ process.env.VITE_API_BASE_URL=server;
 await build({configFile:resolve('vite.real.config.ts'),mode:'controlled-web',build:{outDir:extension}});
 await build({configFile:resolve('vite.real.content.config.ts'),build:{outDir:extension}});
 const fixture=createServer((req,res)=>{
-  if(!/^\/public\/page-[0-9]+(?:\?page=[0-9]+)?$/.test(req.url)){res.writeHead(404);res.end();return;}
-  const text=`SYNTHETIC TEST ONLY. Controlled TypeScript transaction research with durable local observations and reliable browser storage. You should not enter a credit card on untrusted pages. ${req.url}`;
+  const path=req.url.split('?')[0];
+  const child=publicDocuments && /^\/public\/article-[0-9]+$/.test(path);
+  if(!child && !/^\/public\/page-[0-9]+(?:\?page=[0-9]+)?$/.test(req.url)){res.writeHead(404);res.end();return;}
+  const n=Number(path.split('-').at(-1));
+  const text=`SYNTHETIC TEST ONLY. Controlled TypeScript transaction research with durable local observations and reliable browser storage. You should not enter a credit card on untrusted pages. ${path}`;
+  if(child){
+    const contents=`<div class="se-main-container"><p>${text}</p><p>Another public paragraph explains the article and its observation contract.</p></div>`;
+    res.setHeader('Content-Type','text/html');res.end(`<!doctype html><title>SYNTHETIC blog article ${n}</title><div class="post-body">${n===2?'':contents}</div>${n===2?`<script>setTimeout(()=>document.querySelector('.post-body').innerHTML=${JSON.stringify(contents)},2000)</script>`:''}`);return;
+  }
   const focused=faults && req.url==='/public/page-1';
   const delayed=faults && req.url==='/public/page-2';
   const large=faults && req.url==='/public/page-9';
-  const body=large?'<section>'.repeat(24)+`<p><span>${text}</span></p>`.repeat(10000)+'</section>'.repeat(24):delayed?'':text;
-  res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><title>SYNTHETIC public page ${req.url.split('-').at(-1)}</title><body>${focused?'<form role="search"><input type="search" name="q" autofocus value="UNSUBMITTED_SYNTHETIC_INPUT"></form>':''}<article>${body}</article>${delayed?`<script>setTimeout(()=>document.querySelector('article').textContent=${JSON.stringify(text)},2000)</script>`:''}</body></html>`);
+  let body=large?'<section>'.repeat(24)+`<p><span>${text}</span></p>`.repeat(10000)+'</section>'.repeat(24):delayed?'':text;
+  let article=`<article>${body}</article>`;
+  if(publicDocuments && [1,2,4,5].includes(n))article=`<iframe id="mainFrame" src="/public/article-${n}" style="border:0;width:100%;height:750px"></iframe>`;
+  else if(publicDocuments && n===3)article=`<div class="contents_style"><p>${text}</p><p>Another complete paragraph supports a public blog article without semantic HTML.</p></div>`;
+  else if(publicDocuments && n===10)article=`<div class="unknown-theme"><p>${text}</p><p>Another complete paragraph supports a coherent generic public article.</p></div>`;
+  else if(publicDocuments && n===8)article+=`<iframe id="adFrame" style="width:10px;height:10px" srcdoc="&lt;input type='password'&gt;"></iframe>`;
+  const delay=delayed && !(publicDocuments && [1,2,4,5].includes(n));
+  res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><title>SYNTHETIC public page ${n}</title><body>${focused?'<form role="search"><input type="search" name="q" autofocus value="UNSUBMITTED_SYNTHETIC_INPUT"></form>':''}${article}${delay?`<script>setTimeout(()=>document.querySelector('article').textContent=${JSON.stringify(text)},2000)</script>`:''}</body></html>`);
 });
 await new Promise((r,j)=>{fixture.once('error',j);fixture.listen(8911,'127.0.0.1',r);});
 let context,harness;
@@ -119,6 +134,10 @@ try {
         assert.equal((await send('status')).quarantined,false);
         await page.locator('input').evaluate(el=>el.blur());
       }
+      if(publicDocuments && n===5){
+        const article=page.frames().find(f=>f.url().includes('/public/article-5'));assert.ok(article);
+        await article.evaluate(()=>{history.pushState({},'', '/public/article-15');document.querySelector('.post-body').textContent+=' Public frame SPA navigation.';});
+      }
       if(faults && n===6)await page.evaluate(()=>{history.pushState({},'', '/public/page-16');document.querySelector('article').textContent+=' Public SPA navigation.';});
       if(faults && n===8){const other=await context.newPage();await other.goto('about:blank');await other.bringToFront();await page.waitForTimeout(700);await other.close();await page.bringToFront();}
       const started=Date.now();
@@ -165,6 +184,14 @@ try {
     assert.equal(new Set(snapshot.files.visits.map(v=>v.visitId)).size,10);
     assert.deepEqual(snapshot.files.visits.map(v=>v.sequence).sort((a,b)=>a-b),[1,2,3,4,5,6,7,8,9,10]);
     assert.ok(!JSON.stringify(snapshot).includes('UNSUBMITTED_SYNTHETIC_INPUT'));
+    if(publicDocuments){
+      const framed=snapshot.files.visits.filter(v=>v.title.startsWith('SYNTHETIC blog article'));
+      assert.ok(framed.length>=5,'main-frame content must reach real MySQL, including revisit');
+      assert.ok(framed.some(v=>v.content.includes('Public frame SPA navigation.')),'frame SPA content stored');
+      assert.ok(!JSON.stringify(snapshot).includes('Unbound document'));
+      await writeFile(join(evidence,'public-documents.json'),JSON.stringify({result:'PASS',frameVisits:framed.length,frameSPA:true,genericBlog:true,smallPrivateAdIgnored:true,normalSourceCount:10,manifestAllFrames:false}),{mode:0o600});
+    }
+
     if(faults)assert.ok(snapshot.files.visits.some(v=>v.visitId===offlineVisitId),'same queued ID survives offline worker restart');
     if(metadataOnly) { for (const visit of snapshot.files.visits) { assert.match(visit.normalizedUrl,/\/__focus_page__\/[a-f0-9]{64}$/);assert.equal(visit.content,'METADATA_ONLY: public browsing activity; page text, title and search terms were not collected.');assert.equal(visit.searchQuery,null);assert.equal(visit.title,'Topic: OTHER');assert.ok(!JSON.stringify(visit).includes('Controlled TypeScript')); } assert.equal(new Set(snapshot.files.visits.map(v=>v.normalizedUrl)).size,10); }
     await writeFile(join(evidence,'snapshot.json'),JSON.stringify(snapshot),{mode:0o600});

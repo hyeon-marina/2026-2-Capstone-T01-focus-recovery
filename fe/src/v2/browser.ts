@@ -115,6 +115,17 @@ const boundaries = new Map<number, Stamp>();
 const documents = new Map<number, string>();
 const navigationRevision = new Map<number, number>();
 const contentGenerations = new Map<number, { raw: string; content: string }>();
+type ContentSource = {url:string;frameId:number;documentId:string};
+const contentFrames = new Map<number, ContentSource>();
+const frameDiagnostics = new Set(['FRAME_UNAVAILABLE','FRAME_UNSUPPORTED','FRAME_AMBIGUOUS','FRAME_POLICY_BLOCKED','FRAME_SOURCE_STALE']);
+async function validSource(tabId: number, topRaw: string, source: unknown): Promise<ContentSource | null> {
+  const value = source as ContentSource | null;
+  if (!value || typeof value.url !== 'string' || !Number.isSafeInteger(value.frameId) || value.frameId <= 0 || typeof value.documentId !== 'string' || !permits(value.url)) return null;
+  try { if (new URL(value.url).origin !== new URL(topRaw).origin) return null; } catch { return null; }
+  const frame = await chrome.webNavigation.getFrame({tabId,frameId:value.frameId}).catch(() => null);
+  return frame && frame.parentFrameId === 0 && frame.documentId === value.documentId && frame.url === value.url && frame.documentLifecycle === 'active' ? value : null;
+}
+
 const windowTabs = new Map<number, number>();
 let focusedWindow: number | null = null;
 let focused: number | null = null;
@@ -195,7 +206,21 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       const frame = await chrome.webNavigation.getFrame({tabId,frameId:0});
       await focus(t);
       const collecting = tabId === focused && typeof m.raw === 'string' && frame?.documentId === sender.documentId && frame.url === m.raw && permits(m.raw) && runtime.collecting();
-      return {collecting,maskContacts:build?.maskContacts === true,pageContent:build?.pageContent === true,publicWeb:build?.publicWeb === true,metadataOnly:build?.metadataOnly === true,description:collecting && build?.metadataOnly ? await descriptionFor(m.raw) : undefined};
+      let source: ContentSource | undefined;
+      if (collecting && m.contentRaw !== undefined) {
+        if (!build?.pageContent || typeof m.contentRaw !== 'string' || !permits(m.contentRaw)) return {collecting:false};
+        try { if (new URL(m.contentRaw).origin !== new URL(m.raw).origin) return {collecting:false}; } catch { return {collecting:false}; }
+        const frames = await chrome.webNavigation.getAllFrames({tabId}).catch(() => null);
+        const matches = frames?.filter(f => f.frameId > 0 && f.parentFrameId === 0 && f.url === m.contentRaw && f.documentLifecycle === 'active');
+        if (matches?.length !== 1 || !matches[0].documentId) return {collecting:false};
+        source = {url:m.contentRaw,frameId:matches[0].frameId,documentId:matches[0].documentId};
+        if (!await validSource(tabId,m.raw,source)) return {collecting:false};
+        contentFrames.set(tabId,source);
+      }
+      await focus(t);
+      if (tabId !== focused || arrivedRevision !== navigationRevision.get(tabId)) return {collecting:false};
+      return {collecting,maskContacts:build?.maskContacts === true,pageContent:build?.pageContent === true,publicWeb:build?.publicWeb === true,metadataOnly:build?.metadataOnly === true,
+        ...(source?{source}:{}),description:collecting && build?.metadataOnly ? await descriptionFor(source?.url ?? m.raw) : undefined};
     }
     if (m?.type === 'v2-context') return { collecting: !!sender.url && permits(sender.url) && runtime.collecting() };
     if (m?.type === 'v2-leave') { await runtime.leave(tabId, t); return; }
@@ -207,17 +232,19 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       if (!permits(m.raw)) return { collecting: false };
       const frame = await chrome.webNavigation.getFrame({ tabId, frameId: 0 });
       if (!frame || frame.documentId !== sender.documentId || frame.url !== m.raw) return;
+      const source = m.source === undefined ? undefined : await validSource(tabId,m.raw,m.source);
+      if (m.source !== undefined && !source) { diagnose('FRAME_SOURCE_STALE'); return {collecting:runtime.collecting()}; }
       const permitted = await chrome.permissions.contains({origins:[new URL(m.raw).origin + '/*']});
-      const description = permitted && m.safe === true ? await descriptionFor(m.raw) : undefined;
+      const description = permitted && m.safe === true ? await descriptionFor(source?.url ?? m.raw) : undefined;
       // Recheck after asynchronous validation, before any privacy decision or accepted Visit.
       await focus(t);
-      if (tabId !== focused || m.visible === false || arrivedRevision !== navigationRevision.get(tabId)) {
+      if (tabId !== focused || m.visible === false || arrivedRevision !== navigationRevision.get(tabId) || source && !await validSource(tabId,m.raw,source)) {
         if (tabId === focused) diagnose('NOT_FOCUSED_OR_STALE');
         await runtime.leave(tabId, t);
         return { collecting: runtime.collecting() };
       }
       if ((build?.publicWeb || build?.pageContent) && (!permitted || m.safe !== true && m.sensitive !== true)) {
-        diagnose(!permitted ? 'SITE_PERMISSION_REQUIRED' : m.failureReason === 'INPUT_FOCUSED' ? 'INPUT_FOCUSED' : 'POLICY');
+        diagnose(frameDiagnostics.has(m.diagnosticCode) ? m.diagnosticCode : !permitted ? 'SITE_PERMISSION_REQUIRED' : m.failureReason === 'INPUT_FOCUSED' ? 'INPUT_FOCUSED' : 'POLICY');
         await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()};
       }
       if (!permitted || m.safe !== true) { diagnose('SENSITIVE_CONTENT'); await runtime.quarantine('SENSITIVE_CONTENT', t.wall); return { collecting: false }; }
@@ -240,9 +267,10 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       const state = runtime.snapshot();
       const current = state.candidates.find(c => c.id === state.tabs[tabId]);
       const gap = current?.cursor && current.cursor.epoch === t.epoch && t.mono - current.cursor.mono > MAX_OBSERVATION_GAP_MS;
-      await runtime.observe({tabId,document:sender.documentId,target:description.identity,generation,stamp:t,enteredAt:boundaries.get(tabId) ?? t,
+      if (!source) contentFrames.delete(tabId);
+      await runtime.observe({tabId,document:source ? sender.documentId+':'+source.documentId : sender.documentId,target:description.identity,generation,stamp:t,enteredAt:boundaries.get(tabId) ?? t,
         permitted,safe:true,snapshot:s,extractionFailed:m.extractionFailed === true,failureReason:['POLICY','EXTRACTION_NO_CONTENT','EXTRACTION_DOM_ERROR','EXTRACTION_RENDER_TIMEOUT','EXTRACTION_ACCESS_DENIED'].includes(m.failureReason) ? m.failureReason : undefined});
-      diagnose(gap ? 'OBSERVATION_GAP' : s ? 'OBSERVING' : ['POLICY','EXTRACTION_NO_CONTENT','EXTRACTION_DOM_ERROR','EXTRACTION_RENDER_TIMEOUT','EXTRACTION_ACCESS_DENIED'].includes(m.failureReason) ? m.failureReason : 'WAITING_CONTENT');
+      diagnose(frameDiagnostics.has(m.diagnosticCode) ? m.diagnosticCode : gap ? 'OBSERVATION_GAP' : s ? 'OBSERVING' : ['POLICY','EXTRACTION_NO_CONTENT','EXTRACTION_DOM_ERROR','EXTRACTION_RENDER_TIMEOUT','EXTRACTION_ACCESS_DENIED'].includes(m.failureReason) ? m.failureReason : 'WAITING_CONTENT');
       await syncReport();await runtime.compact(t);return { collecting:runtime.collecting() };
     }
     if (m?.type !== 'v2-observation'  || typeof m.raw !== 'string' || !fixtureId(m.raw) || fixtureId(m.raw) !== m.id) return;
@@ -307,12 +335,14 @@ chrome.windows.onFocusChanged.addListener(windowId => {
 chrome.windows.onBoundsChanged.addListener(() => event(async t => { await focus(t); }));
 chrome.tabs.onRemoved.addListener(tab => event(async t => { await runtime.leave(tab, t, true); documents.delete(tab); }));
 chrome.webNavigation.onCommitted.addListener(d => {
-  if (d.frameId !== 0) return;
+  if (d.frameId !== 0 && contentFrames.get(d.tabId)?.frameId !== d.frameId) return;
+  if (d.frameId === 0) contentFrames.delete(d.tabId);
   navigationRevision.set(d.tabId, (navigationRevision.get(d.tabId) ?? 0) + 1);
-  event(async t => { boundaries.set(d.tabId, t); documents.set(d.tabId, d.documentId); await runtime.leave(d.tabId, t, true); });
+  event(async t => { boundaries.set(d.tabId, t); if (d.frameId === 0) documents.set(d.tabId, d.documentId); await runtime.leave(d.tabId, t, true); });
 });
 const routeChanged = (d: {frameId:number;tabId:number}) => {
-  if (d.frameId !== 0) return;
+  if (d.frameId !== 0 && contentFrames.get(d.tabId)?.frameId !== d.frameId) return;
+  if (d.frameId === 0) contentFrames.delete(d.tabId);
   navigationRevision.set(d.tabId, (navigationRevision.get(d.tabId) ?? 0) + 1);
   event(async t => {
     boundaries.set(d.tabId, t); await runtime.leave(d.tabId, t, true);

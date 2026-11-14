@@ -12,11 +12,14 @@ export async function checkQuarantine({ context, harness, send, wait, assigned }
     assert.ok(!(await send('stop'))?.error);
     await wait(s => s.lifecycle === 'ENDED' && s.quarantineClose === 'acknowledged', 'quarantine closure');
   };
+  const framed=process.env.FOCUS121_FRAME_PRIVACY==='1';
   const page = await context.newPage();
   await context.route('https://fixture.focus-recovery.org/**', route => {
     const path = new URL(route.request().url()).pathname;
-    const body = path === '/unsafe' ? 'Bearer synthetic-fixture-only'
-      : path === '/excluded' ? '<div data-paywall>Subscription required</div>'
+    if(framed&&!path.startsWith('/inner/'))return route.fulfill({contentType:'text/html',body:`<!doctype html><title>Public frame wrapper</title><iframe id=mainFrame src="/inner${path}" style="border:0;width:100%;height:800px"></iframe>`});
+    const kind=framed?path.slice('/inner'.length):path;
+    const body = kind === '/unsafe' ? 'Bearer synthetic-fixture-only'
+      : kind === '/excluded' ? '<div data-paywall>Subscription required</div>'
       : 'Synthetic public reporting on a local open source project. Contact reporter@example.org for information.';
     return route.fulfill({contentType:'text/html',body:'<!doctype html><title>Public fixture</title><article>'+body+'</article>'});
   });
@@ -72,5 +75,5 @@ export async function checkQuarantine({ context, harness, send, wait, assigned }
   assert.ok(fresh && fresh.attemptId !== old.attemptId && fresh.deliveryConfirmed);
   assert.equal(fresh.rawStatus, 'RAW_COLLECTED');
   await harness.bringToFront();
-  console.log('PASS zero/N visit quarantine, paywall continuation, distinct assignments, duplicate recollect and actual news visit');
+  console.log('PASS '+(framed?'SOURCE-FRAME ':'')+'zero/N visit quarantine, paywall continuation, distinct assignments, duplicate recollect and actual news visit');
 }
