@@ -73,14 +73,25 @@ public class RetractionWorkService {
         // No PURGED transition: local copies, logs, exports, models, backups and policy approvals remain unverified.
     }
     private boolean emptyJson(String value, String expected) { return expected.equals(value) || ("\"" + expected + "\"").equals(value); }
+    public enum AiOutcome {
+        CONFIRMED, PROPAGATION_UNCONFIRMED,
+        AI_RETRACTION_AUTH_NOT_CONFIGURED, AI_RETRACTION_DESTINATION_BLOCKED,
+        AI_RETRACTION_UNREACHABLE, AI_RETRACTION_TIMEOUT, AI_RETRACTION_AUTH_REJECTED,
+        AI_RETRACTION_HTTP_REJECTED, AI_RETRACTION_INVALID_ACK, AI_RETRACTION_INTERRUPTED
+    }
     @Transactional
     public void finishAi(Claim claim, boolean confirmed) {
+        finishAi(claim, confirmed ? AiOutcome.CONFIRMED : AiOutcome.PROPAGATION_UNCONFIRMED);
+    }
+    @Transactional
+    public void finishAi(Claim claim, AiOutcome outcome) {
         var target = owned(claim); if (target == null) return;
-        if (confirmed) target.verified("AI_DURABLE_QUARANTINE_ACK_ONLY", now());
+        if (outcome == AiOutcome.CONFIRMED) target.verified("AI_DURABLE_QUARANTINE_ACK_ONLY", now());
         else {
-            target.retry(now(), "PROPAGATION_UNCONFIRMED");
-            jobs.findById(claim.id().retractionId()).orElseThrow().recordFailure("PROPAGATION_UNCONFIRMED");
+            target.retry(now(), outcome.name());
+            jobs.findById(claim.id().retractionId()).orElseThrow().recordFailure(outcome.name());
         }
+        // Parent attempts/error retain the last failure history; only target status proves recovery.
     }
     @Transactional
     public void failPayload(Claim claim) {

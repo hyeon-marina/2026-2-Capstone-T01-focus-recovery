@@ -1,4 +1,4 @@
-"""Durable synthetic retraction boundary. Production main never installs the internal route.
+"""Durable retraction boundary. The public main never installs the internal route.
 
 SQLite coordinates workers sharing one local file, not separate hosts/volumes. The acknowledgement
 proves durable quarantine, not deletion of GPU/model memory or every worker's physical cache.
@@ -59,14 +59,13 @@ class RetractionJournal:
             raise V2Error(503, "AI_NOT_READY") from None
 
 
-def install_synthetic_retractions(app, service, journal, service_secret):
-    """Called exclusively by test-source fixtures, with an explicit shared journal and secret.
+def install_retractions(app, service, journal, service_secret):
+    """Explicitly installed by private entrypoints or isolated tests, never public main.
 
-    No environment switch in main enables this API. Separate hosts require a coordinated store
-    and worker acknowledgement protocol before deployment can be approved.
+    Separate hosts require a coordinated store and worker acknowledgement protocol.
     """
     if len(service_secret) < 32:
-        raise ValueError("synthetic service secret required")
+        raise ValueError("retraction service secret required")
     service.privacy_store = journal
     service.refresh_privacy()
 
@@ -91,3 +90,7 @@ def install_synthetic_retractions(app, service, journal, service_secret):
             return JSONResponse(status_code=422, content=V2Error().body())
         except V2Error as exc:
             return JSONResponse(status_code=exc.status, content=exc.body())
+
+
+# Keep the existing fixture import compatible.
+install_synthetic_retractions = install_retractions

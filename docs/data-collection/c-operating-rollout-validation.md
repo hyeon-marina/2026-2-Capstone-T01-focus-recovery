@@ -245,3 +245,9 @@ GET `/api/collection/progress`와 파일 해시 등의 원문 없는 증거는 `
 |종료|0|0|0|0|ENDED/QUARANTINED·격리 마감 완료. 정상 END ACK와 구분|PASS (격리 마감)|
 
 위 마지막 표는 locale 수정 전 최초 실패 세션의 기록이다. 후속 실제 C 재시도10 Visit·정상 END ACK·RAW_COLLECTED 결과는 문서 상단에 별도로 기록했다. 독립 테스트 성공을 실제 C 결과로 옮기지 않았다. 실제 C Export/Import와 Google 정상 검색 DOM은 여전히 NOT_TESTED다.
+
+## 회수 전파 3건 후속 진단
+
+2026-11-14 후속 읽기 전용 진단에서 회수 인증키 및 loopback AI receiver 부재를 확인했다.
+코드/독립 검증과 별도 운영 승인 계획은 [회수 전파 검증](retraction-propagation-validation.md)에 기록한다.
+위 본문의 기존 수집 성공과 당시 미확인 3건 기록은 보존한다. 후속 운영 반영은 아직 승인 전이다.

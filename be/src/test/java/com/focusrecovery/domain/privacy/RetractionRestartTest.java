@@ -54,6 +54,7 @@ class RetractionRestartTest {
             assertThat(target.getProcessingStatus()).isEqualTo("VERIFIED"); assertThat(target.getAttempts()).isEqualTo(2);
             assertThat(app.getBean(JdbcTemplate.class).queryForObject("SELECT content FROM page_visit WHERE visit_id=?", String.class, visit.toString())).isNull();
             assertThat(app.getBean(RetractionTargetRepository.class).findById(new RetractionTargetId(job, "AI_CACHE_AND_MEMORY", session.toString())).orElseThrow().getProcessingStatus()).isEqualTo("FAILED");
+            assertThat(app.getBean(RetractionTargetRepository.class).findById(new RetractionTargetId(job, "AI_CACHE_AND_MEMORY", session.toString())).orElseThrow().getErrorCode()).isEqualTo("AI_RETRACTION_AUTH_NOT_CONFIGURED");
         }
         try (var app = open()) {
             assertThat(app.getBean(RetractionWorkService.class).completion(job).status()).isEqualTo("QUARANTINED");

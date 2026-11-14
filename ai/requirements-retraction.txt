@@ -1,0 +1,4 @@
+# Privacy control plane only; no torch, transformers, model download or inference.
+fastapi==0.162.2
+uvicorn==0.54.0
+jsonschema==4.26.0

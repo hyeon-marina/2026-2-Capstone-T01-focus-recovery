@@ -9,7 +9,7 @@ from v2.service import V2Service
 from v2.deployment import approved_release
 from v2.authorization import require_service
 from v2.contracts import V2Error, strict_json
-from v2.retractions import RetractionJournal, install_synthetic_retractions
+from v2.retractions import RetractionJournal, install_retractions
 
 from pathlib import Path
 for env_key, filename in [('AI_V2_SERVICE_TOKEN','focus-recovery.v2.dispatch.service-token'),('AI_RETRACTION_SECRET','focus-recovery.v2.retraction.service-secret')]:
@@ -41,7 +41,7 @@ async def lifespan(app):
     os.environ['TRANSFORMERS_OFFLINE'] = '1'
     # Single worker plus a durable journal. GPU memory is never claimed physically erased.
     journal = RetractionJournal(os.environ['AI_RETRACTION_JOURNAL'])
-    install_synthetic_retractions(app, service, journal, os.environ['AI_RETRACTION_SECRET'])
+    install_retractions(app, service, journal, os.environ['AI_RETRACTION_SECRET'])
     threading.Thread(target=load, daemon=True).start()
     yield
 

@@ -22,10 +22,10 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--mysql-fixture',required=True,type=Path);p.add_argument('--output',required=True,type=Path);p.add_argument('--ai-python',required=True);p.add_argument('--chrome',required=True);a=p.parse_args()
     c=json.loads(a.mysql_fixture.read_text());assert c['kind']=='SYNTHETIC-101' and c['container'].startswith('focus101-') and c['database']=='focus101_synthetic' and c['dbPort'] in (33111,33112,33113)
     os.umask(0o077);a.output.mkdir(parents=True,exist_ok=False,mode=0o700)
-    for port in (8893,8895,8897):
+    for port in (8893,8895,8897,8899):
         with socket.socket() as sock:sock.bind(('127.0.0.1',port))
     env=os.environ.copy();env.update(AI_V2_PROFILE='synthetic-test',AI_V2_ENABLED='1',AI_V2_SERVICE_TOKEN='synthetic-internal-service-token-95-0123456789',AI_RETRACTION_SECRET='synthetic-service-only-secret-93-0123456789',CHROMIUM_PATH=a.chrome,
-        FOCUS89_AI_URL='http://127.0.0.1:8897',FOCUS93_AI_URL='http://127.0.0.1:8893',FOCUS95_AI_URL='http://127.0.0.1:8895',FOCUS97_AI_URL='http://127.0.0.1:8897',
+        FOCUS_RETRACTION_AI_URL='http://127.0.0.1:8899', FOCUS89_AI_URL='http://127.0.0.1:8897',FOCUS93_AI_URL='http://127.0.0.1:8893',FOCUS95_AI_URL='http://127.0.0.1:8895',FOCUS97_AI_URL='http://127.0.0.1:8897',
         FOCUS101_MYSQL_URL='jdbc:mysql://127.0.0.1:'+str(c['dbPort'])+'/focus101_synthetic?serverTimezone=UTC',FOCUS101_MYSQL_PASSWORD=c['password'])
     processes=[]
     try:
@@ -50,6 +50,23 @@ def main():
                 except OSError:pass
                 time.sleep(.1)
             else:raise RuntimeError('MOCK fixture startup timed out')
+        secret=a.output/'retraction-secret'
+        with secret.open('x') as stream:stream.write(env['AI_RETRACTION_SECRET'])
+        secret.chmod(0o600)
+        privacy_env=env.copy()
+        privacy_env.update(AI_RETRACTION_SECRET_FILE=str(secret.resolve()),AI_RETRACTION_JOURNAL=str((a.output/'privacy-journal.sqlite').resolve()))
+        privacy_env.pop('AI_V2_ENABLED',None);privacy_env.pop('AI_V2_PROFILE',None)
+        with (a.output/'privacy-receiver.log').open('ab') as log:
+            proc=subprocess.Popen([a.ai_python,'-m','uvicorn','retraction_main:app','--app-dir',str(ROOT/'ai'),'--host','127.0.0.1','--port','8899','--workers','1','--no-access-log','--no-server-header'],env=privacy_env,stdout=log,stderr=log)
+        processes.append(proc)
+        for _ in range(100):
+            if proc.poll() is not None:raise RuntimeError('Privacy receiver failed')
+            try:
+                with urllib.request.urlopen('http://127.0.0.1:8899/health',timeout=1) as response:
+                    assert json.load(response)==dict(status='READY',mode='RETRACTION_ONLY',realModel=False)
+                    break
+            except OSError:time.sleep(.1)
+        else:raise RuntimeError('Privacy receiver startup timed out')
         command=['gradlew.bat' if os.name=='nt' else './gradlew','test','--rerun-tasks','--console=plain','bootJar']
         subprocess.run(command,cwd=ROOT/'be',env=env,check=True)
     finally:
