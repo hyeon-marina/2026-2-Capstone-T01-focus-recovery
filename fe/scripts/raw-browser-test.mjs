@@ -135,7 +135,11 @@ try {
         await page.locator('input').evaluate(el=>el.blur());
       }
       if(publicDocuments && n===5){
-        const article=page.frames().find(f=>f.url().includes('/public/article-5'));assert.ok(article);
+        await wait(s=>s.activeDurationMs>=4000&&s.validVisits===4,'confirmed short source-frame dwell');
+        await page.evaluate(()=>{const old=document.querySelector('iframe#mainFrame');const next=old.cloneNode();next.src='/public/article-25';old.replaceWith(next);});
+        await page.waitForTimeout(1200);
+        assert.equal((await send('status')).validVisits,4,'a replaced frame must not gain the unconfirmed interval to reach five seconds');
+        const article=page.frames().find(f=>f.url().includes('/public/article-25'));assert.ok(article);
         await article.evaluate(()=>{history.pushState({},'', '/public/article-15');document.querySelector('.post-body').textContent+=' Public frame SPA navigation.';});
       }
       if(faults && n===6)await page.evaluate(()=>{history.pushState({},'', '/public/page-16');document.querySelector('article').textContent+=' Public SPA navigation.';});

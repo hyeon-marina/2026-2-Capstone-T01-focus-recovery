@@ -143,3 +143,13 @@ it('rechecks the source after permission awaits before any privacy quarantine',a
  await send('observation',{raw,source:childSource,safe:false,sensitive:true,visible:true},sender(1));
  expect(f.runtime.quarantine).not.toHaveBeenCalled();
 });
+it('ends a replaced frame at the last confirmed observation rather than crediting the unknown interval',async()=>{
+ articleFrames();
+ const stamp=f.runtime.foreground.mock.calls.at(-1)[1];
+ const cursor={...stamp,mono:Math.max(0,stamp.mono-100),wall:stamp.wall-100};
+ f.runtime.state.tabs[1]='old-candidate';
+ f.runtime.state.candidates=[{id:'old-candidate',document:'doc-1:old-article',cursor}];
+ f.runtime.leave.mockClear();
+ await send('context',{raw,contentRaw:childRaw},sender(1));
+ expect(f.runtime.leave).toHaveBeenCalledWith(1,cursor,true);
+});

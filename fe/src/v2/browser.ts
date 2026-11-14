@@ -118,6 +118,15 @@ const contentGenerations = new Map<number, { raw: string; content: string }>();
 type ContentSource = {url:string;frameId:number;documentId:string};
 const contentFrames = new Map<number, ContentSource>();
 const frameDiagnostics = new Set(['FRAME_UNAVAILABLE','FRAME_UNSUPPORTED','FRAME_AMBIGUOUS','FRAME_POLICY_BLOCKED','FRAME_SOURCE_STALE']);
+async function discardSourceGap(tabId: number, t: Stamp) {
+  const state = runtime.snapshot();
+  const current = state.candidates.find(c => c.id === state.tabs[tabId]);
+  if (!current) return;
+  // A newly discovered replacement has no trusted navigation timestamp for its last interval.
+  await runtime.leave(tabId, current.cursor ?? t, true);
+  boundaries.set(tabId,t);
+}
+
 async function validSource(tabId: number, topRaw: string, source: unknown): Promise<ContentSource | null> {
   const value = source as ContentSource | null;
   if (!value || typeof value.url !== 'string' || !Number.isSafeInteger(value.frameId) || value.frameId <= 0 || typeof value.documentId !== 'string' || !permits(value.url)) return null;
@@ -215,6 +224,10 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
         if (matches?.length !== 1 || !matches[0].documentId) return {collecting:false};
         source = {url:m.contentRaw,frameId:matches[0].frameId,documentId:matches[0].documentId};
         if (!await validSource(tabId,m.raw,source)) return {collecting:false};
+        const state = runtime.snapshot();
+        const current = state.candidates.find(c => c.id === state.tabs[tabId]);
+        const previous = contentFrames.get(tabId);
+        if (current && current.document !== sender.documentId+':'+source.documentId || previous && previous.url !== source.url) await discardSourceGap(tabId,t);
         contentFrames.set(tabId,source);
       }
       await focus(t);
@@ -243,6 +256,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
         await runtime.leave(tabId, t);
         return { collecting: runtime.collecting() };
       }
+      if (!source && (contentFrames.has(tabId) || frameDiagnostics.has(m.diagnosticCode))) await discardSourceGap(tabId,t);
       if ((build?.publicWeb || build?.pageContent) && (!permitted || m.safe !== true && m.sensitive !== true)) {
         diagnose(frameDiagnostics.has(m.diagnosticCode) ? m.diagnosticCode : !permitted ? 'SITE_PERMISSION_REQUIRED' : m.failureReason === 'INPUT_FOCUSED' ? 'INPUT_FOCUSED' : 'POLICY');
         await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()};
