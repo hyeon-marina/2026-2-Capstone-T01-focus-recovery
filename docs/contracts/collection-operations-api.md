@@ -111,3 +111,12 @@ blockers: LOCAL_SETUP_REQUIRED, LOCAL_POLICY_MISSING, LOCAL_POLICY_DRAFT, LOCAL_
 site-policy 응답에 pageContent boolean을 추가했다. metadataOnly=true는 HMAC URL 호환 경로이며 pageContent=true일 때 실제 제목·본문·검색어를 검증한다. policyVersion/build/digest와 현재 동의·session scope를 모두 확인한다. DB 필드·v2 Visit Wire·Export 버전은 유지하며 DDL 변경은 없다.
 
 운영 failure reasonCode에 EXTRACTION_NO_CONTENT, EXTRACTION_DOM_ERROR, EXTRACTION_RENDER_TIMEOUT, EXTRACTION_ACCESS_DENIED를 추가한다. 기존 EXTRACTION_FAILED도 수용하며 위 사유를 모두 추출 실패 수로 집계한다. 실패 후보는 정상 Page Visit으로 저장하지 않는다. 원문·URL 없는 실패 행은 기존 Export/Import에 포함한다. [설치/필드/학습 검수 계약](../data-collection/page-content-collection.md).
+
+
+## #124 v7 원본 정책과 복구·재수집
+
+`site-policy.rawContent`는 local RAW_ONLY 정책 v7의 `contentPrivacy=CONSENTED_RAW`에서만 true다. 정책 파일 SHA·build·현재 직접 동의·Session scope를 모두 검사한다. v6 동의를 새 범위에 자동 적용하지 않는다. v7은 공개 텍스트/검색어의 개인정보·민감 표현 검사와 연락처 마스킹을 하지 않으며, Credential 형식 값·입력값 보호와 기존 인증/철회/무결성 경계는 유지한다. DDL/Visit Wire/IndexedDB format2는 변경하지 않는다.
+
+기존 `POST /attempts/{attempt}/recollect`는 `{reasonCode,plannedSessionId,sessionId,confirmCompleted}`를 받는다. 본인 ENDED/CLEAR와 현재 동의·로컬 소유자·정확한 tuple을 잠금 아래 재검증한다. 불일치는409 `RECOLLECT_TARGET_MISMATCH`; 정상 RAW_COLLECTED는 `USER_REQUEST`와 `confirmCompleted=true`가 모두 있어야 한다(없으면409 `COMPLETED_ATTEMPT_CONFIRMATION_REQUIRED`). 같은 대상/사유의 replay는204이며 감사 행은 중복 생성하지 않는다. 기존 API 클라이언트는 tuple을 함께 보내도록 갱신해야 한다. ACTIVE/타인/격리는404이며 다른 Attempt를 수정하지 않는다.
+
+확장의 `v2-resume`은 로컬 ACTIVE Session/배정이 일치할 때 기존 세션 조회 API로 인증·동의·소유권·scope·ACTIVE를 확인하고 원래 Queue만 재시도한다. Session/Attempt를 새로 생성하지 않는다. 다른 계정·배정·종료·격리·철회는 복구할 수 없다. 로컬 상태를 잃은 다른 프로필로 Session을 이전하는 API는 추가하지 않는다.

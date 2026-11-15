@@ -40,4 +40,17 @@ class MetadataPageTest {
             assertThat(MetadataPage.matches(raw,List.of(),true)).isFalse();
         MetadataPage.validate(request("https://www.google.com","/search","Topic: PYTHON",MetadataPage.CONTENT,MetadataPage.QUERY,true),List.of(),true);
     }
+
+    @Test void v7PublicPiiAndSensitiveTermsAreRawWhileCredentialsAndInvalidVisitsStayBlocked() {
+        String text="공개 의료 patient 계좌번호 fictional@example.org 010-0000-0000 02-000-0000 ".repeat(3);
+        for (boolean search:List.of(false,true)) {
+            var r=request(search?"https://www.google.com":"https://health.public.org",search?"/search":"","공개 의료",text,search?"medical fictional@example.org":null,search);
+            MetadataPage.validateContent(r,List.of(),true,true);
+            assertThatThrownBy(()->MetadataPage.validateContent(r,List.of(),true,false)).hasFieldOrPropertyWithValue("code","COLLECTION_POLICY_BLOCKED");
+        }
+        for(String value:List.of("password=fictional-value","Bearer fictional-token","api_key=fictional-key","비밀번호: fictional-value")) {
+            var r=request("https://public.org","","Public",text+value,null,false);
+            assertThatThrownBy(()->MetadataPage.validateContent(r,List.of(),true,true)).hasFieldOrPropertyWithValue("code","COLLECTION_POLICY_BLOCKED");
+        }
+    }
 }

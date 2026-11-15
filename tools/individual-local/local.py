@@ -18,10 +18,11 @@ import urllib.request
 import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
-# Only exact official v2 through v5 policy bytes upgrade automatically; custom pins remain unchanged.
+# Only exact official v2 through v6 policy bytes upgrade automatically; custom pins remain unchanged.
 SUPERSEDED_TEAM_POLICY_SHA256 = "fb4c6fdd8e97e657d6d5f460dba75e96def2b532d41071a9e65dfaf524c8084e"
 V4_TEAM_POLICY_SHA256 = "33ea19c5ef99ef79ea1740c78933035b3d57f47545911c28b7befd898dc14830"
 V5_TEAM_POLICY_SHA256 = "2d54a38acb72f8e39d84313f1ba5d807ff39971cf53eff4ba6d615a6da669d67"
+V6_TEAM_POLICY_SHA256 = "31db27f078c2c80223f3887e33d1853a378e6794098f32319769f01577c2c982"
 PREVIOUS_TEAM_POLICY_SHA256 = "8af39d4851d4a01e00d6ce87fe28e887207a862a9824d8127768175878c25c25"
 
 
@@ -128,7 +129,7 @@ def selected_policy(a, directory, config):
     raw = source.read_bytes()
     if len(raw) > 65536 or not expected or hashlib.sha256(raw).hexdigest() != expected:
         raise ValueError('LOCAL_POLICY_CHECKSUM: policy bytes differ from pinned SHA-256')
-    if not a.policy and config.get('policySha256') in (SUPERSEDED_TEAM_POLICY_SHA256, PREVIOUS_TEAM_POLICY_SHA256, V4_TEAM_POLICY_SHA256, V5_TEAM_POLICY_SHA256):
+    if not a.policy and config.get('policySha256') in (SUPERSEDED_TEAM_POLICY_SHA256, PREVIOUS_TEAM_POLICY_SHA256, V4_TEAM_POLICY_SHA256, V5_TEAM_POLICY_SHA256, V6_TEAM_POLICY_SHA256):
         source = ROOT / 'docs/data-collection/TEAM_POLICY.json'
         return selected_policy(argparse.Namespace(policy=source, policy_sha256=source.with_suffix('.sha256').read_text(encoding='utf-8').split()[0]), directory, config)
     return raw, expected

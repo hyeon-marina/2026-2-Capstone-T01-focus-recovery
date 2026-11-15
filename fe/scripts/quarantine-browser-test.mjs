@@ -48,7 +48,7 @@ export async function checkQuarantine({ context, harness, send, wait, assigned }
     await wait(s => s.quarantined, 'quarantine after accepted visits');
     await end();
     await page.goto('about:blank');
-    for(let i=0;i<2;i++)assert.ok(!(await send('recollect', { attemptId: old.attemptId, reasonCode: 'USER_REQUEST' }))?.error);
+    for(let i=0;i<2;i++)assert.ok(!(await send('recollect', { attemptId: old.attemptId, plannedSessionId: old.plannedSessionId, sessionId: old.sessionId, reasonCode: 'USER_REQUEST' }))?.error);
     await start(first);
     await visit('short-attempt');
     await wait(s => s.validVisits === 1, 'insufficient attempt');
@@ -57,7 +57,7 @@ export async function checkQuarantine({ context, harness, send, wait, assigned }
     const short = (await progress()).find(a => a.plannedSessionId === first.plannedSessionId && a.sessionId !== old.sessionId);
     assert.ok(short?.deliveryConfirmed && short.rawStatus === 'RECOLLECT_REQUIRED');
     // Keep the same document open across sessions. Its cached snapshot belongs to the prior HMAC.
-    assert.ok(!(await send('recollect', {attemptId:short.attemptId, reasonCode:'INSUFFICIENT_VISITS'}))?.error);
+    assert.ok(!(await send('recollect', {attemptId:short.attemptId, plannedSessionId:short.plannedSessionId, sessionId:short.sessionId, reasonCode:'INSUFFICIENT_VISITS'}))?.error);
     await start(first);
   }
   await page.goto('https://www.koreaherald.com/article/10803838', {waitUntil:'domcontentloaded'});

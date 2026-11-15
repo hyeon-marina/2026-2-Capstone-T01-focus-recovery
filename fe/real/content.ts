@@ -1,4 +1,4 @@
-import { highRiskText, maskPublicContacts, safeSearchIntent } from '../src/shared/privacy';
+import { credentialText, highRiskText, maskPublicContacts, safeSearchIntent } from '../src/shared/privacy';
 import { articleFrame, currentArticleFrame } from '../src/content/article-frame';
 import { topicTitle } from '../src/shared/metadata';
 import { cleanText, excludedPublicLayout, extractMainContent, hasFocusedEditable, isSensitivePublicDocument, isExcludedDocument, isExcludedMetadataDocument } from '../src/content/extraction';
@@ -28,7 +28,7 @@ async function pulse() {
     // No title, DOM or search-query extraction before server policy + session authorization.
     if (context?.collecting !== true) {
       // An older response must not cancel the timer installed by a newer tab activation.
-      if (context?.collecting === false && timer === pulseTimer) clearInterval(timer);
+      // Keep the handshake alive for same-session reauthentication/network recovery.
       return;
     }
     if (location.href !== raw) return;
@@ -37,8 +37,9 @@ async function pulse() {
       return;
     }
     const pageContent = context.pageContent === true;
+    const rawContent = context.rawContent === true;
     // Outer-document privacy is checked even when the article lives inside a frame.
-    if (pageContent && (isSensitivePublicDocument(document) || highRiskText(cleanText(document.title)))) {
+    if (pageContent && !rawContent && (isSensitivePublicDocument(document) || highRiskText(cleanText(document.title)))) {
       await chrome.runtime.sendMessage({type:'v2-observation',raw,safe:false,sensitive:true,visible:true}); return;
     }
     if (pageContent && hasFocusedEditable(document)) {
@@ -68,12 +69,12 @@ async function pulse() {
       context = granted; source = granted.source; contentDocument = selected.frame.document;
     }
     const emit = (message: Record<string,unknown>) => chrome.runtime.sendMessage({...message,...(source?{source}:{})});
-    const inspected = inspectUrl(contentRaw, context.metadataOnly === true);
-    const excludedDocument = contentDocument === document && pageContent ? false : !!inspected && (pageContent || context.metadataOnly === true ? isExcludedMetadataDocument(contentDocument) : isExcludedDocument(contentDocument, inspected.isSearchResultPage ? inspected.url : undefined));
+    const inspected = inspectUrl(contentRaw, context.metadataOnly === true, context.rawContent === true);
+    const excludedDocument = contentDocument === document && pageContent ? false : !!inspected && (rawContent ? hasFocusedEditable(contentDocument) : pageContent || context.metadataOnly === true ? isExcludedMetadataDocument(contentDocument) : isExcludedDocument(contentDocument, inspected.isSearchResultPage ? inspected.url : undefined));
     const excludedLayout = contentDocument !== document && !!inspected && pageContent && !excludedDocument && excludedPublicLayout(contentDocument);
     const safe = !!inspected && !excludedDocument && !excludedLayout;
     const denied = /^(?:40[134]|5\d\d|error\b|page not found|not found|access denied|forbidden|unauthorized|접근 거부|페이지를 찾을 수)/i.test(contentDocument.title.trim());
-    if (pageContent && highRiskText(cleanText(contentDocument.title))) {
+    if (pageContent && !rawContent && highRiskText(cleanText(contentDocument.title))) {
       await emit({type:'v2-observation',raw,safe:false,sensitive:true,visible:document.visibilityState === 'visible'});
       return;
     }
@@ -104,16 +105,17 @@ async function pulse() {
     let sensitive = false;
     let domError = false;
     let contactExcluded = false;
-    try { search = inspected!.isSearchResultPage ? extractSearchContent(contentDocument, contentRaw, context.maskContacts) : null; content = inspected!.isSearchResultPage ? search?.content ?? null : extractMainContent(contentDocument, pageContent, context.maskContacts); }
-    catch (error) { if (error instanceof Error && error.message === 'SENSITIVE_CONTENT') sensitive = true; else if (error instanceof Error && error.message === 'CONTACT_EXCLUDED') contactExcluded = true; else domError = true; }
+    let credentialExcluded = false;
+    try { search = inspected!.isSearchResultPage ? extractSearchContent(contentDocument, contentRaw, context.maskContacts, rawContent) : null; content = inspected!.isSearchResultPage ? search?.content ?? null : extractMainContent(contentDocument, pageContent, context.maskContacts, rawContent); }
+    catch (error) { if (error instanceof Error && error.message === 'CREDENTIAL_CONTENT') credentialExcluded = true; else if (error instanceof Error && error.message === 'SENSITIVE_CONTENT') sensitive = true; else if (error instanceof Error && error.message === 'CONTACT_EXCLUDED') contactExcluded = true; else domError = true; }
     if (content) content = cleanText(content);
     let rawTitle = contentDocument.title || contentDocument.querySelector('meta[property="og:title"]')?.getAttribute('content') || '';
-    if (context.maskContacts) {
+    if (context.maskContacts && !rawContent) {
       try { rawTitle = maskPublicContacts(rawTitle); }
       catch (error) { if (error instanceof Error && error.message === 'CONTACT_EXCLUDED') contactExcluded = true; else sensitive = true; }
     }
-    if (inspected?.searchQuery && (highRiskText(inspected.searchQuery) || !safeSearchIntent(inspected.searchQuery))) sensitive = true;
-    if (contactExcluded && !sensitive) {
+    if (!rawContent && inspected?.searchQuery && (highRiskText(inspected.searchQuery) || !safeSearchIntent(inspected.searchQuery))) sensitive = true;
+    if (rawContent && (credentialExcluded || credentialText(rawTitle) || credentialText(description?.searchQuery ?? '')) || contactExcluded && !sensitive) {
       await emit({type:'v2-observation',raw,safe:true,snapshot:null,visible:document.visibilityState === 'visible',extractionFailed:true,failureReason:'POLICY'});
       return;
     }
@@ -121,7 +123,7 @@ async function pulse() {
     const snapshot = !/^loading(?:\.{0,3})?$|^로딩(?: 중)?[. ]*$/i.test(title) && content && [...content].length >= (inspected!.isSearchResultPage ? 1 : 50) && title && description ? { ...description, title, content, ...(search ? { organicResultCount: search.organicResultCount } : {}) } : null;
     if (location.href !== raw || selected.frame && !currentArticleFrame(selected.frame) || document.visibilityState !== 'visible' || !document.hasFocus()) return;
     const failureReason = domError ? 'EXTRACTION_DOM_ERROR' : contentDocument.querySelector('main,article,[role="main"],.post-body,.document,#hnmain') ? 'EXTRACTION_RENDER_TIMEOUT' : 'EXTRACTION_NO_CONTENT';
-    const safeText = !sensitive && (!inspected!.isSearchResultPage || !!description?.searchQuery && publicSearchQuery(description.searchQuery)) && publicText(rawTitle, content ?? '', description?.searchQuery ?? '');
+    const safeText = rawContent || !sensitive && (!inspected!.isSearchResultPage || !!description?.searchQuery && publicSearchQuery(description.searchQuery)) && publicText(rawTitle, content ?? '', description?.searchQuery ?? '');
     if (pageContent) {
       const previous = cached?.raw === raw ? cached : undefined;
       cached = {document:contentDocument,sourceRaw:contentRaw,raw,identity:context.description?.identity,started:previous?.started ?? Date.now(),next:Date.now()+5000,snapshot:safeText?snapshot:null,safe:safeText,failureReason};

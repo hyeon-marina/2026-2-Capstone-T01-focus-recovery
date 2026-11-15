@@ -1,4 +1,4 @@
-import { highRiskText, maskPublicContacts, publicText } from '../shared/privacy';
+import { credentialText, highRiskText, maskPublicContacts, publicText } from '../shared/privacy';
 export const OMIT = 'script,style,noscript,nav,header,footer,aside,form,input,textarea,select,button,option,iframe,canvas,svg,video,audio,[contenteditable],[hidden],[inert],[aria-hidden="true"],[role="navigation"],[role="menu"],[role="dialog"],[role="alert"],[role="banner"],[role="contentinfo"],[role="complementary"],.ad,.ads,.advertisement,[data-ad],[id*="google_ads"],.comments,.comment-list,.u_cbox,.commentbox,.comment-area,#respond,#comments,#comment-area,.tt-comment-cont,.tt-area-reply,.social-share,.menu,.navigation,.navbar,.sidebar,.cookie-banner,.sr-only';
 const COMMENT_AREA = '.comments,.comment-list,#comments,#comment-area,.tt-comment-cont,.tt-area-reply';
 const PRIVATE_INPUT = 'input[type="password"],input[type="email"],input[type="tel"],input[autocomplete^="cc-"],input[autocomplete="street-address"],input[autocomplete="one-time-code"],input[autocomplete="given-name"],input[autocomplete="family-name"],input[name*="password" i],input[name*="token" i],input[name*="ssn" i],input[name*="card" i]';
@@ -87,11 +87,12 @@ function visibleTextFrom(element: Element): string {
   }
   return pieces.join('');
 }
-const ARTICLE_BODY = '.post-content,.entry-content,.article-body,.se-main-container,.contents_style,.tt_article_useless_p_margin,.blog-content,[itemprop="articleBody"],#postViewArea';
-const ARTICLE_ROOTS = 'article,main,[role="main"],.post-content,.entry-content,.article-body,.document,.post-body,.story-body,#main,#hnmain,.se-main-container,.contents_style,.tt_article_useless_p_margin,.blog-content,[itemprop="articleBody"],#postViewArea';
+const ARTICLE_BODY = '.post-content,.entry-content,.article-body,.se-main-container,.contents_style,.article-view,.area_view,#article-view,.tt_article_useless_p_margin,.blog-content,[itemprop="articleBody"],#postViewArea';
+const ARTICLE_ROOTS = 'article,main,[role="main"],.post-content,.entry-content,.article-body,.document,.post-body,.story-body,#main,#hnmain,.se-main-container,.contents_style,.article-view,.area_view,#article-view,.tt_article_useless_p_margin,.blog-content,[itemprop="articleBody"],#postViewArea';
 export function mainContentRoots(doc: Document): Element[] {
   const explicit = [...doc.querySelectorAll(ARTICLE_ROOTS)];
-  if (explicit.length) return explicit;
+  // An empty known article body is loading; unrelated wrapper text cannot replace it.
+  if (explicit.some(root => hasMainText(root, 1)) || doc.querySelector(ARTICLE_BODY)) return explicit;
   const sections = [...doc.querySelectorAll('section')].filter(el => el.querySelectorAll('p,pre').length >= 2);
   if (sections.length) return sections;
   // Unknown blog themes: only nearby paragraph groups, never a whole-body fallback.
@@ -114,35 +115,36 @@ export function mainContentRoots(doc: Document): Element[] {
   });
 }
 // Bounded evidence for preferring the top article over embedded widgets/advertisements.
-function hasMainText(root: Element): boolean {
+function hasMainText(root: Element, minimum = 50): boolean {
   let size = 0;
   const read = (element: Element): boolean => {
     if (element.matches(OMIT) || !locallyVisible(element)) return false;
     for (const node of element.childNodes) {
       if (node.nodeType === 3) size += (node.textContent ?? '').trim().length;
       else if (node.nodeType === 1 && read(node as Element)) return true;
-      if (size >= 50) return true;
+      if (size >= minimum) return true;
     }
     return false;
   };
   return isVisible(root) && read(root);
 }
 export function hasMainContent(doc: Document): boolean {
-  return mainContentRoots(doc).some(hasMainText);
+  return mainContentRoots(doc).some(root => hasMainText(root));
 }
-export function extractMainContent(doc: Document, publicPage = false, maskContacts = false): string | null {
-  if (publicPage ? isExcludedPublicDocument(doc) : isExcludedDocument(doc)) return null;
+export function extractMainContent(doc: Document, publicPage = false, maskContacts = false, rawContent = false): string | null {
+  if (rawContent ? hasFocusedEditable(doc) || excludedPublicLayout(doc) : publicPage ? isExcludedPublicDocument(doc) : isExcludedDocument(doc)) return null;
   const roots = mainContentRoots(doc);
   const contents = roots.map(root => ({root,text:cleanText(textFrom(root))})).filter(item => !!item.text);
   const texts = contents.map(item => item.text);
-  if (publicPage && texts.some(highRiskText)) throw new Error('SENSITIVE_CONTENT');
-  if (publicPage && !maskContacts && texts.some(t => !publicText(t))) throw new Error('SENSITIVE_CONTENT');
+  if (!rawContent && publicPage && texts.some(highRiskText)) throw new Error('SENSITIVE_CONTENT');
+  if (!rawContent && publicPage && !maskContacts && texts.some(t => !publicText(t))) throw new Error('SENSITIVE_CONTENT');
   const preferred = new Set(roots.filter(root => root.matches(ARTICLE_BODY)));
   const selectedTexts = contents.filter(item => !preferred.size || preferred.has(item.root)).map(item => item.text);
   if (!selectedTexts.length) return null;
   // FE/BE contract: at most 5,000 Unicode code points, preserving surrogate pairs.
   const selected = selectedTexts.sort((a, b) => b.length - a.length)[0];
-  const main = maskContacts ? maskPublicContacts(selected) : selected;
+  if (rawContent && credentialText(selected)) throw new Error('CREDENTIAL_CONTENT');
+  const main = maskContacts && !rawContent ? maskPublicContacts(selected) : selected;
   const text = publicPage ? [...new Set(main.split('\n'))].join('\n') : main;
   return [...text].slice(0, 5000).join('');
 }

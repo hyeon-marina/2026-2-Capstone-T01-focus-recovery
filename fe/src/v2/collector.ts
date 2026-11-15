@@ -13,7 +13,7 @@ export const VALID_MS = 5000, RETURN_MS = 4000, PATCH_MS = 300000;
 export const MAX_OBSERVATION_GAP_MS = 1500;
 const sameEpoch = (a: Stamp, b: Stamp) => a.epoch === b.epoch && b.mono >= a.mono;
 export class V2Collector {
-  constructor(public state: V2State, private uuid = () => crypto.randomUUID() as string) {}
+  constructor(public state: V2State, private uuid = () => crypto.randomUUID() as string, private resumeIncomplete = false) {}
   current(tab: number) { return this.state.candidates.find(c => c.id === this.state.tabs[tab]); }
   private measure(c: Candidate, t: Stamp) {
     const previous = c.cursor;
@@ -94,7 +94,7 @@ export class V2Collector {
     if (c && (c.target !== o.target || c.generation !== o.generation || c.document !== o.document)) {
       this.pause(o.tabId, o.stamp); c = undefined;
     }
-    if (c?.left) {
+    if (c?.left && !(this.resumeIncomplete && !c.post && !c.closed && !c.excluded)) {
       const returned = c.returned.mono >= c.left.mono && c.returned.epoch === c.left.epoch ? c.returned : o.stamp;
       if (!sameEpoch(c.left, returned) || returned.mono - c.left.mono >= RETURN_MS) c = undefined;
     }
@@ -139,8 +139,9 @@ export class V2Collector {
     this.state.tabs = {}; this.state.foreground = null;
   }
   expire(t: Stamp) {
-    for (const c of this.state.candidates) if (c.left && (!sameEpoch(c.left, t) || t.mono - c.left.mono >= RETURN_MS)) {
+    for (const c of this.state.candidates) if (!(this.resumeIncomplete && !c.post && !c.excluded && this.state.tabs[c.tabId] === c.id) && c.left && (!sameEpoch(c.left, t) || t.mono - c.left.mono >= RETURN_MS)) {
       c.closed = true; c.cursor = undefined;
+      if (this.resumeIncomplete && !c.post && !c.excluded) c.excluded = c.snapshot ? 'SHORT_DURATION' : 'EXTRACTION_FAILED';
       if (this.state.tabs[c.tabId] === c.id) delete this.state.tabs[c.tabId];
     }
   }

@@ -19,6 +19,7 @@ public class LocalCollectionPolicy {
         for (String key:List.of("purpose","collectionItems","useScope","retentionPolicy","sensitivePageExclusions","textPrivacyPolicy","changePolicy","collectionScope"))
             if (n.path(key).asText().isBlank() || n.path(key).asText().length()>12000) fail("LOCAL_POLICY_INCOMPLETE: 수집·보존·제외·변경 방침을 확인하세요.");
         if (!n.path("siteScope").asText().isEmpty() && !n.path("siteScope").asText().equals("PUBLIC_HTTP_HTTPS")) fail("LOCAL_POLICY_SCOPE: unknown website scope");
+        if (n.has("contentPrivacy") && !(n.path("contentPrivacy").asText().equals("CONSENTED_RAW") && n.path("policyVersion").asText().equals("7") && n.path("pageContent").asBoolean(false) && !n.path("maskContacts").asBoolean(true))) fail("LOCAL_POLICY_PRIVACY: v7 명시적 원본 정책이 필요합니다.");
         var institution=n.path("institution");
         if (!Set.of("UNRESOLVED","REQUIRED_SATISFIED","NOT_REQUIRED").contains(institution.path("decision").asText())) fail("INSTITUTION_INVALID: 기관 판단 상태를 확인하세요.");
         if (!institution.path("decision").asText().equals("UNRESOLVED")) CollectionAdministration.reference(institution.path("evidenceRef").asText());

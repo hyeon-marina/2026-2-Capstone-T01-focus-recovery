@@ -17,9 +17,12 @@ import com.focusrecovery.global.exception.ConflictException;
 public class CollectionSitePolicy {
     public record Site(String origin, String pathPrefix) {}
     public record Policy(String digest, String buildId, String policyId, String policyVersion, String status,
-        Instant expiresAt, List<Site> sites, boolean metadataOnly, boolean publicWeb, boolean pageContent) {
+        Instant expiresAt, List<Site> sites, boolean metadataOnly, boolean publicWeb, boolean pageContent, boolean rawContent) {
+        public Policy(String digest,String buildId,String policyId,String policyVersion,String status,Instant expiresAt,List<Site> sites,boolean metadataOnly,boolean publicWeb,boolean pageContent) {
+            this(digest,buildId,policyId,policyVersion,status,expiresAt,sites,metadataOnly,publicWeb,pageContent,false);
+        }
         public Policy(String digest,String buildId,String policyId,String policyVersion,String status,Instant expiresAt,List<Site> sites) {
-            this(digest,buildId,policyId,policyVersion,status,expiresAt,sites,false,false,false);
+            this(digest,buildId,policyId,policyVersion,status,expiresAt,sites,false,false,false,false);
         }
     }
     private final Environment env;
@@ -47,7 +50,7 @@ public class CollectionSitePolicy {
                 var sites=validateLocalSites(n);
                 if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_local_owner o JOIN participant p ON p.participant_id=o.participant_id JOIN collection_plan c ON c.plan_id=1 WHERE o.policy_digest=? AND o.plan_checksum=? AND c.revision=? AND p.status='ACTIVE' AND p.withdrawn_at IS NULL",Integer.class,digest,validator.checksum(plan),plan.revision())!=1) return null;
                 if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_release WHERE policy_digest=? AND build_id=? AND approval_ref=? AND revoked_at IS NULL",Integer.class,digest,build,LocalCollectionPolicy.operationalRef(n))!=1)return null;
-                return new Policy(digest,build,n.path("policyId").asText(),n.path("policyVersion").asText(),LocalCollectionPolicy.institutionCleared(n)?"APPROVED":"INSTITUTION_BLOCKED",Instant.parse(n.path("expiresAt").asText()),sites,true,n.path("siteScope").asText().equals("PUBLIC_HTTP_HTTPS"),n.path("pageContent").asBoolean(false));
+                return new Policy(digest,build,n.path("policyId").asText(),n.path("policyVersion").asText(),LocalCollectionPolicy.institutionCleared(n)?"APPROVED":"INSTITUTION_BLOCKED",Instant.parse(n.path("expiresAt").asText()),sites,true,n.path("siteScope").asText().equals("PUBLIC_HTTP_HTTPS"),n.path("pageContent").asBoolean(false),n.path("contentPrivacy").asText().equals("CONSENTED_RAW"));
             }
             if(!(synthetic?status.equals("SYNTHETIC"):status.equals("APPROVED")) || !build.matches("[a-zA-Z0-9_.-]{1,100}"))return null;
             for(String k:List.of("approvalRef","contractApprovalRef","retentionRef","institutionRef","modelEvidenceRef","privacyEvidenceRef","startAuthorizationRef"))
@@ -102,6 +105,10 @@ public class CollectionSitePolicy {
     public void checkVisit(WorkSession s,String url) {
         if(!realProfile())return;
         check(s);
+        if (require().rawContent()) {
+            if (!MetadataPage.matches(url,require().sites(),require().publicWeb(),true)) throw blocked();
+            return;
+        }
         try {
             URI u=URI.create(url);String path=u.getPath().toLowerCase(Locale.ROOT);
             if(u.getHost()==null || u.getHost().toLowerCase(Locale.ROOT).matches(".*(?:^|[.-])(bank|banking|paypal|stripe|accounts|login|auth|finance|wallet|medical|health|clinic|hospital|mail)(?:[.-]|$).*") || path.matches(".*(?:^|[/_.-])(login|logon|signin|sign-in|signup|sign-up|register|registration|password|reset-password|auth|oauth|callback|sso|checkout|payment|billing|banking|bank|wallet|account|profile|settings|myaccount|finance|financial|pay|verify|verification|medical|health|private|mail|inbox|messages|patient|records|history|orders)(?:[/_.-]|$).*")
@@ -118,7 +125,7 @@ public class CollectionSitePolicy {
     public void checkVisitData(com.focusrecovery.domain.visit.dto.CreatePageVisitRequest request) {
         if(realProfile() && require().metadataOnly()) {
             var p=require();
-            if(p.pageContent()) MetadataPage.validateContent(request,p.sites(),p.publicWeb());
+            if(p.pageContent()) MetadataPage.validateContent(request,p.sites(),p.publicWeb(),p.rawContent());
             else MetadataPage.validate(request,p.sites(),p.publicWeb());
         }
     }

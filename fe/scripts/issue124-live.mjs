@@ -1,0 +1,26 @@
+// Prepare an isolated visible extension. Never creates consent, starts a session or opens the operating profile.
+import {chromium} from 'playwright';
+import {build} from 'vite';
+import {readFile} from 'node:fs/promises';
+import {resolve,join} from 'node:path';
+import {createHash,X509Certificate} from 'node:crypto';
+import assert from 'node:assert/strict';
+process.umask(0o077);
+const directory=process.env.FOCUS124_DIRECTORY;
+assert.ok(directory?.startsWith('/private/tmp/focus124-evidence/'));
+const config=JSON.parse(await readFile(join(directory,'config.json'),'utf8'));
+assert.equal(config.tlsPort,19425);assert.equal(config.dbPort,33425);
+const policy=JSON.parse(await readFile(join(directory,'site-policy.json'),'utf8'));
+assert.equal(policy.policyVersion,'7');assert.equal(policy.contentPrivacy,'CONSENTED_RAW');
+process.env.VITE_API_BASE_URL='https://localhost:19425';process.env.COLLECTION_SITE_POLICY_FILE=join(directory,'site-policy.json');
+const extension=join(directory,'extension');
+await build({configFile:resolve('vite.real.config.ts'),mode:'real-collection',build:{outDir:extension}});
+await build({configFile:resolve('vite.real.content.config.ts'),build:{outDir:extension}});
+const cert=new X509Certificate(await readFile(join(directory,'tls/localhost.pem')));
+const pin=createHash('sha256').update(cert.publicKey.export({type:'spki',format:'der'})).digest('base64');
+const context=await chromium.launchPersistentContext(join(directory,'chrome-profile'),{headless:false,channel:'chromium',executablePath:process.env.CHROMIUM_PATH,args:['--ignore-certificate-errors-spki-list='+pin,`--disable-extensions-except=${extension}`,`--load-extension=${extension}`]});
+const worker=context.serviceWorkers()[0]??await context.waitForEvent('serviceworker');
+context.on('page',async p=>{try{const c=await context.newCDPSession(p);await c.send('Emulation.setFocusEmulationEnabled',{enabled:false});await c.detach();}catch{}});
+const page=await context.newPage();const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setFocusEmulationEnabled',{enabled:false});await cdp.detach();await page.goto('chrome-extension://'+worker.url().split('/')[2]+'/participant/index.html');
+await page.getByLabel('로컬 Credential 파일 불러오기').setInputFiles(join(directory,'participant.json'));
+console.log('READY: isolated Chrome; review policy and consent directly in the UI. No automatic consent or collection.');

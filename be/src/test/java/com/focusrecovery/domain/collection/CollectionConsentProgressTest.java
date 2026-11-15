@@ -90,4 +90,17 @@ class CollectionConsentProgressTest extends CollectionOperationsTest {
         assertThat(progress.mine().raw().completed()).isZero();assertThat(progress.mine().raw().theoreticalWindows()).isZero();
         assertThat(progress.mine().attempts()).hasSize(2);
     }
+
+    @Test void officialV7RequiresNewConsentAndPreservesV5V6HistoryWithoutRewritingIt() {
+        fixture(true,true);
+        jdbc.update("UPDATE work_session SET consent_id=? WHERE session_id=?",present,session);
+        jdbc.update("INSERT INTO collection_release VALUES(?,'test-v6','test-approval',?,NULL)",V6,time(300));
+        jdbc.update("UPDATE session_collection_scope SET policy_digest=? WHERE session_id=?",V6,session);
+        policy("7",100);
+        jdbc.update("UPDATE collection_local_owner SET policy_digest=?","4c5fe813d703a3ae1d6bf95f3de3aca8ae12c94a5c4a8ca4a161ad29d6dd11f9");
+        assertEligible(false);
+        String old=present;present=record("7");assertEligible(true);
+        assertThat(jdbc.queryForObject("SELECT consent_id FROM work_session WHERE session_id=?",String.class,session)).isEqualTo(old);
+        jdbc.update("UPDATE consent_record SET withdrawn_at=? WHERE consent_id=?",time(0),old);assertEligible(false);
+    }
 }

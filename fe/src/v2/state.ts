@@ -10,6 +10,7 @@ export interface Candidate {
   visitedAt: string; left?: Stamp; returned: Stamp; cursor?: Stamp; remainder: number;
   behavior: VisitBehavior; snapshot?: PageSnapshot; post?: PageVisit;
   extractionFailureReason?: 'POLICY' | 'EXTRACTION_NO_CONTENT' | 'EXTRACTION_DOM_ERROR' | 'EXTRACTION_RENDER_TIMEOUT' | 'EXTRACTION_ACCESS_DENIED';
+  failureAcknowledged?: boolean;
   closed: boolean; crossed: boolean; excluded?: 'EXTRACTION_FAILED' | 'POLICY' | 'SHORT_DURATION';
 }
 export interface V2State {

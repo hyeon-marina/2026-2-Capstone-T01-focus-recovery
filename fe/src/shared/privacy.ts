@@ -41,3 +41,7 @@ export function publicSearchQuery(query: string) {
 export function safeSearchIntent(query: string) {
   return !/\b(?:medical|diagnosis|patient|prescription|symptoms?|treatment|cancer|hiv|aids|depression|banking|finance|loan|credit|insurance|password|cookie|token)\b|의료|진료|환자|질병|증상|치료|처방|우울|암 검사|대출|신용|계좌|금융|주민|비밀번호/i.test(query);
 }
+
+export function credentialText(text: string) {
+  return /(?:bearer\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret|비밀번호)\s*[:=]\s*\S+)/i.test(text);
+}
