@@ -12,7 +12,7 @@ export function publicWebUrl(raw: string, rawContent = false): URL | null {
     // Reject IP literals, private host names and nonstandard service ports.
     if (!['http:', 'https:'].includes(u.protocol) || u.username || u.password || u.port || u.hostname.length > 253
       || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}$/.test(u.hostname)
-      || (rawContent ? /(?:^|\.)(?:localhost|local|internal|intranet|lan|home|corp|private|test|invalid|example|onion|admin|mail|webmail|outlook|gmail|whatsapp|telegram|chat|messages|messenger|slack|discord|teams|paypal|stripe)(?:\.|$)/i.test(u.hostname) : privateHost.test(u.hostname) || sensitive.test(u.hostname)) || /^(?:(?:docs|drive|calendar|contacts)\.google\.com|.*\.sharepoint\.com|onedrive\.live\.com)$/.test(u.hostname)) return null;
+      || (rawContent ? /(?:^|[.-])(?:localhost|local|internal|intranet|lan|home|corp|private|test|invalid|example|onion|admin|mail|webmail|outlook|gmail|whatsapp|telegram|chat|messages|messenger|slack|discord|teams|paypal|stripe|login|auth|accounts|account|wallet)(?:[.-]|$)/i.test(u.hostname) : privateHost.test(u.hostname) || sensitive.test(u.hostname)) || /^(?:(?:docs|drive|calendar|contacts)\.google\.com|.*\.sharepoint\.com|onedrive\.live\.com)$/.test(u.hostname)) return null;
     if ([...u.searchParams.keys()].some(k => /token|password|secret|credential|authorization|^(code|session|sessionid|sid|email|phone|address|card)$/.test(k.toLowerCase()))) return null;
     if (/(?:^|[?&#])(?:access_token|id_token|token|password|authorization|code)=/i.test(u.hash)) return null;
     for (const component of [u.pathname,u.hash.slice(1)]) {

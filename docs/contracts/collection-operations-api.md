@@ -120,3 +120,11 @@ site-policy 응답에 pageContent boolean을 추가했다. metadataOnly=true는 
 기존 `POST /attempts/{attempt}/recollect`는 `{reasonCode,plannedSessionId,sessionId,confirmCompleted}`를 받는다. 본인 ENDED/CLEAR와 현재 동의·로컬 소유자·정확한 tuple을 잠금 아래 재검증한다. 불일치는409 `RECOLLECT_TARGET_MISMATCH`; 정상 RAW_COLLECTED는 `USER_REQUEST`와 `confirmCompleted=true`가 모두 있어야 한다(없으면409 `COMPLETED_ATTEMPT_CONFIRMATION_REQUIRED`). 같은 대상/사유의 replay는204이며 감사 행은 중복 생성하지 않는다. 기존 API 클라이언트는 tuple을 함께 보내도록 갱신해야 한다. ACTIVE/타인/격리는404이며 다른 Attempt를 수정하지 않는다.
 
 확장의 `v2-resume`은 로컬 ACTIVE Session/배정이 일치할 때 기존 세션 조회 API로 인증·동의·소유권·scope·ACTIVE를 확인하고 원래 Queue만 재시도한다. Session/Attempt를 새로 생성하지 않는다. 다른 계정·배정·종료·격리·철회는 복구할 수 없다. 로컬 상태를 잃은 다른 프로필로 Session을 이전하는 API는 추가하지 않는다.
+
+### PR #125 추가 안정화
+
+`setup` 기본 동작은 설치된 정책 pin을 유지한다. 공식 v6→v7 전환은 `setup --slot C --upgrade-policy --preview-policy`로 쓰기 없는 범위 확인 후, 별도 운영 승인과 백업·활성 세션 종료/Queue 확인을 거쳐 `--preview-policy`를 빼고 실행한다. custom pin은 명시적 `--policy/--policy-sha256` 없이는 변경하지 않는다. `--upgrade-policy`와 `--policy`를 혼용하지 않는다. 미리보기는 서비스·DB·파일을 변경하지 않으며, 정책 설치가 직접 동의를 만들지 않는다.
+
+정책 파일과 config는 staged 파일을 교체하고 파일 교체 오류 시 기존 파일을 복원한다. offline DB 정책 설치는 그 전에 커밋될 수 있으므로 오류 후 구 FE/BE로 수집을 계속하지 않는다. DB와 파일 pin 불일치는 수집을 차단한다. 프로세스 강제 종료·디스크 장애 뒤에는 원본·pending 파일을 보존하고 명시적인 검토된 `--policy/--policy-sha256`로 setup을 재실행해 정합화한다. DB/프로필을 초기화하거나 기존 동의·Visit을 덮어쓰지 않는다.
+
+새 Credential 보호는 인용된 JSON key도 검사한다. 의미 단어만 있는 공개 글과 가상 연락처는 계속 허용한다. 동일 동의 ID라도 local owner와 session scope Digest가 불일치하면 RAW 조회·Export에 포함하지 않는다. 역사적 v5/v6→v7 읽기 허용 조건과 철회·Tombstone은 유지한다. FE/BE 호스트·Credential 공통 회귀 corpus는 `v2/fixtures/raw-v7-boundaries.json`이다.

@@ -74,7 +74,7 @@ public final class MetadataPage {
         validateContent(r,sites,publicWeb,false);
     }
     public static boolean credentialText(String text) {
-        return text != null && Pattern.compile("(?:bearer\\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret|비밀번호)\\s*[:=]\\s*\\S+)",Pattern.CASE_INSENSITIVE).matcher(text).find();
+        return text != null && Pattern.compile("(?:bearer\\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret|비밀번호)\\s*[\"']?\\s*[:=]\\s*\\S+)",Pattern.CASE_INSENSITIVE).matcher(text).find();
     }
     public static void validateContent(CreatePageVisitRequest r,List<CollectionSitePolicy.Site> sites,boolean publicWeb,boolean rawContent) {
         r.validateV2();

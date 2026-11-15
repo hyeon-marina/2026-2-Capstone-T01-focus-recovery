@@ -43,5 +43,5 @@ export function safeSearchIntent(query: string) {
 }
 
 export function credentialText(text: string) {
-  return /(?:bearer\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret|비밀번호)\s*[:=]\s*\S+)/i.test(text);
+  return /(?:bearer\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret|비밀번호)\s*["']?\s*[:=]\s*\S+)/i.test(text);
 }

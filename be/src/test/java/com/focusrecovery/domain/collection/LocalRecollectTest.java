@@ -23,6 +23,8 @@ class LocalRecollectTest extends CollectionOperationsTest {
         assigned(true);agree(aliceToken);
         String complete=ended("PLAN-001",10),shortSession=ended("PLAN-004",2);
         jdbc.update("INSERT INTO collection_local_owner VALUES(1,?,'A',?,?,NULL)",alice.toString(),"0".repeat(64),"0".repeat(64));
+        jdbc.update("INSERT INTO collection_release VALUES(?,'test-local','test',?,NULL)","0".repeat(64),Timestamp.from(Instant.now()));
+        for(var sid:List.of(complete,shortSession))jdbc.update("INSERT INTO session_collection_scope VALUES(?,?,'test-local')",sid,"0".repeat(64));
         var env=new MockEnvironment();env.setActiveProfiles("individual-local");
         var controller=new LocalCollectionStatus(jdbc,null,consent,env,JsonMapper.builder().build());
         ReflectionTestUtils.setField(controller,"progress",progress);

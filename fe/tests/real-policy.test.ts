@@ -21,6 +21,14 @@ describe('reviewed web collection boundary',()=>{
     for(const patch of [{buildId:'other'},{digest:'b'.repeat(64)},{sites:[]},{status:'DRAFT'},{expiresAt:'2000-01-01T00:00:00Z'}]) expect(validPolicy({...policy,...patch},build,false)).toBe(false);
     expect(validPolicy({...policy,status:'SYNTHETIC'},build,false)).toBe(false);
   });
+  it('fails closed for mixed v6/v7 packages and servers without replacing local data',()=>{
+    const build={buildId:'focus-page-content-v7',policyDigest:'7'.repeat(64),sites:[],publicWeb:true,rawContent:true};
+    const v7={...build,digest:build.policyDigest,status:'APPROVED',expiresAt:new Date(Date.now()+60000).toISOString()};
+    const v6={...v7,buildId:'focus-page-content-v6',digest:'6'.repeat(64),rawContent:false};
+    expect(validPolicy(v6,build,false)).toBe(false);
+    expect(validPolicy(v7,{...build,buildId:v6.buildId,policyDigest:v6.digest,rawContent:false},false)).toBe(false);
+    expect(validPolicy(v7,build,false)).toBe(true);
+  });
   it('excludes private DOM and obvious identifiers, extracts only public article',()=>{
     const doc=document;doc.body.innerHTML='<article><h1>Public title</h1><p>A controlled public article with information about reusable containers.</p><nav>navigation</nav></article>';
     expect(extractMainContent(doc)).toContain('controlled public');

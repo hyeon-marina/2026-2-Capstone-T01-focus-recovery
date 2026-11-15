@@ -18,7 +18,7 @@ import urllib.request
 import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
-# Only exact official v2 through v6 policy bytes upgrade automatically; custom pins remain unchanged.
+# Only an explicit upgrade may replace exact official v2 through v6 pins.
 SUPERSEDED_TEAM_POLICY_SHA256 = "fb4c6fdd8e97e657d6d5f460dba75e96def2b532d41071a9e65dfaf524c8084e"
 V4_TEAM_POLICY_SHA256 = "33ea19c5ef99ef79ea1740c78933035b3d57f47545911c28b7befd898dc14830"
 V5_TEAM_POLICY_SHA256 = "2d54a38acb72f8e39d84313f1ba5d807ff39971cf53eff4ba6d615a6da669d67"
@@ -119,6 +119,8 @@ def complete_local_files(d):
 
 def selected_policy(a, directory, config):
     # Preserve an explicitly installed version on restart; pin exact bytes locally.
+    if a.policy and getattr(a, 'upgrade_policy', False):
+        raise ValueError('Choose --upgrade-policy or an explicit --policy, not both')
     if a.policy:
         source, expected = a.policy, a.policy_sha256
     elif config.get('policySha256'):
@@ -129,15 +131,44 @@ def selected_policy(a, directory, config):
     raw = source.read_bytes()
     if len(raw) > 65536 or not expected or hashlib.sha256(raw).hexdigest() != expected:
         raise ValueError('LOCAL_POLICY_CHECKSUM: policy bytes differ from pinned SHA-256')
-    if not a.policy and config.get('policySha256') in (SUPERSEDED_TEAM_POLICY_SHA256, PREVIOUS_TEAM_POLICY_SHA256, V4_TEAM_POLICY_SHA256, V5_TEAM_POLICY_SHA256, V6_TEAM_POLICY_SHA256):
+    if not a.policy and getattr(a, 'upgrade_policy', False) and config.get('policySha256'):
         source = ROOT / 'docs/data-collection/TEAM_POLICY.json'
-        return selected_policy(argparse.Namespace(policy=source, policy_sha256=source.with_suffix('.sha256').read_text(encoding='utf-8').split()[0]), directory, config)
+        current = source.with_suffix('.sha256').read_text(encoding='utf-8').split()[0]
+        if config['policySha256'] not in (SUPERSEDED_TEAM_POLICY_SHA256, PREVIOUS_TEAM_POLICY_SHA256, V4_TEAM_POLICY_SHA256, V5_TEAM_POLICY_SHA256, V6_TEAM_POLICY_SHA256, current):
+            raise ValueError('LOCAL_POLICY_CUSTOM_PIN: use an explicit reviewed --policy and --policy-sha256')
+        return selected_policy(argparse.Namespace(policy=source, policy_sha256=current), directory, config)
     return raw, expected
+
+
+def install_policy_files(directory, policy, config, digest):
+    installed = directory / 'site-policy.json'
+    previous = installed.read_text(encoding='utf-8')
+    staged = directory / ('config-' + uuid.uuid4().hex + '.pending')
+    private(staged, json.dumps({**config, 'policySha256': digest}, indent=2))
+    try:
+        os.replace(policy, installed)
+        os.replace(staged, directory / 'config.json')
+    except OSError:
+        rollback = directory / ('policy-' + uuid.uuid4().hex + '.rollback')
+        private(rollback, previous)
+        os.replace(rollback, installed)
+        raise ValueError('LOCAL_POLICY_INSTALL_FAILED: prior files restored; DB may already have applied the policy. Retry with the explicit reviewed --policy/--policy-sha256; do not reset data.')
 
 
 def self_setup(a, directory):
     if not a.slot:
         raise ValueError('SLOT_REQUIRED: --slot A/B/C')
+    if getattr(a, 'preview_policy', False):
+        config = json.loads((directory / 'config.json').read_text()) if directory.exists() else {}
+        if config.get('slot', a.slot) != a.slot:
+            raise ValueError('LOCAL_SLOT_MISMATCH')
+        raw, digest = selected_policy(a, directory, config)
+        target = json.loads(raw)
+        print(json.dumps(dict(policyVersion=target['policyVersion'], buildId=target['buildId'],
+            installedDigest=config.get('policySha256'), selectedDigest=digest,
+            changesPolicy=bool(config.get('policySha256') and config['policySha256'] != digest),
+            directConsentRequired=True, databaseSchemaChanges=False, writesPerformed=False)))
+        return
     prerequisites()
     if not directory.exists():
         main(['--directory', str(directory), 'init', '--slot', a.slot,
@@ -146,11 +177,11 @@ def self_setup(a, directory):
     config = json.loads((directory / 'config.json').read_text())
     if config['slot'] != a.slot:
         raise ValueError('LOCAL_SLOT_MISMATCH: existing slot cannot be switched; use a separate NEW local DB')
+    raw, digest = selected_policy(a, directory, config)
     complete_local_files(directory)
     owner = directory / 'owner.key'
     if not owner.exists():
         private(owner, secrets.token_urlsafe(48))
-    raw, digest = selected_policy(a, directory, config)
     policy = directory / ('policy-' + uuid.uuid4().hex + '.pending')
     private(policy, raw.decode('utf-8'))
     # Stop only a process whose nonce is verified by the existing stop implementation.
@@ -171,9 +202,7 @@ def self_setup(a, directory):
         reasons = [code for code in ['LOCAL_POLICY_DRAFT','LOCAL_POLICY_MODE','LOCAL_POLICY_INCOMPLETE','LOCAL_POLICY_EXPIRED','LOCAL_PLAN_CHECKSUM','LOCAL_PLAN_MISMATCH','ACTIVE_SESSION_POLICY_CHANGE','INSTITUTION_BLOCKED','GOAL_UNCONFIRMED','LOCAL_OWNER_MISMATCH','LOCAL_DATABASE_NOT_EMPTY','PLAN_HAS_ACTUALS','PLAN_REVISION_CONFLICT','POLICY_VERSION_CONFLICT','POLICY_EFFECTIVE_CONFLICT','LOCAL_POLICY_SENSITIVE_SITE','PRIVACY_WITHDRAWN'] if code in log.read_text(encoding='utf-8')[-20000:]]
         raise ValueError('LOCAL_SETUP_FAILED ' + ','.join(reasons) + ': inspect protected setup.log; data retained; rerun setup to recover')
     if policy:
-        os.replace(policy, directory / 'site-policy.json')
-        config['policySha256'] = digest
-        (directory / 'config.json').write_text(json.dumps(config, indent=2), encoding='utf-8')
+        install_policy_files(directory, policy, config, digest)
     main(['--directory', str(directory), 'start'])
     context = ssl.create_default_context(cafile=str(directory / 'tls/localhost.pem'))
     for _ in range(150):
@@ -209,8 +238,12 @@ def main(argv=None):
     p.add_argument('--rotate-credential', action='store_true')
     p.add_argument('--policy', type=Path)
     p.add_argument('--policy-sha256')
+    p.add_argument('--upgrade-policy', action='store_true', help='Explicitly upgrade a verified official policy pin to the current team policy')
+    p.add_argument('--preview-policy', action='store_true', help='setup only: print policy selection without stopping services or writing files')
     p.add_argument('--records', type=Path)
     a = p.parse_args(argv)
+    if (a.upgrade_policy or a.preview_policy) and a.command != 'setup':
+        p.error('--upgrade-policy/--preview-policy require setup')
     if a.directory.is_symlink():
         raise ValueError('LOCAL_OWNER: symlink directory is not allowed')
     d = a.directory.absolute()

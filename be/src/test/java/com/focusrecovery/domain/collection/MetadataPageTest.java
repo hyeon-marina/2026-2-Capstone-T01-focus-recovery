@@ -6,6 +6,20 @@ import org.junit.jupiter.api.Test;
 import com.focusrecovery.domain.visit.dto.CreatePageVisitRequest;
 
 class MetadataPageTest {
+    @Test void sharedV7CredentialAndHostBoundaries() throws Exception {
+        var cases=tools.jackson.databind.json.JsonMapper.builder().build().readTree(java.nio.file.Files.readString(java.nio.file.Path.of("../docs/contracts/v2/fixtures/raw-v7-boundaries.json")));
+        for(var c:cases.path("credentials")) {
+            String value=c.path("text").asText();boolean blocked=c.path("blocked").asBoolean();
+            assertThat(MetadataPage.credentialText(value)).as(value).isEqualTo(blocked);
+            var r=request("https://public.org","","Public","공개 기술 문서의 통제된 가상 예시입니다. ".repeat(4)+value,null,false);
+            if(blocked)assertThatThrownBy(()->MetadataPage.validateContent(r,List.of(),true,true)).hasFieldOrPropertyWithValue("code","COLLECTION_POLICY_BLOCKED");
+            else MetadataPage.validateContent(r,List.of(),true,true);
+        }
+        for(var c:cases.path("hosts")) {
+            var r=request("https://"+c.path("host").asText(),"","Public","Public documentation text ".repeat(4),null,false);
+            assertThat(MetadataPage.matches(r.normalizedUrl(),List.of(),true,true)).as(c.path("host").asText()).isEqualTo(c.path("allowed").asBoolean());
+        }
+    }
     @Test void sharedFrontendBackendAiPrivacyCorpus() throws Exception {
         var cases=tools.jackson.databind.json.JsonMapper.builder().build().readTree(java.nio.file.Files.readString(java.nio.file.Path.of("../docs/contracts/v2/fixtures/privacy-text.json")));
         for (var c:cases) assertThat(MetadataPage.publicText(c.path("text").asText()))

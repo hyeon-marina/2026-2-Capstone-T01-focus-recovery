@@ -105,7 +105,7 @@ class DefaultPolicyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             d=Path(temp);old=b'{"old":"synthetic-test-only"}'
             pin=hashlib.sha256(old).hexdigest();local.private(d/'site-policy.json',old.decode())
-            a=SimpleNamespace(policy=None,policy_sha256=None)
+            a=SimpleNamespace(policy=None,policy_sha256=None,upgrade_policy=True)
             with patch.object(local,'SUPERSEDED_TEAM_POLICY_SHA256',pin):
                 raw,_=local.selected_policy(a,d,dict(policySha256=pin))
                 self.assertEqual(json.loads(raw)['institution']['decision'],'NOT_REQUIRED')
@@ -120,13 +120,41 @@ class PublicWebPolicyUpgradeTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             d=Path(temp);old=b'{"policyVersion":"3","testOnly":true}'
             pin=hashlib.sha256(old).hexdigest();local.private(d/'site-policy.json',old.decode())
-            a=SimpleNamespace(policy=None,policy_sha256=None)
+            a=SimpleNamespace(policy=None,policy_sha256=None,upgrade_policy=True)
             with patch.object(local,'PREVIOUS_TEAM_POLICY_SHA256',pin):
                 raw,digest=local.selected_policy(a,d,dict(policySha256=pin))
                 n=json.loads(raw);self.assertEqual(n['policyVersion'],'7');self.assertEqual(n['contentPrivacy'],'CONSENTED_RAW');self.assertFalse(n['maskContacts']);self.assertTrue(n['pageContent']);self.assertEqual(n['siteScope'],'PUBLIC_HTTP_HTTPS')
                 self.assertEqual(n['institution']['decision'],'NOT_REQUIRED');self.assertEqual(len(n['plan']['assignments']),160)
                 self.assertEqual(hashlib.sha256(raw).hexdigest(),digest)
+            a.upgrade_policy=False
             self.assertEqual(local.selected_policy(a,d,dict(policySha256=pin)),(old,pin))
+
+    def test_v6_is_preserved_without_explicit_upgrade_and_preview_never_stops_or_writes(self):
+        from types import SimpleNamespace
+        import hashlib,io
+        from contextlib import redirect_stdout
+        with tempfile.TemporaryDirectory() as temp:
+            d=Path(temp);old=(local.ROOT/'docs/data-collection/TEAM_POLICY.v6.json').read_bytes();pin=hashlib.sha256(old).hexdigest()
+            local.private(d/'site-policy.json',old.decode());local.private(d/'config.json',json.dumps(dict(slot='C',policySha256=pin)))
+            a=SimpleNamespace(policy=None,policy_sha256=None,upgrade_policy=False)
+            self.assertEqual(local.selected_policy(a,d,dict(policySha256=pin)),(old,pin))
+            before={p.name:p.read_bytes() for p in d.iterdir()}
+            with patch.object(local,'prerequisites') as prerequisites,patch.object(local,'run') as run,redirect_stdout(io.StringIO()) as output:
+                local.main(['--directory',str(d),'setup','--slot','C','--upgrade-policy','--preview-policy'])
+            result=json.loads(output.getvalue());self.assertEqual(result['policyVersion'],'7');self.assertTrue(result['changesPolicy']);self.assertFalse(result['writesPerformed'])
+            prerequisites.assert_not_called();run.assert_not_called();self.assertEqual(before,{p.name:p.read_bytes() for p in d.iterdir()})
+
+    def test_failed_config_install_restores_policy_and_preserves_config(self):
+        import os
+        with tempfile.TemporaryDirectory() as temp:
+            d=Path(temp);local.private(d/'site-policy.json','old policy');local.private(d/'config.json','old config');local.private(d/'candidate','new policy')
+            replace=os.replace
+            def fail_config(source,target):
+                if Path(target).name=='config.json':raise OSError('controlled disk failure')
+                replace(source,target)
+            with patch.object(local.os,'replace',side_effect=fail_config):
+                with self.assertRaisesRegex(ValueError,'LOCAL_POLICY_INSTALL_FAILED'):local.install_policy_files(d,d/'candidate',{},'new digest')
+            self.assertEqual((d/'site-policy.json').read_text(),'old policy');self.assertEqual((d/'config.json').read_text(),'old config')
 
 class ShutdownTest(unittest.TestCase):
     def run_stop(self, state, backend=False):

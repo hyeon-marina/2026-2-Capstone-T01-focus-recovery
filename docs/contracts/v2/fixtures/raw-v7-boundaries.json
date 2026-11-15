@@ -1,0 +1,27 @@
+{
+  "credentials": [
+    {"text":"password=fictional-value","blocked":true},
+    {"text":"Bearer fictional-token","blocked":true},
+    {"text":"{\"비밀번호\":\"fictional-value\"}","blocked":true},
+    {"text":"{\"password\": \"fictional-value\"}","blocked":true},
+    {"text":"{\"access_token\":\"fictional-value\"}","blocked":true},
+    {"text":"{'api_key': 'fictional-value'}","blocked":true},
+    {"text":"Cookie: fictional-session=fictional-value","blocked":true},
+    {"text":"공개 문서에서 password, token, 비밀번호 보호와 의료 patient 계좌번호를 설명합니다.","blocked":false},
+    {"text":"fictional@example.org 010-0000-0000 02-000-0000 000000-1000000","blocked":false}
+  ],
+  "hosts": [
+    {"host":"public.org","allowed":true},
+    {"host":"health.public.org","allowed":true},
+    {"host":"medical-guide.public.org","allowed":true},
+    {"host":"finance.public.org","allowed":true},
+    {"host":"account.public.org","allowed":false},
+    {"host":"accounts.public.org","allowed":false},
+    {"host":"login.public.org","allowed":false},
+    {"host":"auth.public.org","allowed":false},
+    {"host":"wallet.public.org","allowed":false},
+    {"host":"mail-guide.public.org","allowed":false},
+    {"host":"internal-docs.public.org","allowed":false},
+    {"host":"public.org.evil.local","allowed":false}
+  ]
+}

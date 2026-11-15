@@ -13,7 +13,7 @@ final class CollectionDataAuthorization {
           WHERE past.consent_id=s.consent_id AND past.participant_id=s.owner_participant_id
           AND past.withdrawn_at IS NULL
           AND present.consent_id=? AND present.withdrawn_at IS NULL
-          AND (past.consent_id=present.consent_id OR (past.accepted_at<=s.started_at
+          AND ((past.consent_id=present.consent_id AND (owner.participant_id IS NULL OR scope.policy_digest=owner.policy_digest)) OR (past.accepted_at<=s.started_at
           AND past.policy_id='focus-team-raw-v2' AND past.policy_version='5'
           AND present.policy_id=past.policy_id AND present.policy_version='6'
           AND scope.policy_digest='2d54a38acb72f8e39d84313f1ba5d807ff39971cf53eff4ba6d615a6da669d67'

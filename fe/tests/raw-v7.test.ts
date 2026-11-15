@@ -6,7 +6,20 @@ import { describeMetadataUrl, publicWebUrl } from '../real/url';
 import { extractSearchContent } from '../src/content/search';
 import { V2Collector } from '../src/v2/collector';
 import { activeState, observation, time } from './v2-fixture';
+import boundaries from '../../docs/contracts/v2/fixtures/raw-v7-boundaries.json';
 beforeEach(() => { document.title='공개 의료·금융 문서'; document.body.innerHTML=''; });
+it.each(boundaries.credentials)('agrees with BE on raw Credential protection: $text', c => {
+  expect(credentialText(c.text)).toBe(c.blocked);
+  document.body.innerHTML='<article></article>';
+  document.querySelector('article')!.textContent='공개 기술 문서의 통제된 가상 예시입니다. '.repeat(4)+c.text;
+  if(c.blocked)expect(()=>extractMainContent(document,true,false,true)).toThrow('CREDENTIAL_CONTENT');
+  else expect(extractMainContent(document,true,false,true)).toContain(c.text);
+});
+it.each(boundaries.hosts)('agrees with BE before creating a raw Visit for $host', async c=>{
+  const raw='https://'+c.host+'/article';
+  expect(!!publicWebUrl(raw,true)).toBe(c.allowed);
+  expect(!!await describeMetadataUrl(raw,[],new Uint8Array(32),'test-session',true,true,false,true)).toBe(c.allowed);
+});
 it.each(['일반 공개 문서', '환자 diagnosis 계좌번호 주민등록', 'fiction@example.org 010-0000-0000 02-000-0000 000000-1000000'])('keeps consented public text unchanged: %s', text => {
   document.body.innerHTML=`<article>${text.repeat(4)}<form><input type="password" value="NEVER_READ"><textarea>NEVER_READ</textarea></form></article>`;
   expect(extractMainContent(document,true,false,true)).toBe(text.repeat(4));
@@ -47,6 +60,22 @@ it('retains the four-second revisit boundary for already valid Visits', () => {
   for(let t=0;t<=5000;t+=1000)c.observe(observation(t));
   const id=c.current(1)!.id;c.foreground(null,time(5000));c.expire(time(35000));c.foreground(1,time(35000));
   expect(c.observe(observation(35000))?.id).not.toBe(id);expect(c.ready()).toHaveLength(1);
+});
+it.each([10000,60000,300000])('keeps only the same incomplete document across %i inactive ms',inactive=>{
+  const c=new V2Collector(activeState(),undefined,true);c.foreground(1,time(0));
+  for(let t=0;t<=3000;t+=1000)c.observe(observation(t));const id=c.current(1)!.id;
+  c.foreground(null,time(3000));c.expire(time(3000+inactive));c.foreground(1,time(3000+inactive));
+  for(let t=3000+inactive;t<=6000+inactive;t+=1000)c.observe(observation(t));
+  expect(c.current(1)?.id).toBe(id);expect(c.current(1)?.behavior.activeDurationMs).toBe(6000);expect(c.ready()).toHaveLength(1);
+});
+it('does not merge incomplete dwell into a replacement document and preserves other tabs',()=>{
+  const c=new V2Collector(activeState(),undefined,true);c.foreground(1,time(0));
+  for(let t=0;t<=3000;t+=1000)c.observe(observation(t));const first=c.current(1)!.id;
+  c.foreground(2,time(3000),true);for(let t=3000;t<=5000;t+=1000)c.observe(observation(t,{tabId:2,document:'second-doc'}));const second=c.current(2)!.id;
+  c.foreground(1,time(65000),true);for(let t=65000;t<=68000;t+=1000)c.observe(observation(t));
+  expect(c.current(1)?.id).toBe(first);expect(c.current(1)?.behavior.activeDurationMs).toBe(6000);expect(c.current(2)?.id).toBe(second);expect(c.current(2)?.behavior.activeDurationMs).toBe(2000);
+  c.foreground(2,time(70000));c.observe(observation(70000,{tabId:2,document:'replacement-doc'}));
+  expect(c.current(2)?.id).not.toBe(second);expect(c.current(2)?.behavior.activeDurationMs).toBe(0);expect(c.ready()).toHaveLength(1);
 });
 it.each(['article-view','area_view'])('extracts a Tistory skin %s and omits the comments', cls=>{
   document.body.innerHTML=`<main></main><div class="${cls}">${'실제 공개 본문입니다. '.repeat(10)}</div><div class="comments">COMMENT</div>`;
