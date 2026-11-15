@@ -147,14 +147,14 @@ class PublicWebPolicyUpgradeTest(unittest.TestCase):
     def test_failed_config_install_restores_policy_and_preserves_config(self):
         import os
         with tempfile.TemporaryDirectory() as temp:
-            d=Path(temp);local.private(d/'site-policy.json','old policy');local.private(d/'config.json','old config');local.private(d/'candidate','new policy')
+            d=Path(temp);local.private(d/'site-policy.json','old policy\r\n');local.private(d/'config.json','old config');local.private(d/'candidate','new policy')
             replace=os.replace
             def fail_config(source,target):
                 if Path(target).name=='config.json':raise OSError('controlled disk failure')
                 replace(source,target)
             with patch.object(local.os,'replace',side_effect=fail_config):
                 with self.assertRaisesRegex(ValueError,'LOCAL_POLICY_INSTALL_FAILED'):local.install_policy_files(d,d/'candidate',{},'new digest')
-            self.assertEqual((d/'site-policy.json').read_text(),'old policy');self.assertEqual((d/'config.json').read_text(),'old config')
+            self.assertEqual((d/'site-policy.json').read_bytes(),b'old policy\r\n');self.assertEqual((d/'config.json').read_text(),'old config')
 
 class ShutdownTest(unittest.TestCase):
     def run_stop(self, state, backend=False):

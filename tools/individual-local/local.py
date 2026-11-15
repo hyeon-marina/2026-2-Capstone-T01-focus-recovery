@@ -28,7 +28,7 @@ PREVIOUS_TEAM_POLICY_SHA256 = "8af39d4851d4a01e00d6ce87fe28e887207a862a9824d8127
 
 def private(path, text):
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+    with os.fdopen(fd, 'w', encoding='utf-8', newline='') as stream:
         if os.name == 'nt':
             # Restrict access before any secret bytes are written.
             subprocess.run(['icacls', str(path), '/inheritance:r', '/grant:r', os.environ['USERNAME'] + ':(F)'], check=True, stdout=subprocess.DEVNULL)
@@ -142,7 +142,7 @@ def selected_policy(a, directory, config):
 
 def install_policy_files(directory, policy, config, digest):
     installed = directory / 'site-policy.json'
-    previous = installed.read_text(encoding='utf-8')
+    previous = installed.read_bytes()
     staged = directory / ('config-' + uuid.uuid4().hex + '.pending')
     private(staged, json.dumps({**config, 'policySha256': digest}, indent=2))
     try:
@@ -150,7 +150,8 @@ def install_policy_files(directory, policy, config, digest):
         os.replace(staged, directory / 'config.json')
     except OSError:
         rollback = directory / ('policy-' + uuid.uuid4().hex + '.rollback')
-        private(rollback, previous)
+        private(rollback, '')
+        rollback.write_bytes(previous)
         os.replace(rollback, installed)
         raise ValueError('LOCAL_POLICY_INSTALL_FAILED: prior files restored; DB may already have applied the policy. Retry with the explicit reviewed --policy/--policy-sha256; do not reset data.')
 
