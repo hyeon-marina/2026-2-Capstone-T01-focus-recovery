@@ -50,7 +50,8 @@ export class V2Runtime {
   private posts: VisitDelivery;
   private behaviors: BehaviorDelivery;
   private ending: SessionEndDelivery;
-  constructor(private repository: V2Repository, private transport: V2Transport) {
+  constructor(private repository: V2Repository, private transport: V2Transport, private resumeIncomplete = false) {
+    this.collector = new V2Collector(this.state, undefined, resumeIncomplete);
     const protect = async <T>(send: () => Promise<T>) => {
       try { await this.verifyAccess(); return await send(); }
       catch (e) { if (e instanceof AccessError) { this.suspendAccess(); this.accessError = e.kind; }
@@ -66,8 +67,9 @@ export class V2Runtime {
     this.pauseAuthorization();
   }
   private pauseAuthorization() {
-    for (const c of this.state.candidates) { c.cursor = undefined; c.closed = true; }
-    this.state.tabs = {}; delete this.state.lastVisit;
+    for (const c of this.state.candidates) { c.cursor = undefined; if (!this.resumeIncomplete) c.closed = true; }
+    if (!this.resumeIncomplete) this.state.tabs = {};
+    delete this.state.lastVisit;
   }
   private authorized() {
     return !this.serverWithdrawalSeen && !!this.access && this.credentialEpoch === accessGeneration() && Date.parse(this.access.expiresAt) > Date.now()
@@ -101,7 +103,7 @@ export class V2Runtime {
   snapshot() { return { ...structuredClone(this.committed), accessError: this.accessError, authenticated: !!this.access, collectionAllowed: this.authorized(), storageFailed: this.failed, alertsSuppressed: !this.authorized() || this.failed || this.stopping || this.held || Boolean(this.committed.quarantine) }; }
   private canSend() { return this.authorized() && !this.failed && !this.held && !this.committed.quarantine && !this.posts.blocked && !this.behaviors.blocked; }
   private install(s: V2State) {
-    this.state = s; this.collector = new V2Collector(s);
+    this.state = s; this.collector = new V2Collector(s, undefined, this.resumeIncomplete);
     this.posts.checkpoint = s.posts; this.behaviors.checkpoint = s.behaviors; this.ending.checkpoint = s.end;
   }
   async initialize() {
@@ -111,8 +113,11 @@ export class V2Runtime {
       this.committed = structuredClone(s); this.install(s);
       await this.mutate(() => {
         // Worker generation cannot establish a return interval, even for a surviving Chrome document.
-        for (const c of s.candidates) { c.cursor = undefined; c.closed = true; }
-        s.tabs = {}; s.foreground = null; s.lastTab = null; delete s.lastVisit;
+        for (const c of s.candidates) {
+          c.cursor = undefined;
+          if (!this.resumeIncomplete || c.post || c.excluded) { c.closed = true; if (s.tabs[c.tabId] === c.id) delete s.tabs[c.tabId]; }
+        }
+        s.foreground = null; s.lastTab = null; delete s.lastVisit;
         this.posts.restore(s.posts, s.session?.sessionId); this.behaviors.restore(s.behaviors, s.posts.entries);
         this.ending.restore(s.end);
         for (const e of s.retractions ?? []) if (e.phase === 'sending') e.phase = 'pending';
@@ -288,6 +293,13 @@ export class V2Runtime {
     await this.mutate(() => this.quarantineNow(reason, wall));
     this.kick();
   }
+  async resume(plannedSessionId: string) {
+    if (this.committed.lifecycle !== 'ACTIVE' || this.committed.start?.plannedSessionId !== plannedSessionId || !this.committed.session || this.committed.quarantine || this.committed.withdrawal) throw new Error('V2_RESUME_BLOCKED');
+    await this.verifyAccess();
+    const session = await this.transport.query(this.committed.session);
+    if (!isV2Session(session) || session.sessionId !== this.committed.session.sessionId || session.status !== 'ACTIVE') throw new Error('V2_RESUME_BLOCKED');
+    await this.retry();
+  }
   async retry() {
     if (this.failed) return;
     if (this.committed.withdrawal) { await this.flushWithdrawal(); return; }
@@ -299,12 +311,15 @@ export class V2Runtime {
     await this.mutate(() => { this.posts.retry(); this.behaviors.retry(); this.ending.retry(); });
     this.kick();
   }
+  async acknowledgeFailure(id: string) {
+    await this.mutate(() => { const candidate = this.state.candidates.find(c => c.id === id); if (candidate?.excluded) candidate.failureAcknowledged = true; });
+  }
   async compact(stamp: Stamp) {
     const receipts: CompactReceipt[] = [];
     await this.mutate(() => {
       this.collector.expire(stamp); this.sync(true);
       if (!this.state.quarantine) {
-        const removed = this.state.candidates.filter(c => c.closed && !c.post && (c.excluded || c.behavior.activeDurationMs < 5000));
+        const removed = this.state.candidates.filter(c => c.closed && !c.post && (!this.resumeIncomplete || c.failureAcknowledged) && (c.excluded || c.behavior.activeDurationMs < 5000));
         this.state.discardedCandidates += removed.length;
         this.state.candidates = this.state.candidates.filter(c => !removed.includes(c));
       }

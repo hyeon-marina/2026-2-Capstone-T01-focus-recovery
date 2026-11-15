@@ -16,7 +16,8 @@ import tools.jackson.databind.json.JsonMapper;
 public class LocalCollectionStatus {
     private final JdbcTemplate jdbc;private final CollectionSitePolicy sites;private final ConsentService consent;private final Environment env;private final JsonMapper mapper;
     public LocalCollectionStatus(JdbcTemplate jdbc,CollectionSitePolicy sites,ConsentService consent,Environment env,JsonMapper mapper){this.jdbc=jdbc;this.sites=sites;this.consent=consent;this.env=env;this.mapper=mapper;}
-    public record Recollect(String reasonCode) {}
+    @org.springframework.beans.factory.annotation.Autowired private CollectionProgressService progress;
+    public record Recollect(String reasonCode, String plannedSessionId, UUID sessionId, boolean confirmCompleted) {}
     @PostMapping("/api/collection/attempts/{attempt}/recollect")
     @org.springframework.transaction.annotation.Transactional
     @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
@@ -26,17 +27,21 @@ public class LocalCollectionStatus {
         if(input==null || input.reasonCode()==null || !Set.of("INSUFFICIENT_VISITS","DELIVERY_FAILED","USER_REQUEST").contains(input.reasonCode()))throw new com.focusrecovery.global.exception.InvalidRequestException("정해진 재수집 사유를 선택하세요.");
         if(jdbc.queryForObject("SELECT COUNT(*) FROM collection_local_owner WHERE participant_id=?",Integer.class,actor.participantId().toString())!=1)throw new AccessDenied(404);
         var rows=jdbc.queryForList("""
-            SELECT t.review_status,t.reason_code FROM collection_attempt t
+            SELECT t.review_status,t.reason_code,t.planned_session_id,t.session_id FROM collection_attempt t
             JOIN work_session s ON s.session_id=t.session_id
             JOIN collection_assignment a ON a.planned_session_id=t.planned_session_id
             JOIN collection_slot slot ON slot.slot_id=a.slot_id
             WHERE t.attempt_id=? AND slot.participant_id=t.participant_id AND t.participant_id=?
-            AND s.owner_participant_id=t.participant_id AND s.status='ENDED'
+            AND s.owner_participant_id=t.participant_id AND s.status='ENDED' AND s.privacy_status='CLEAR'
             """,attempt.toString(),actor.participantId().toString());
         if(rows.size()!=1)throw new AccessDenied(404);
         var previous=rows.getFirst();
+        if (input.sessionId()==null || !input.sessionId().toString().equals(previous.get("session_id")) || !Objects.equals(input.plannedSessionId(),previous.get("planned_session_id"))) throw new com.focusrecovery.global.exception.ConflictException("RECOLLECT_TARGET_MISMATCH","배정·세션·시도 대상이 일치하지 않습니다. 다시 확인하세요.");
         if("RECOLLECT_REQUIRED".equals(previous.get("review_status")) && input.reasonCode().equals(previous.get("reason_code")))return;
         if(!"PENDING".equals(previous.get("review_status")))throw new com.focusrecovery.global.exception.ConflictException("ATTEMPT_ALREADY_REVIEWED","이미 처리된 재수집 사유를 확인하세요.");
+        var target=progress.mine().attempts().stream().filter(a->a.attemptId().equals(attempt.toString())).findFirst().orElseThrow(()->new AccessDenied(404));
+        if (target.rawStatus().equals("QUARANTINED")) throw new AccessDenied(404);
+        if (target.rawStatus().equals("RAW_COLLECTED") && (!input.confirmCompleted() || !input.reasonCode().equals("USER_REQUEST"))) throw new com.focusrecovery.global.exception.ConflictException("COMPLETED_ATTEMPT_CONFIRMATION_REQUIRED","정상 RAW 완료 시도입니다. 대상과 완료 집계 제외 영향을 명시적으로 확인하세요.");
         jdbc.update("UPDATE collection_attempt SET review_status='RECOLLECT_REQUIRED',reason_code=? WHERE attempt_id=?",input.reasonCode(),attempt.toString());
         jdbc.update("INSERT INTO collection_audit VALUES(?,?,?,?,?,?)",UUID.randomUUID().toString(),actor.participantId().toString(),"LOCAL_RECOLLECT",attempt.toString(),input.reasonCode(),java.sql.Timestamp.from(Instant.now()));
     }

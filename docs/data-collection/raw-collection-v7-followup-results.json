@@ -1,0 +1,733 @@
+{
+  "schemaVersion": "focus124-followup/1",
+  "dateKst": "2026-11-15",
+  "overall": "OPERATING_DEPLOYMENT_APPROVAL_PENDING",
+  "functionalResult": "PASS",
+  "reviewedPrHead": "be2b0432ecee700bc90011c57e81d9b320f634c2",
+  "fixCommit": "80b975249fbda8c7fe7a3424debd359afdac0479",
+  "validatedCodeCommit": "f1de635fd51778241ad728d1fd2a15da938023a3",
+  "policyDigest": "4c5fe813d703a3ae1d6bf95f3de3aca8ae12c94a5c4a8ca4a161ad29d6dd11f9",
+  "operatingCDeploymentPerformed": false,
+  "historical123TriggerConfirmed": false,
+  "windowsExecuted": false,
+  "fullOldBackendBinaryExecuted": false,
+  "defaultFe": {
+    "passed": 1118,
+    "failed": 0,
+    "skipped": 2
+  },
+  "optInFeHttp": {
+    "passed": 2,
+    "failed": 0,
+    "runByBackendSuite": true
+  },
+  "backend": {
+    "classes": 64,
+    "tests": 1236,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "tools": {
+    "passed": 44,
+    "failed": 0
+  },
+  "ai": {
+    "passed": 289,
+    "failed": 0,
+    "deprecationWarnings": 1
+  },
+  "public": {
+    "kind": "ISOLATED_TECHNICAL_VALIDATION_NOT_RESEARCH_SAMPLE",
+    "mode": "public",
+    "sourceCommit": "f1de635fd51778241ad728d1fd2a15da938023a3",
+    "policyDigest": "4c5fe813d703a3ae1d6bf95f3de3aca8ae12c94a5c4a8ca4a161ad29d6dd11f9",
+    "focusEmulation": false,
+    "extensionInstall": "OFFICIAL_CDP_LOCAL_PIPE_DEVELOPMENT_ONLY",
+    "steps": [
+      {
+        "label": "start",
+        "local": 0,
+        "acked": 0,
+        "mysql": 0,
+        "pending": 0,
+        "lifecycle": "ACTIVE",
+        "privacy": "CLEAR",
+        "rawStatus": "IN_PROGRESS",
+        "sessionHash": "2886eaa0fd8717ab56a7de5ce1314519c0e2c24f57cf4f94a56535fb82ad8660"
+      },
+      {
+        "label": "one",
+        "local": 1,
+        "acked": 1,
+        "mysql": 1,
+        "pending": 0,
+        "lifecycle": "ACTIVE",
+        "privacy": "CLEAR",
+        "rawStatus": "IN_PROGRESS",
+        "sessionHash": "2886eaa0fd8717ab56a7de5ce1314519c0e2c24f57cf4f94a56535fb82ad8660"
+      },
+      {
+        "label": "second-tistory-skin",
+        "local": 5,
+        "acked": 5,
+        "mysql": 5,
+        "pending": 0,
+        "lifecycle": "ACTIVE",
+        "privacy": "CLEAR",
+        "rawStatus": "IN_PROGRESS",
+        "sessionHash": "2886eaa0fd8717ab56a7de5ce1314519c0e2c24f57cf4f94a56535fb82ad8660"
+      },
+      {
+        "label": "ten",
+        "local": 10,
+        "acked": 10,
+        "mysql": 10,
+        "pending": 0,
+        "lifecycle": "ACTIVE",
+        "privacy": "CLEAR",
+        "rawStatus": "IN_PROGRESS",
+        "sessionHash": "2886eaa0fd8717ab56a7de5ce1314519c0e2c24f57cf4f94a56535fb82ad8660"
+      },
+      {
+        "label": "ended",
+        "local": 10,
+        "acked": 10,
+        "mysql": 10,
+        "pending": 0,
+        "lifecycle": "ENDED",
+        "privacy": "CLEAR",
+        "rawStatus": "RAW_COLLECTED",
+        "sessionHash": "2886eaa0fd8717ab56a7de5ce1314519c0e2c24f57cf4f94a56535fb82ad8660"
+      }
+    ],
+    "pages": [
+      {
+        "label": "google preflight",
+        "url": "https://www.google.com/search?q=site%3Amartinfowler.com+refactoring&sca_esv=61ce0cabccc5e90e&sxsrf=AKL5yDg-3NyUNnvBNz8Rw6BMA1CwHXXsQw%3A1794716353363&source=hp&ei=wTL5asjCEvC9vr0PmYH_sAg&iflsig=AHSINFcAAAAAavlA0eoYdem7jBZxcssN4CzTnewsOhjF",
+        "organicResultCount": 9,
+        "advertisementContainers": 2,
+        "generator": null,
+        "titleLength": 45,
+        "iframe": false,
+        "extractionLength": 1843,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "DIV",
+            "id": "main",
+            "classes": "main n48JGd",
+            "textLength": 76354
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "classes": "",
+            "textLength": 52977
+          }
+        ]
+      },
+      {
+        "label": "google search",
+        "url": "https://www.google.com/search?q=site%3Amartinfowler.com+refactoring&sca_esv=61ce0cabccc5e90e&sxsrf=AKL5yDg-3NyUNnvBNz8Rw6BMA1CwHXXsQw%3A1794716353363&source=hp&ei=wTL5asjCEvC9vr0PmYH_sAg&iflsig=AHSINFcAAAAAavlA0eoYdem7jBZxcssN4CzTnewsOhjF",
+        "organicResultCount": 9,
+        "advertisementContainers": 2,
+        "generator": null,
+        "titleLength": 45,
+        "iframe": false,
+        "extractionLength": 1843,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "DIV",
+            "id": "main",
+            "classes": "main n48JGd",
+            "textLength": 76354
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "classes": "",
+            "textLength": 52977
+          }
+        ]
+      },
+      {
+        "label": "google result",
+        "url": "https://refactoring.com/",
+        "organicResultCount": null,
+        "advertisementContainers": 0,
+        "generator": null,
+        "titleLength": 11,
+        "iframe": false,
+        "extractionLength": 5000,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "MAIN",
+            "id": "",
+            "classes": "",
+            "textLength": 9615
+          }
+        ]
+      },
+      {
+        "label": "naver preflight",
+        "url": "https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=0&ie=utf8&query=site%3Anotice.tistory.com+%ED%8B%B0%EC%8A%A4%ED%86%A0%EB%A6%AC+%EA%B3%B5%EC%A7%80&ackey=jrkw3wst",
+        "organicResultCount": 19,
+        "advertisementContainers": 0,
+        "generator": null,
+        "titleLength": 40,
+        "iframe": false,
+        "extractionLength": 4513,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "DIV",
+            "id": "container",
+            "classes": "",
+            "textLength": 216918
+          }
+        ]
+      },
+      {
+        "label": "naver search",
+        "url": "https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=0&ie=utf8&query=site%3Anotice.tistory.com+%ED%8B%B0%EC%8A%A4%ED%86%A0%EB%A6%AC+%EA%B3%B5%EC%A7%80&ackey=jrkw3wst",
+        "organicResultCount": 19,
+        "advertisementContainers": 0,
+        "generator": null,
+        "titleLength": 40,
+        "iframe": false,
+        "extractionLength": 4513,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "DIV",
+            "id": "container",
+            "classes": "",
+            "textLength": 217122
+          }
+        ]
+      },
+      {
+        "label": "naver result",
+        "url": "https://notice.tistory.com/",
+        "organicResultCount": null,
+        "advertisementContainers": 0,
+        "generator": null,
+        "titleLength": 7,
+        "iframe": false,
+        "extractionLength": 3501,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "ARTICLE",
+            "id": "content",
+            "classes": "",
+            "textLength": 5097
+          }
+        ]
+      },
+      {
+        "label": "second-tistory-skin",
+        "url": "https://goddaehee.tistory.com/199",
+        "organicResultCount": null,
+        "advertisementContainers": 0,
+        "generator": null,
+        "titleLength": 26,
+        "iframe": false,
+        "extractionLength": 5000,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "ARTICLE",
+            "id": "",
+            "classes": "notice_template",
+            "textLength": 472
+          },
+          {
+            "tag": "MAIN",
+            "id": "main",
+            "classes": "bg_them_mode color border_b_mode",
+            "textLength": 16197
+          },
+          {
+            "tag": "ARTICLE",
+            "id": "",
+            "classes": "area_article",
+            "textLength": 15351
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "classes": "article_view area_view scrollbar-inner",
+            "textLength": 7524
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "classes": "tt_article_useless_p_margin contents_style",
+            "textLength": 6325
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "classes": "article_content area_view",
+            "textLength": 7122
+          }
+        ]
+      },
+      {
+        "label": "naver-mainFrame",
+        "url": "https://blog.naver.com/insaweb/221650456057",
+        "organicResultCount": null,
+        "advertisementContainers": 0,
+        "generator": null,
+        "titleLength": 35,
+        "iframe": true,
+        "extractionLength": 1884,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "TABLE",
+            "id": "",
+            "classes": "post-body",
+            "textLength": 300
+          },
+          {
+            "tag": "TABLE",
+            "id": "",
+            "classes": "post-body",
+            "textLength": 682
+          },
+          {
+            "tag": "TABLE",
+            "id": "printPost1",
+            "classes": "post-body",
+            "textLength": 12945
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "classes": "se-main-container",
+            "textLength": 8052
+          },
+          {
+            "tag": "TABLE",
+            "id": "",
+            "classes": "post-body",
+            "textLength": 1013
+          }
+        ]
+      },
+      {
+        "label": "wordpress-new-article",
+        "url": "https://www.joelonsoftware.com/2000/08/09/the-joel-test-12-steps-to-better-code/",
+        "organicResultCount": null,
+        "advertisementContainers": 0,
+        "generator": null,
+        "titleLength": 57,
+        "iframe": false,
+        "extractionLength": 5000,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "MAIN",
+            "id": "main",
+            "classes": "site-main",
+            "textLength": 21135
+          },
+          {
+            "tag": "ARTICLE",
+            "id": "post-898",
+            "classes": "post post-898 type-post status-publish format-standard hentry category-top-10 category-rock-star-developer category-news",
+            "textLength": 20279
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "classes": "entry-content",
+            "textLength": 20108
+          }
+        ]
+      },
+      {
+        "label": "official-blogger-post",
+        "url": "https://blogger.googleblog.com/2020/05/a-better-blogger-experience-on-web.html",
+        "organicResultCount": null,
+        "advertisementContainers": 0,
+        "generator": "blogger",
+        "titleLength": 61,
+        "iframe": false,
+        "extractionLength": 2608,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "DIV",
+            "id": "main",
+            "classes": "section",
+            "textLength": 2956
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "classes": "post-body",
+            "textLength": 2727
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "classes": "post-content post-original",
+            "textLength": 2725
+          }
+        ]
+      },
+      {
+        "label": "dynamic-react-document",
+        "url": "https://react.dev/learn",
+        "organicResultCount": null,
+        "advertisementContainers": 0,
+        "generator": null,
+        "titleLength": 19,
+        "iframe": false,
+        "extractionLength": 5000,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "MAIN",
+            "id": "",
+            "classes": "min-w-0 isolate",
+            "textLength": 12731
+          },
+          {
+            "tag": "ARTICLE",
+            "id": "",
+            "classes": "font-normal break-words text-primary dark:text-primary-dark",
+            "textLength": 12425
+          }
+        ]
+      },
+      {
+        "label": "react-SPA-navigation",
+        "url": "https://react.dev/learn/thinking-in-react",
+        "organicResultCount": null,
+        "advertisementContainers": 0,
+        "generator": null,
+        "titleLength": 25,
+        "iframe": false,
+        "extractionLength": 5000,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "MAIN",
+            "id": "",
+            "classes": "min-w-0 isolate",
+            "textLength": 21230
+          },
+          {
+            "tag": "ARTICLE",
+            "id": "",
+            "classes": "font-normal break-words text-primary dark:text-primary-dark",
+            "textLength": 20924
+          }
+        ]
+      }
+    ],
+    "appReturns": [],
+    "failures": [],
+    "extensionId": "haebiiiblkgpeaimegmamomfakfcieck",
+    "chrome": "157.0.8103.78",
+    "directConsentVerified": true,
+    "assignment": "PLAN-018",
+    "sessionHash": "2886eaa0fd8717ab56a7de5ce1314519c0e2c24f57cf4f94a56535fb82ad8660",
+    "google": {
+      "query": "site:martinfowler.com refactoring",
+      "rendered": true,
+      "storedQueryEqual": true,
+      "organicContentStored": true,
+      "landingHost": "refactoring.com"
+    },
+    "naver": {
+      "query": "site:notice.tistory.com 티스토리 공지",
+      "rendered": true,
+      "storedQueryEqual": true,
+      "organicContentStored": true,
+      "landingHost": "notice.tistory.com"
+    },
+    "reconciled": {
+      "count": 10,
+      "idsSequencesBehaviorEqual": true,
+      "minimumActiveMs": 5507
+    },
+    "final": {
+      "label": "ended",
+      "local": 10,
+      "acked": 10,
+      "mysql": 10,
+      "pending": 0,
+      "lifecycle": "ENDED",
+      "privacy": "CLEAR",
+      "rawStatus": "RAW_COLLECTED",
+      "sessionHash": "2886eaa0fd8717ab56a7de5ce1314519c0e2c24f57cf4f94a56535fb82ad8660",
+      "endPhase": "acked"
+    },
+    "previousVisitsUnchanged": true,
+    "result": "PASS"
+  },
+  "stress": {
+    "kind": "ISOLATED_TECHNICAL_VALIDATION_NOT_RESEARCH_SAMPLE",
+    "mode": "stress",
+    "sourceCommit": "80b975249fbda8c7fe7a3424debd359afdac0479",
+    "policyDigest": "4c5fe813d703a3ae1d6bf95f3de3aca8ae12c94a5c4a8ca4a161ad29d6dd11f9",
+    "focusEmulation": false,
+    "extensionInstall": "OFFICIAL_CDP_LOCAL_PIPE_DEVELOPMENT_ONLY",
+    "steps": [
+      {
+        "label": "ended",
+        "local": 7,
+        "acked": 7,
+        "mysql": 7,
+        "pending": 0,
+        "lifecycle": "ENDED",
+        "privacy": "CLEAR",
+        "rawStatus": "RECOLLECT_REQUIRED",
+        "sessionHash": "67f5ba8c85aad7897fac840390b6f4b250291478a33182da966a59de3fdb79a3"
+      }
+    ],
+    "pages": [
+      {
+        "label": "controlled-dynamic-render",
+        "url": "https://controlled.focus-recovery.org/dynamic",
+        "generator": null,
+        "titleLength": 26,
+        "iframe": false,
+        "extractionLength": 236,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "MAIN",
+            "id": "",
+            "classes": "",
+            "textLength": 237
+          }
+        ]
+      },
+      {
+        "label": "next-real-public-document",
+        "url": "https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers",
+        "generator": null,
+        "titleLength": 34,
+        "iframe": false,
+        "extractionLength": 5000,
+        "extractionCode": "SUCCESS",
+        "credentialMarkers": [],
+        "roots": [
+          {
+            "tag": "MAIN",
+            "id": "content",
+            "classes": "layout__content",
+            "textLength": 22284
+          }
+        ]
+      }
+    ],
+    "appReturns": [
+      {
+        "requestedSeconds": 10,
+        "inactiveMs": 37885,
+        "initialMs": 3923,
+        "finalMs": 5647,
+        "sameId": true
+      },
+      {
+        "requestedSeconds": 60,
+        "inactiveMs": 74793,
+        "initialMs": 3004,
+        "finalMs": 5822,
+        "sameId": true
+      },
+      {
+        "requestedSeconds": 300,
+        "inactiveMs": 315605,
+        "initialMs": 3005,
+        "finalMs": 5737,
+        "sameId": true
+      }
+    ],
+    "failures": [],
+    "extensionId": "haebiiiblkgpeaimegmamomfakfcieck",
+    "chrome": "157.0.8103.78",
+    "directConsentVerified": true,
+    "retainedPendingAfterHarnessFocusFailure": true,
+    "oldFeNewBeQueuePreserved": true,
+    "newFeOldPolicyResponseQueuePreserved": true,
+    "workerRestartWithPending": true,
+    "chromeRestartAndReauthentication": true,
+    "actualInterruptedPosts": 3,
+    "multiTabReturn": true,
+    "virtualRawAndFormsProtected": true,
+    "quotedCredentialPageExcluded": true,
+    "reconciled": {
+      "count": 7,
+      "idsSequencesBehaviorEqual": true,
+      "minimumActiveMs": 5283
+    },
+    "final": {
+      "label": "ended",
+      "local": 7,
+      "acked": 7,
+      "mysql": 7,
+      "pending": 0,
+      "lifecycle": "ENDED",
+      "privacy": "CLEAR",
+      "rawStatus": "RECOLLECT_REQUIRED",
+      "sessionHash": "67f5ba8c85aad7897fac840390b6f4b250291478a33182da966a59de3fdb79a3",
+      "endPhase": "acked"
+    },
+    "keyboardTargetSafe": true,
+    "concurrentRecollectPreservedCompleted": true,
+    "previousVisitsUnchanged": true,
+    "result": "PASS"
+  },
+  "backupRestore": {
+    "result": "PASS",
+    "kind": "INDEPENDENT_TEST_DB_BACKUP_RESTORE_NOT_OPERATING_C",
+    "tables": 37,
+    "foreignKeys": 50,
+    "allRowFingerprintsEqual": true,
+    "sourceUnchanged": true,
+    "network": "none",
+    "hostPorts": 0,
+    "databaseStorage": "tmpfs",
+    "backupSha256": "d712287adef11334952d2b80da3dbac002e7087def1a7b1a82075900b93beaf4",
+    "restoreContainer": "focus124-restore-91a2061da5"
+  },
+  "completedPreservation": {
+    "result": "PASS",
+    "completedPlans": [
+      "PLAN-003",
+      "PLAN-006",
+      "PLAN-012"
+    ],
+    "allSessionAndAttemptColumnsEqual": true,
+    "allVisitColumnsEqual": true,
+    "visits": 30,
+    "allExistingAuditRowsPreserved": true,
+    "newAuditRows": 2
+  },
+  "operatingPreservation": {
+    "result": "PASS",
+    "comparedFields": [
+      "policyVersion",
+      "policyDigest",
+      "configPolicyDigest",
+      "extensionBuild",
+      "chromeVersion",
+      "extensionId",
+      "fileHashes",
+      "backendSource",
+      "mysql",
+      "databaseRows"
+    ],
+    "filesAndDatabaseMetadataUnchanged": true,
+    "profileFilesNotRead": true,
+    "browserQueueReadOnlyAtBeginning": {
+      "extensionId": "aocfmndihdfimoocmdafcbkgifbpdhbl",
+      "lifecycle": "ENDED",
+      "localVisits": 10,
+      "acked": 10,
+      "pending": 0,
+      "endPhase": "acked",
+      "quarantined": false,
+      "withdrawal": false,
+      "method": "existing extension DevTools IndexedDB readonly transaction; no runtime mutation request"
+    },
+    "limits": "No bitwise profile backup performed. Initial aggregate Visit fingerprint used MySQL default GROUP_CONCAT bound; do not interpret as full row preservation proof. Operating backend remains stopped and Credential expired; no deployment or consent change."
+  },
+  "secretAudit": {
+    "knownCurrentActualSecretsChecked": 9,
+    "trackedFilesChecked": 701,
+    "matches": 0,
+    "scope": "Exact current isolated and operating Credential/password/service-secret values; includes staged follow-up documentation. Public base URL is configuration, not a secret. Pre-rotation audit separately retained."
+  },
+  "privateEvidenceRoot": "/private/tmp/focus124-evidence/stabilization",
+  "evidence": [
+    {
+      "file": "public-88fbe56d-aa2b-4eaf-bc20-96918ad61363.json",
+      "sha256": "46abb2d0e85202cf29b809be771da92c0d33d5444c117493790462416bb84e06"
+    },
+    {
+      "file": "public-9f1ec9b7-da7b-40d1-8be4-b1f40fc33916.json",
+      "sha256": "bfeeca8a4fca70aeb7068385ff776ebcba940044a73c391e9eb48c001f55fac5"
+    },
+    {
+      "file": "stress-568cb331-af53-4a41-976b-b732ce7e980e.json",
+      "sha256": "3e4fbc941c72f3d5bd4104d495914e5b5132242ac76c6735b3ffd6602a990d9d"
+    },
+    {
+      "file": "be-summary.json",
+      "sha256": "cbd3020ba912887ce1108ca73aaeefffec0b3cdc02064b0d2e381b50a25a12dc"
+    },
+    {
+      "file": "fe-final.log",
+      "sha256": "998a6316d6e9230ab50ad44a66d90dd5109ec8409269453d5b6064fc32b4484f"
+    },
+    {
+      "file": "fe-http-93.log",
+      "sha256": "98bb445c4af695c267e14b36e8e20a01f111d1b23d679ef55bfef4e6aff408d8"
+    },
+    {
+      "file": "fe-http-95.log",
+      "sha256": "dea72cf6375c5f854c5b5f06732aad27c2b315ea80e7b2f1e3c04bc7b75d6527"
+    },
+    {
+      "file": "ai-final.log",
+      "sha256": "df2dba8ad3f3edda3b06c0c327695c2a8009b22677ea01983c7b4c9d4529f57e"
+    },
+    {
+      "file": "tools-all-final.log",
+      "sha256": "a99e94e162af5dd1db568070e02b6a6216deb1ad742d9de4c53e21189c4aec5b"
+    },
+    {
+      "file": "build-final.log",
+      "sha256": "54cc322a1e131aaa7e1103e4cab17a22c852d71153005bae80fa67d9180f5ac0"
+    },
+    {
+      "file": "package-final.log",
+      "sha256": "f04efe1ff941512a15b9fdbe90d97538f280bf3496580bfbbcde235d4ac87f9f"
+    },
+    {
+      "file": "bootjar-final.log",
+      "sha256": "75fe1d376ee029d37ee0d25307afc4e56585fd52cbbe884e9e1f36ed3fe6d1c0"
+    },
+    {
+      "file": "backup-restore-result.json",
+      "sha256": "e68d5572f6afe115a71a29787c38341527f8d4c05f0524fc35b929a67a3403da"
+    },
+    {
+      "file": "completed-preserve-result.json",
+      "sha256": "3d563329e14e38a9af6f293ef397a5b2d0342d42de404f68faff3a0d301b1b35"
+    },
+    {
+      "file": "operating-c-preserve-result.json",
+      "sha256": "441cb193591fff037193d8cf1589cece998c4aa2edc045df4eb34e7989687fcc"
+    },
+    {
+      "file": "secret-audit-final.json",
+      "sha256": "0d227bc01d004f217f9b2523f7e23dfeb0df5e7698eb82e52ddd5da031abc63c"
+    }
+  ]
+}

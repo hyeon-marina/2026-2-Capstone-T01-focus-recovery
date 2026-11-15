@@ -430,3 +430,39 @@ it('recovers a lost quarantine close reply from IndexedDB before allowing anothe
   expect(t.closeQuarantine).toHaveBeenCalledWith(session.sessionId);
   expect(restored.collecting()).toBe(false);
 });
+
+it('v7 preserves incomplete measured duration across auth/network interruption and worker restart', async () => {
+  const t=transport(), repo=new V2Repository(API_BASE_URL), r=new V2Runtime(repo,t,true);
+  await r.initialize();await r.start(session.goalText,'PLAN-003');await r.foreground(1,time(0));
+  for(let ms=0;ms<=3000;ms+=1000)await r.observe(observation(ms));
+  const id=r.snapshot().candidates[0].id;
+  t.access=async()=>{throw new Error('offline');};await expect(r.verifyAccess()).rejects.toThrow('offline');
+  t.access=async()=>syntheticAccess;await r.resume('PLAN-003');repo.close();
+  const next=new V2Runtime(new V2Repository(API_BASE_URL),transport(),true);await next.initialize();
+  await next.foreground(1,time(33000,'new-worker'));
+  for(let ms=33000;ms<=36000;ms+=1000)await next.observe(observation(ms,{stamp:time(ms,'new-worker')}));
+  expect(next.snapshot().candidates[0].id).toBe(id);expect(next.snapshot().candidates[0].behavior.activeDurationMs).toBe(6000);
+  expect(next.snapshot().posts.entries).toHaveLength(1);expect(next.snapshot().quarantine).toBeUndefined();
+  await expect(next.resume('PLAN-006')).rejects.toThrow('V2_RESUME_BLOCKED');
+});
+it('v7 retains excluded-candidate diagnostics until their server acknowledgement is durable', async()=>{
+  const repo=new V2Repository(API_BASE_URL),r=new V2Runtime(repo,transport(),true);
+  await r.initialize();await r.start(session.goalText);await r.foreground(1,time(0));
+  await r.observe(observation(0,{snapshot:null,extractionFailed:true,failureReason:'EXTRACTION_NO_CONTENT'}));
+  const id=r.snapshot().candidates[0].id;
+  await r.leave(1,time(1000),true);await r.compact(time(6000));
+  expect(r.snapshot().candidates.find(c=>c.id===id)).toBeDefined();
+  await r.acknowledgeFailure(id);expect((await repo.load()).candidates[0].failureAcknowledged).toBe(true);
+  await r.compact(time(7000));expect(r.snapshot().candidates).toHaveLength(0);expect(r.snapshot().discardedCandidates).toBe(1);
+});
+it('v7 restart keeps the current incomplete mapping when an older posted candidate used the same tab', async()=>{
+  const repo=new V2Repository(API_BASE_URL),r=new V2Runtime(repo,transport(),true);
+  await r.initialize();await r.start(session.goalText);await r.foreground(1,time(0));
+  for(let ms=0;ms<=5000;ms+=1000)await r.observe(observation(ms));
+  await r.leave(1,time(6000),true);
+  const changed={target:'b'.repeat(64),generation:'b',snapshot:{...observation(0).snapshot!,identity:'b'.repeat(64)}};
+  for(let ms=6000;ms<=8000;ms+=1000)await r.observe(observation(ms,changed));
+  const current=r.snapshot().tabs[1];repo.close();
+  const next=new V2Runtime(new V2Repository(API_BASE_URL),transport(),true);await next.initialize();
+  expect(next.snapshot().tabs[1]).toBe(current);expect(next.snapshot().candidates.find(c=>c.id===current)?.behavior.activeDurationMs).toBe(2000);
+});

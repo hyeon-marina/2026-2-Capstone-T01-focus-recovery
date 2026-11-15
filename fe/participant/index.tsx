@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Attempts, type Attempt } from './Attempts';
 import { createRoot } from 'react-dom/client';
 import { AuthConsentPanel } from '../src/v2/AuthConsentPanel';
 import type { CollectionAccess } from '../src/v2/access';
@@ -6,14 +7,14 @@ import type { V2Alert } from '../src/v2/status';
 import { observationStatus } from '../src/v2/local-status';
 import './style.css';
 import candidates from '../../docs/data-collection/goals.candidates.json';
-declare const __COLLECTION_BUILD__: { version: string; sourceCommit: string; dirty: boolean; mode: string; apiOrigin: string; policyDigest?: string; publicWeb?: boolean; pageContent?: boolean; maskContacts?: boolean; sites?: { origin: string; pathPrefix: string }[] };
+declare const __COLLECTION_BUILD__: { version: string; sourceCommit: string; dirty: boolean; mode: string; apiOrigin: string; policyDigest?: string; publicWeb?: boolean; pageContent?: boolean; maskContacts?: boolean; rawContent?: boolean; sites?: { origin: string; pathPrefix: string }[] };
 const build = __COLLECTION_BUILD__;
 const pilot = build.mode === 'collection-pilot';
 const real = ['real-collection','controlled-web'].includes(build.mode);
 const send = (action: string, extra = {}) => chrome.runtime.sendMessage({ type: `v2-${action}`, ...extra });
 type Assignment = { plannedSessionId: string; goalId: string; goalText: string | null; goalStatus: string; scenarioType: string };
-type Local = { collecting?: boolean; localVisits?: number; activeDurationMs?: number; diagnostic?: {code: string; observedAt: number}; pendingAssignment?: string; lifecycle: string; collectionAllowed: boolean; validVisits: number; pending: number; notificationPending?: number; endPhase?: string; storageFailed: boolean; accessError?: string; quarantined: boolean; quarantineClose?: string; withdrawalPhase?: string };
-type Progress = { planned: number; completed: number; syntheticSessions: number; syntheticQualityPassed: number; raw: { completed: number; syntheticCompleted: number }; attempts: { attemptId: string; sessionStatus: string; reviewStatus: string; plannedSessionId: string; status: string; rawStatus: string; analysisState: string; rawQuality: { theoreticalWindows: number }; source: string; quality: { validVisits: number; validWindows: number; reasons: string[] }; deliveryConfirmed: boolean }[] };
+type Local = { excludedCandidates?: number; collectingCandidates?: number; collecting?: boolean; localVisits?: number; activeDurationMs?: number; diagnostic?: {code: string; observedAt: number}; pendingAssignment?: string; sessionAssignment?: string; lifecycle: string; collectionAllowed: boolean; validVisits: number; pending: number; notificationPending?: number; endPhase?: string; storageFailed: boolean; accessError?: string; quarantined: boolean; quarantineClose?: string; withdrawalPhase?: string };
+type Progress = { planned: number; completed: number; syntheticSessions: number; syntheticQualityPassed: number; raw: { completed: number; syntheticCompleted: number }; attempts: Attempt[] };
 const scenarios: Record<string, string> = { GOAL_MAINTENANCE: '목표 유지', JUSTIFIED_DETOUR: '합리적인 우회', GRADUAL_DRIFT: '점진적인 이탈', CLEAR_DRIFT: '명확한 이탈' };
 function Participant() {
   const [access, setAccess] = useState<CollectionAccess>();
@@ -23,19 +24,22 @@ function Participant() {
   const [progress, setProgress] = useState<Progress>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [recollectReason, setRecollectReason] = useState('INSUFFICIENT_VISITS');
+  const commandRunning = useRef(false);
+  const refreshRevision = useRef(0);
   const [alert, setAlert] = useState<V2Alert | null>(null);
-  const onAccess = useCallback((value?: CollectionAccess) => { setAccess(value); if (!value || value.withdrawn) { setAssignments([]); setProgress(undefined); setAlert(null); } }, []);
+  const onAccess = useCallback((value?: CollectionAccess) => { refreshRevision.current++; setAccess(value); if (!value || value.withdrawn) { setAssignments([]); setProgress(undefined); setAlert(null); } }, []);
   async function refresh() {
+    const revision = ++refreshRevision.current;
     try {
-      const s = await send('status'); if (s?.error) throw new Error(); setLocal(s);
+      const s = await send('status'); if (revision !== refreshRevision.current) return; if (s?.error) throw new Error(); setLocal(s);
       if (!access) return;
       const a = await send('assignments'), p = await send('progress');
       if (!Array.isArray(a) || !p || p.error) throw new Error();
+      if (revision !== refreshRevision.current) return;
       setAssignments(a); setProgress(p);
       setSelected(current => s.pendingAssignment || current || [...p.attempts].reverse().find((attempt: { status: string }) => attempt.status === 'IN_PROGRESS')?.plannedSessionId || '');
       setError('');
-    } catch { setError('서버 상태를 확인하지 못했습니다. 데이터는 보존됩니다. 연결·인증을 확인하고 재전송하세요.'); }
+    } catch { if (revision !== refreshRevision.current) return; setError('서버 상태를 확인하지 못했습니다. 데이터는 보존됩니다. 연결·인증을 확인하고 재전송하세요.'); }
   }
   useEffect(() => {
     void refresh();
@@ -50,32 +54,36 @@ function Participant() {
   }, [local?.collectionAllowed]);
   useEffect(() => { if (alert) void send('shown', { alertId: alert.alertId, shownAt: new Date().toISOString() }); }, [alert?.alertId]);
   async function command(action: string, extra = {}) {
+    if (commandRunning.current) return false;
+    commandRunning.current = true;
     setBusy(true);setError('');if (action === 'stop') setAlert(null);
-    try { const r = await send(action, { plannedSessionId: selected, ...extra });if (r?.error) throw new Error();await refresh(); }
-    catch { setError('요청이 차단되었거나 응답을 확인하지 못했습니다. 미확정 목표·인증·동의·계정 연결을 확인하세요.'); }
-    finally { setBusy(false); }
+    try { const r = await send(action, { plannedSessionId: selected, ...extra });if (r?.error) throw new Error();await refresh(); return true; }
+    catch { setError('요청이 차단되었거나 응답을 확인하지 못했습니다. 미확정 목표·인증·동의·계정 연결을 확인하세요.'); return false; }
+    finally { commandRunning.current = false; setBusy(false); }
   }
   const assigned = assignments.find(a => a.plannedSessionId === selected);
   const candidate = candidates.goals.find(g => g.goalId === assigned?.goalId && g.description === assigned?.goalText);
   const localBuildMismatch = !!access?.local?.policyDigest && access.local.policyDigest !== build.policyDigest;
   const blockedAssignment = progress?.attempts.some(a => a.plannedSessionId === selected &&
     (a.reviewStatus === 'PENDING' || a.sessionStatus === 'ACTIVE')) && local?.lifecycle !== 'START_PENDING';
+  const canResume = local?.lifecycle === 'ACTIVE' && local.sessionAssignment === selected && !local.quarantined;
+  const count = (value?: number) => local?.collectionAllowed ? value ?? 0 : '인증 확인 후 표시';
   const canStart = !blockedAssignment && (!local?.pendingAssignment || local.pendingAssignment === selected) && !localBuildMismatch && (!access?.local || access.local.ready) && (pilot || real) && access?.collectionEnabled && access.consentValid && !access.withdrawn && (!local?.quarantined || local.quarantineClose === 'acknowledged') && assigned?.goalStatus === 'CONFIRMED' && ['IDLE','START_PENDING','ENDED'].includes(local?.lifecycle ?? '');
   return <main><header><p className="eyebrow">FOCUS RECOVERY / FIELD COLLECTION</p><h1>탐색을 시작하기 전에.</h1><p>내 배정과 전송 상태를 한곳에서 확인합니다.</p></header>
     <div className="gate" role="status"><strong>{real ? access?.collectionEnabled ? '서버 수집 Gate 유효' : '실제 사용자 수집 BLOCKED' : '실제 사용자 수집 BLOCKED'}</strong><span>{real ? '설치 패키지와 서버의 수집 범위·민감 페이지 제외 정책을 적용합니다. 승인·동의·세션 상태를 계속 확인합니다.' : pilot ? '통제된 카탈로그 합성 파일럿만 실행할 수 있습니다.' : '인증·배정 확인용 패키지입니다. 웹페이지 접근 권한과 수집 시작 권한이 없습니다.'}</span></div>
     {localBuildMismatch && <p role="alert">빌드/정책 불일치 · local.py build 후 chrome://extensions에서 본인 패키지를 새로고침하고 재로그인하세요.</p>}
-    {real && <details><summary>이 패키지의 수집 범위</summary>{build.pageContent ? <p>정책 {access?.policy?.policyVersion ?? '확인 중'} · 공개 페이지의 실제 제목과 본문, 허용된 Google·Naver 검색어, 도메인과 탐색 행동을 저장합니다. URL은 세션별 HMAC 식별자로 저장하며 폼 입력값은 수집에서 제외합니다. {build.maskContacts && '이메일과 국내 휴대전화 번호는 마스킹합니다.'}</p> : build.publicWeb ? <p>일반 HTTP/HTTPS 웹사이트의 탐색 메타데이터를 수집합니다. 민감 페이지·사설 IP·내부망은 제외합니다. 원제목·본문·입력값·검색어는 저장하지 않습니다.</p> : build.sites?.length ? <ul>{build.sites.map(s => <li key={s.origin+s.pathPrefix}>{s.origin}{s.pathPrefix}</li>)}</ul> : <p>허용 사이트가 없습니다. 승인된 정책과 새 빌드가 필요합니다.</p>}</details>}
+    {real && <details><summary>이 패키지의 수집 범위</summary>{build.pageContent ? <p>정책 {access?.policy?.policyVersion ?? '확인 중'} · 공개 페이지의 실제 제목과 본문, 허용된 Google·Naver 검색어, 도메인과 탐색 행동을 저장합니다. URL은 세션별 HMAC 식별자로 저장하며 폼 입력값은 수집에서 제외합니다. {build.rawContent ? '공개 텍스트의 개인정보·민감 표현은 검사·마스킹하지 않습니다. 새 정책에 직접 동의해야 하며 Credential은 보호합니다.' : build.maskContacts && '이메일과 국내 휴대전화 번호는 마스킹합니다.'}</p> : build.publicWeb ? <p>일반 HTTP/HTTPS 웹사이트의 탐색 메타데이터를 수집합니다. 민감 페이지·사설 IP·내부망은 제외합니다. 원제목·본문·입력값·검색어는 저장하지 않습니다.</p> : build.sites?.length ? <ul>{build.sites.map(s => <li key={s.origin+s.pathPrefix}>{s.origin}{s.pathPrefix}</li>)}</ul> : <p>허용 사이트가 없습니다. 승인된 정책과 새 빌드가 필요합니다.</p>}</details>}
     <div className="layout"><div><AuthConsentPanel command={send} onAccess={onAccess} context={real ? 'real' : pilot ? 'synthetic' : 'participant'} /></div>
     <section className="work" aria-labelledby="work-title"><p className="eyebrow">MY ASSIGNMENTS</p><h2 id="work-title">오늘의 수집</h2>
       <label>배정 목표<select value={selected} onChange={e => setSelected(e.target.value)} disabled={busy || ['ACTIVE','END_PENDING'].includes(local?.lifecycle ?? '')}><option value="">목표를 선택하세요</option>{assignments.map(a => <option key={a.plannedSessionId} value={a.plannedSessionId}>{a.plannedSessionId} · {a.goalText ?? `${a.goalId} 미확정`}</option>)}</select></label>
       {assigned && <div className="scenario"><p>{assigned.goalText ?? '팀이 확정한 공통 정책과 목표 원문을 적용해야 합니다.'}</p><strong>{scenarios[assigned.scenarioType]}</strong><p>시나리오는 수행 조건입니다. AI 예측이나 사람의 정답 라벨이 아닙니다.</p>
         {candidate && <><p>{candidate.scenarioInstructions[assigned.scenarioType as keyof typeof candidate.scenarioInstructions]}</p><p>종료 기준: {candidate.completionCriteria}</p></>}</div>}
       <p>유효 Visit 최소 10개, 권장 12~15개. 활성 탭·창에서 측정한 5초 이상 방문만 포함합니다.</p>
-      <div className="actions"><button disabled={!canStart || busy} onClick={() => void command('start')}>세션 시작</button><button disabled={busy || !['ACTIVE','END_PENDING'].includes(local?.lifecycle ?? '')} onClick={() => void command('stop')}>세션 종료 · 수집 중지</button></div>
-      <dl className="metrics"><div><dt>세션 상태</dt><dd>{local?.lifecycle ?? '확인 중'}</dd></div><div><dt>서버 수신 Visit</dt><dd>{local?.validVisits ?? 0}</dd></div><div><dt>미완료 POST/PATCH</dt><dd>{local?.pending ?? 0}</dd></div><div><dt>종료 ACK</dt><dd>{local?.endPhase ?? '—'}</dd></div><div><dt>미전송 알림 영수증</dt><dd>{local?.notificationPending ?? 0}</dd></div></dl>
-      <p role="status">{local?.collecting ? '세션 ACTIVE · 관찰 허용' : '현재 페이지 수집 중지 · 인증 Gate 유효 여부와 별개입니다.'} · 로컬 저장 Visit {local?.localVisits ?? 0} · 현재 방문의 확인된 활성 체류 {((local?.activeDurationMs ?? 0) / 1000).toFixed(1)}초</p>
+      <div className="actions"><button disabled={!canResume || busy} onClick={() => void command('resume')}>기존 세션 이어서 수집</button><button disabled={!canStart || busy} onClick={() => void command('start')}>세션 시작</button><button disabled={busy || !['ACTIVE','END_PENDING'].includes(local?.lifecycle ?? '')} onClick={() => void command('stop')}>세션 종료 · 수집 중지</button></div>
+      <dl className="metrics"><div><dt>세션 상태</dt><dd>{local?.lifecycle ?? '확인 중'}</dd></div><div><dt>서버 수신 Visit</dt><dd>{count(local?.validVisits)}</dd></div><div><dt>미완료 POST/PATCH</dt><dd>{count(local?.pending)}</dd></div><div><dt>종료 ACK</dt><dd>{local?.endPhase ?? '—'}</dd></div><div><dt>미전송 알림 영수증</dt><dd>{count(local?.notificationPending)}</dd></div></dl>
+      <p role="status">{local?.collecting ? '세션 ACTIVE · 관찰 허용' : local?.accessError ? '인증 또는 연결 확인 중 · 기존 데이터 보존' : local?.lifecycle === 'ACTIVE' ? '세션 보존 · 관찰 일시정지' : local?.lifecycle === 'END_PENDING' ? '전송 및 종료 ACK 대기' : local?.lifecycle === 'ENDED' ? '실제 세션 종료' : '수집 시작 대기'} · 로컬 저장 Visit {count(local?.localVisits)} · 측정 후보 {count(local?.collectingCandidates)} · 제외 후보 {count(local?.excludedCandidates)} · 현재 방문의 확인된 활성 체류 {local?.collectionAllowed ? `${((local.activeDurationMs ?? 0) / 1000).toFixed(1)}초` : '인증 확인 후 표시'}</p>
       {local?.collecting && local.diagnostic && <p role="status">{observationStatus(local.diagnostic.code)} (확인 {new Date(local.diagnostic.observedAt).toLocaleTimeString()})</p>}
-      {blockedAssignment && <p role="status">이 배정에 ACTIVE 또는 검토 PENDING 시도가 있습니다. 기존 세션을 먼저 종료하고 아래 진행 상태에서 사유를 기록해 재수집을 허용하세요. 기존 시도는 보존됩니다.</p>}
+      {blockedAssignment && <p role="status">{canResume ? '현재 ACTIVE 세션은 위 이어서 수집 또는 재전송 / 복구로 계속합니다. 재인증해도 기존 Visit과 Queue는 유지됩니다.' : '기존 시도의 상태를 아래에서 확인하세요. RAW_COLLECTED는 완료 상태입니다. 종료된 부족 시도만 대상 확인 후 재수집하며, 다른 프로필의 ACTIVE 세션은 원래 프로필에서 복구하세요.'}</p>}
       <button disabled={busy} onClick={() => void command('retry')}>재전송 / 복구</button><button disabled={busy} onClick={() => void refresh()}>진행 상태 새로고침</button>
       {local?.storageFailed && <p role="alert">저장 오류로 안전 중지했습니다. Extension을 삭제하지 말고 관리자에게 문의하세요.</p>}
       {local?.accessError && <p role="alert">{local.accessError === 'authentication' || local.accessError === 'AUTHENTICATION_REQUIRED' ? '인증이 필요합니다. 본인 Credential로 다시 로그인하세요.' : local.accessError === 'consent' ? '현재 정책의 동의 상태를 확인하세요.' : local.accessError === 'account' ? '이전 세션 소유자의 계정으로 로그인해 미전송 요청을 확인하세요.' : '서버 연결을 확인하고 재전송하세요.'}</p>}
@@ -83,8 +91,7 @@ function Participant() {
       {local?.lifecycle === 'ENDED' && !local.quarantined && <p role="status">종료 ACK를 받았습니다. 서버 품질 판정과 전송 확인을 아래에서 별도로 확인하세요.</p>}
       {error && <p role="alert">{error}</p>}
       {progress && <section><h3>나의 진행</h3><p>원본 수집 완료 {progress.raw.completed} / 배정 {progress.planned} · AI 포함 품질 완료 {progress.completed} · 합성 {progress.syntheticSessions}세션 (원본 완료 {progress.raw.syntheticCompleted} / AI 포함 {progress.syntheticQualityPassed})</p>
-        {access?.local && <label>재수집 사유<select value={recollectReason} onChange={e => setRecollectReason(e.target.value)}><option value="INSUFFICIENT_VISITS">유효 Visit 부족</option><option value="DELIVERY_FAILED">전송 실패</option><option value="USER_REQUEST">본인 요청</option></select></label>}
-        <ul>{progress.attempts.map((a,i) => <li key={i}>{a.plannedSessionId} · {a.source} · {a.status} · Visit {a.quality.validVisits} / Window {a.quality.validWindows} · 전송 {a.deliveryConfirmed ? '확인' : '미확인'} · 원본 {a.rawStatus} · AI {a.analysisState} · 이론상 Window {a.rawQuality.theoreticalWindows}{a.quality.reasons.length ? ` · AI 포함 품질: ${a.quality.reasons.join(', ')}` : ''}{access?.local && a.sessionStatus === 'ENDED' && a.reviewStatus === 'PENDING' && <button disabled={busy || access.withdrawn} onClick={() => void command('recollect', { attemptId: a.attemptId, reasonCode: recollectReason })}>사유 기록 후 재수집 허용</button>}</li>)}</ul></section>}
+        <Attempts attempts={progress.attempts} local={!!access?.local} disabled={busy || !!access?.withdrawn || !access?.consentValid} recollect={async payload => { if (!await command('recollect', payload)) throw new Error('RECOLLECT_UNCONFIRMED'); }} /></section>}
     </section></div>
     {alert && <aside className="reminder" role="alert"><h2>처음의 목표를 확인하세요</h2><p>{alert.goalText}</p>{(['RETURN_TO_GOAL','CONTINUE_BROWSING'] as const).map(action => <button key={action} disabled={busy} onClick={async () => { setBusy(true);try { const r = await send('selection', { alertId: alert.alertId, action, selectedAt: new Date().toISOString() });if (r?.error) throw new Error();setAlert(null);await refresh(); } catch { setError('알림 선택을 확인하지 못했습니다. 재전송 / 복구로 영수증을 확인하세요.'); } finally { setBusy(false); } }}>{action === 'RETURN_TO_GOAL' ? '목표로 돌아가기' : '탐색 계속하기'}</button>)}</aside>}
     <footer>v{build.version} · {build.sourceCommit.slice(0,12)}{build.dirty ? ' + 작업 중 변경' : ''} · {build.mode}<br />서버: {build.apiOrigin} · P1~P6 PROPOSED / P2·P6 BLOCKED</footer>

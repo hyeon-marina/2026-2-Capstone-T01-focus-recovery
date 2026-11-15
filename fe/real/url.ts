@@ -5,21 +5,21 @@ import type { Site } from './policy';
 
 const privateHost = /(?:^|\.)(?:localhost|local|internal|intranet|lan|home|corp|private|test|invalid|example|onion|admin|mail|webmail|outlook|gmail|whatsapp|telegram|chat|messages|messenger|slack|discord|teams|bank|banking|finance|paypal|stripe|health|medical|hospital|clinic)(?:\.|$)/i;
 const sensitive = /(?:^|[\/_.-])(?:login|logon|signin|sign-in|signup|register|password|auth|oauth|callback|sso|accounts|account|myaccount|profile|settings|private|direct|calendar|documents|admin|dashboard|console|inbox|mail|chat|messages|checkout|payment|payments|billing|orders|receipt|invoice|verify|verification|bank|banking|wallet|finance|financial|medical|health|patient|prescription|records)(?:[\/_.-]|$)/i;
-export function publicWebUrl(raw: string): URL | null {
+export function publicWebUrl(raw: string, rawContent = false): URL | null {
   try {
     if (raw.length > 8192) return null;
     const u = new URL(raw);
     // Reject IP literals, private host names and nonstandard service ports.
     if (!['http:', 'https:'].includes(u.protocol) || u.username || u.password || u.port || u.hostname.length > 253
       || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}$/.test(u.hostname)
-      || privateHost.test(u.hostname) || sensitive.test(u.hostname) || /^(?:(?:docs|drive|calendar|contacts)\.google\.com|.*\.sharepoint\.com|onedrive\.live\.com)$/.test(u.hostname)) return null;
+      || (rawContent ? /(?:^|[.-])(?:localhost|local|internal|intranet|lan|home|corp|private|test|invalid|example|onion|admin|mail|webmail|outlook|gmail|whatsapp|telegram|chat|messages|messenger|slack|discord|teams|paypal|stripe|login|auth|accounts|account|wallet)(?:[.-]|$)/i.test(u.hostname) : privateHost.test(u.hostname) || sensitive.test(u.hostname)) || /^(?:(?:docs|drive|calendar|contacts)\.google\.com|.*\.sharepoint\.com|onedrive\.live\.com)$/.test(u.hostname)) return null;
     if ([...u.searchParams.keys()].some(k => /token|password|secret|credential|authorization|^(code|session|sessionid|sid|email|phone|address|card)$/.test(k.toLowerCase()))) return null;
     if (/(?:^|[?&#])(?:access_token|id_token|token|password|authorization|code)=/i.test(u.hash)) return null;
     for (const component of [u.pathname,u.hash.slice(1)]) {
       let path = component;
       for (let i = 0; i < 3; i++) { const decoded = decodeURIComponent(path); if (decoded === path) break; path = decoded; }
-      if (/%|[\\@\u0000-\u001f\u007f]/.test(path) || sensitive.test(path)
-        || /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\d{6}-[1-4]\d{6}/i.test(path)
+      if (/%|[\\@\u0000-\u001f\u007f]/.test(path) || (rawContent ? /(?:^|[\/_.-])(?:login|logon|signin|sign-in|signup|register|password|auth|oauth|callback|sso|accounts|account|myaccount|profile|settings|private|direct|calendar|documents|admin|dashboard|console|inbox|mail|chat|messages|checkout|payment|payments|billing|orders|receipt|invoice|verify|verification|wallet)(?:[\/_.-]|$)/i.test(path) : sensitive.test(path))
+        || !rawContent && /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\d{6}-[1-4]\d{6}/i.test(path)
         || /\.(?:pdf|mp4|webm|mp3|wav|ogg|m4a)$/i.test(path)) return null;
     }
     // Only the sanitized URL feeds HMAC and durable data.
@@ -28,9 +28,9 @@ export function publicWebUrl(raw: string): URL | null {
   } catch { return null; }
 }
 
-export function inspectPublicUrl(raw: string, sites: Site[], publicWeb = false) {
+export function inspectPublicUrl(raw: string, sites: Site[], publicWeb = false, rawContent = false) {
   if (publicWeb) {
-    const url = publicWebUrl(raw);
+    const url = publicWebUrl(raw, rawContent);
     if (!url || url.pathname.includes(PAGE_MARKER)) return null;
     if (/(?:^|\.)wikipedia\.org$/.test(url.hostname) && /^\/wiki\/(?:Special|User|User_talk|Talk|Wikipedia|File|Help|특수|사용자|사용자토론|토론|위키백과|파일|도움말):/i.test(decodeURIComponent(url.pathname))) return null;
     const search = searchEngine(url);
@@ -69,13 +69,13 @@ export function inspectPublicUrl(raw: string, sites: Site[], publicWeb = false) 
   return { ...inspected, site, canonical: u.origin + u.pathname + '?' + functional.toString() };
 }
 
-export async function describeMetadataUrl(raw: string, sites: Site[], keyBytes: Uint8Array<ArrayBuffer>, session: string, publicWeb = false, pageContent = false, maskContacts = false) {
-  const p = inspectPublicUrl(raw, sites, publicWeb);
+export async function describeMetadataUrl(raw: string, sites: Site[], keyBytes: Uint8Array<ArrayBuffer>, session: string, publicWeb = false, pageContent = false, maskContacts = false, rawContent = false) {
+  const p = inspectPublicUrl(raw, sites, publicWeb, rawContent);
   if (!p) return null;
-  const inspected = pageContent ? inspectUrl(raw) : null;
+  const inspected = pageContent ? inspectUrl(raw, false, rawContent) : null;
   if (pageContent && (!inspected || inspected.isSearchResultPage && !inspected.searchQuery)) return null;
   let query = inspected?.searchQuery ?? null;
-  if (maskContacts && query) {
+  if (maskContacts && !rawContent && query) {
     try {
       const masked = maskPublicContacts(query);
       // Preserve sensitive intent in the transient description for the content guard.

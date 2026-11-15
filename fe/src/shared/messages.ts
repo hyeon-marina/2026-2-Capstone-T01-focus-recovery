@@ -15,7 +15,7 @@ export function isContentMessage(value: unknown): value is ContentMessage {
   const s = v.snapshot as Record<string, unknown>;
   if (Object.keys(s).some(key => !['normalizedUrl', 'domain', 'identity', 'title', 'content', 'isSearchResultPage', 'searchQuery', 'organicResultCount'].includes(key))) return false;
   if (!(typeof s.normalizedUrl === 'string' && s.normalizedUrl.length <= 8192 && typeof s.domain === 'string' && s.domain.length <= 253 && typeof s.identity === 'string' && /^[a-f0-9]{64}$/.test(s.identity) && typeof s.title === 'string' && [...s.title].length <= 500 && typeof s.content === 'string' && [...s.content].length <= 5000 && typeof s.isSearchResultPage === 'boolean')) return false;
-  const url = inspectUrl(s.normalizedUrl);
+  const url = inspectUrl(s.normalizedUrl, false, (() => { try { return metadataPath(new URL(s.normalizedUrl as string).pathname); } catch { return false; } })());
   if (!url || normalizeUrl(s.normalizedUrl) !== s.normalizedUrl || url.url.hostname !== s.domain || url.isSearchResultPage !== s.isSearchResultPage) return false;
   if (metadataPath(url.url.pathname) && s.content === METADATA_CONTENT) return validMetadataTitle(s.title as string) && s.content === METADATA_CONTENT && s.searchQuery === (s.isSearchResultPage ? OMITTED_QUERY : null) && s.organicResultCount === undefined;
   if (!s.isSearchResultPage) return s.searchQuery == null && s.organicResultCount === undefined;

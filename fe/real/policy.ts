@@ -2,13 +2,13 @@ import { inspectPublicUrl } from './url';
 import { inspectUrl } from '../src/shared/url';
 export interface Site { origin: string; pathPrefix: string }
 export function contentMatches(s: Site) { return s.pathPrefix.endsWith('/') ? [`${s.origin}${s.pathPrefix}*`] : [`${s.origin}${s.pathPrefix}`,`${s.origin}${s.pathPrefix}?*`,`${s.origin}${s.pathPrefix}/*`]; }
-export interface SitePolicy { digest: string; buildId: string; expiresAt: string; sites: Site[]; status: string; publicWeb?: boolean }
-export function allowedSite(raw: string, sites: Site[], metadataOnly = false, publicWeb = false): boolean {
-  const u = metadataOnly ? inspectPublicUrl(raw, sites, publicWeb)?.url : inspectUrl(raw)?.url;
+export interface SitePolicy { digest: string; buildId: string; expiresAt: string; sites: Site[]; status: string; publicWeb?: boolean; rawContent?: boolean }
+export function allowedSite(raw: string, sites: Site[], metadataOnly = false, publicWeb = false, rawContent = false): boolean {
+  const u = metadataOnly ? inspectPublicUrl(raw, sites, publicWeb, rawContent)?.url : inspectUrl(raw)?.url;
   return !!u && (publicWeb || sites.some(s => u.origin === s.origin && (s.pathPrefix === '/' || u.pathname === s.pathPrefix || u.pathname.startsWith(s.pathPrefix.endsWith('/') ? s.pathPrefix : s.pathPrefix + '/'))));
 }
-export function validPolicy(p: SitePolicy, build: { policyDigest: string; buildId: string; sites: Site[]; publicWeb?: boolean }, synthetic: boolean): boolean {
-  return !!p && !!p.publicWeb === !!build.publicWeb && p.digest === build.policyDigest && p.buildId === build.buildId && Number.isFinite(Date.parse(p.expiresAt)) && Date.parse(p.expiresAt) > Date.now()
+export function validPolicy(p: SitePolicy, build: { policyDigest: string; buildId: string; sites: Site[]; publicWeb?: boolean; rawContent?: boolean }, synthetic: boolean): boolean {
+  return !!p && !!p.rawContent === !!build.rawContent && !!p.publicWeb === !!build.publicWeb && p.digest === build.policyDigest && p.buildId === build.buildId && Number.isFinite(Date.parse(p.expiresAt)) && Date.parse(p.expiresAt) > Date.now()
     && p.status === (synthetic ? 'SYNTHETIC' : 'APPROVED') && Array.isArray(p.sites) && p.sites.length === build.sites.length && p.sites.every((s,i) => s.origin === build.sites[i].origin && s.pathPrefix === build.sites[i].pathPrefix);
 }
 export { publicText, publicSearchQuery } from '../src/shared/privacy';

@@ -13,12 +13,12 @@ export function validSearchQuery(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && [...value].length <= MAX_SEARCH_QUERY && value === value.replace(/\s+/g, ' ').trim() && !/[\u0000-\u001f\u007f]/.test(value);
 }
 // Only this transient stage sees the complete query parameters.
-export function inspectUrl(raw: string, allowVideo = false): { url: URL; isSearchResultPage: boolean; searchQuery: string | null } | null {
+export function inspectUrl(raw: string, allowVideo = false, rawContent = false): { url: URL; isSearchResultPage: boolean; searchQuery: string | null } | null {
   try {
     const url = new URL(raw);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
     const path = decodeURIComponent(url.pathname);
-    if (sensitivePath.test(path) || sensitiveHost.test(url.hostname) || /\.(pdf|mp4|webm|mp3|wav|ogg|m4a)$/i.test(path)) return null;
+    if ((rawContent ? /(?:^|[\/_.-])(?:login|logon|signin|sign-in|signup|register|password|auth|oauth|callback|sso|checkout|payment|billing|wallet|account|profile|settings|myaccount|verify|verification)(?:[\/_.-]|$)/i.test(path) || /(?:^|[.-])(?:paypal|stripe|accounts|login|auth|wallet)(?:[.-]|$)/i.test(url.hostname) : sensitivePath.test(path) || sensitiveHost.test(url.hostname)) || /\.(pdf|mp4|webm|mp3|wav|ogg|m4a)$/i.test(path)) return null;
     if ([...url.searchParams.keys()].some(key => sensitiveQuery.test(key))) return null;
     if (/^(?:www\.|m\.)?(?:youtube\.com|youtu\.be|vimeo\.com|twitch\.tv|soundcloud\.com|open\.spotify\.com)$/i.test(url.hostname) && !(metadataPath(url.pathname) || url.hostname === 'www.youtube.com' && allowVideo && url.pathname === '/watch')) return null;
     // Catch token-style fragments before discarding them.
@@ -29,8 +29,8 @@ export function inspectUrl(raw: string, allowVideo = false): { url: URL; isSearc
     return { url, isSearchResultPage: engine !== null, searchQuery: validSearchQuery(query) ? query : null };
   } catch { return null; }
 }
-export function normalizeUrl(raw: string): string | null {
-  const inspected = inspectUrl(raw);
+export function normalizeUrl(raw: string, rawContent = false): string | null {
+  const inspected = inspectUrl(raw, false, rawContent || (() => { try { return metadataPath(new URL(raw).pathname); } catch { return false; } })());
   if (!inspected) return null;
   const { url } = inspected;
   url.search = '';

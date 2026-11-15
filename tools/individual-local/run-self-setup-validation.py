@@ -130,7 +130,7 @@ def main():
         else:raise AssertionError('Old privacy accepted')
         # Self review preserves the original ended attempt and permits a new attempt with a new key.
         b=directories[1];attempt=request(b,'/api/collection/progress')['attempts'][0]
-        request(b,'/api/collection/attempts/'+attempt['attemptId']+'/recollect','POST',dict(reasonCode='INSUFFICIENT_VISITS'),status=204)
+        request(b,'/api/collection/attempts/'+attempt['attemptId']+'/recollect','POST',dict(reasonCode='INSUFFICIENT_VISITS',plannedSessionId=attempt['plannedSessionId'],sessionId=attempt['sessionId'],confirmCompleted=False),status=204)
         request(b,'/api/collection/assignments/PLAN-002/start','POST',{},status=201,idem=uuid.uuid4().hex)
         assert len(request(b,'/api/collection/progress')['attempts'])==2
         cli(d,'setup','--slot','A','--rotate-credential')

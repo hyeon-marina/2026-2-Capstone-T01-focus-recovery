@@ -1,0 +1,204 @@
+{
+  "schemaVersion": "focus124-validation/1",
+  "dateKst": "2026-11-15",
+  "overall": "PARTIAL_HISTORICAL_CAUSE_UNCONFIRMED",
+  "functionalResult": "PASS",
+  "operatingCChanged": false,
+  "issue": 124,
+  "branch": "fix/124/raw-collection-continuity",
+  "initialHead": "e088f03780b76404e4bba17138670e40d47600d8",
+  "baseHead": "5e6a6f091a509cf66e8896ace6084fda76870d84",
+  "policyVersion": "7",
+  "policyDigest": "4c5fe813d703a3ae1d6bf95f3de3aca8ae12c94a5c4a8ca4a161ad29d6dd11f9",
+  "chrome": "151.0.7922.34",
+  "extensionVersion": "0.4.0",
+  "extensionId": "gnjlmifgccbnljfjifakofcpdfokmllm",
+  "testApi": "https://localhost:19425",
+  "mysqlPort": 33425,
+  "focusEmulation": false,
+  "directConsent": true,
+  "technicalValidationOnly": true,
+  "steps": [
+    {
+      "label": "start-PLAN-006",
+      "local": 0,
+      "acked": 0,
+      "pending": 0,
+      "mysql": 0,
+      "lifecycle": "ACTIVE",
+      "rawStatus": "IN_PROGRESS",
+      "privacy": "CLEAR"
+    },
+    {
+      "label": "one",
+      "local": 1,
+      "acked": 1,
+      "pending": 0,
+      "mysql": 1,
+      "lifecycle": "ACTIVE",
+      "rawStatus": "IN_PROGRESS",
+      "privacy": "CLEAR"
+    },
+    {
+      "label": "five",
+      "local": 5,
+      "acked": 5,
+      "pending": 0,
+      "mysql": 5,
+      "lifecycle": "ACTIVE",
+      "rawStatus": "IN_PROGRESS",
+      "privacy": "CLEAR"
+    },
+    {
+      "label": "tistory-second",
+      "local": 10,
+      "acked": 10,
+      "pending": 0,
+      "mysql": 10,
+      "lifecycle": "ACTIVE",
+      "rawStatus": "IN_PROGRESS",
+      "privacy": "CLEAR"
+    },
+    {
+      "label": "ended",
+      "local": 10,
+      "acked": 10,
+      "pending": 0,
+      "mysql": 10,
+      "lifecycle": "ENDED",
+      "rawStatus": "RAW_COLLECTED",
+      "privacy": "CLEAR"
+    }
+  ],
+  "pages": [
+    {
+      "label": "tistory-other-skin",
+      "origin": "https://goddaehee.tistory.com",
+      "path": "/199",
+      "visit": 1
+    },
+    {
+      "label": "google-search",
+      "origin": "https://www.google.com",
+      "path": "/search",
+      "visit": 2,
+      "query": "site:martinfowler.com microservices"
+    },
+    {
+      "label": "google-result",
+      "origin": "https://martinfowler.com",
+      "path": "/articles/microservices.html",
+      "visit": 3
+    },
+    {
+      "label": "naver-search",
+      "origin": "https://search.naver.com",
+      "path": "/search.naver",
+      "visit": 4,
+      "query": "site:notice.tistory.com 티스토리 공지"
+    },
+    {
+      "label": "naver-result",
+      "origin": "https://notice.tistory.com",
+      "path": "/",
+      "visit": 5
+    },
+    {
+      "label": "naver-iframe",
+      "origin": "https://blog.naver.com",
+      "path": "/insaweb/221650456057",
+      "visit": 6
+    },
+    {
+      "label": "wordpress",
+      "origin": "https://www.joelonsoftware.com",
+      "path": "/2000/04/06/things-you-should-never-do-part-i/",
+      "visit": 7
+    },
+    {
+      "label": "blogger",
+      "origin": "https://blog.python.org",
+      "path": "/",
+      "visit": 8
+    },
+    {
+      "label": "legacy-document",
+      "origin": "https://paulgraham.com",
+      "path": "/avg.html",
+      "visit": 9
+    },
+    {
+      "label": "tistory-second",
+      "origin": "https://notice.tistory.com",
+      "path": "/2706",
+      "visit": 10
+    }
+  ],
+  "recovery": {
+    "tabReturn": {
+      "initialMs": 3991,
+      "inactiveMs": 30000,
+      "finalMs": 5090,
+      "sameId": true
+    },
+    "networkRecovery": true,
+    "actualInterruptedPosts": 1,
+    "expiryAndReauthentication": true,
+    "workerRestartWithPending": true,
+    "chromeRestartWithPending": true,
+    "recollectIsolation": true,
+    "previousTenUnchanged": true
+  },
+  "appReturn": {
+    "initialMs": 4001,
+    "inactiveMs": 125818,
+    "finalMs": 5042,
+    "sameVisitId": true,
+    "nativeMinimization": true
+  },
+  "controlledFixtures": {
+    "virtualRawAndInputProtection": true,
+    "credentialPageExcludedWithoutQuarantine": true,
+    "previousRawCompleted": 2
+  },
+  "idbMysql": {
+    "result": "PASS",
+    "kind": "ARCHIVED_INDEXEDDB_RECEIPTS_VS_MYSQL",
+    "count": 10,
+    "idsAndSequencesEqual": true,
+    "allBehaviorCountersEqual": true,
+    "pending": 0,
+    "lifecycle": "ENDED",
+    "endPhase": "acked",
+    "minimumActiveMs": 5470
+  },
+  "tests": {
+    "frontend": {
+      "passed": 1087,
+      "defaultOptInSkipped": 2,
+      "optInHttpSeparatelyPassed": 2
+    },
+    "backend": {
+      "classes": 62,
+      "tests": 1197,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 1197
+    },
+    "ai": {
+      "passed": 289,
+      "warnings": 1
+    },
+    "tools": {
+      "passed": 42
+    }
+  },
+  "limits": [
+    "Historical operating PLAN-003/006 request initiation was not reproduced; saved CUA trace selected assignment 006, not the recollect button.",
+    "Operating C deployment and past review-state restoration were not performed.",
+    "macOS/CFT151 only; Chrome157 operating profile and Windows rollout not tested.",
+    "Self-signed localhost certificate uses a scoped SPKI pin in technical Chrome; OS trust installation is not tested."
+  ],
+  "implementationCommit": "290d5da8cbfe31056bf0a2ffd8d9b9fc0d3c9c90"
+}

@@ -37,13 +37,16 @@ public final class MetadataPage {
     }
     public static boolean matches(String url,List<CollectionSitePolicy.Site> sites) { return matches(url,sites,false); }
     public static boolean matches(String url,List<CollectionSitePolicy.Site> sites,boolean publicWeb) {
+        return matches(url,sites,publicWeb,false);
+    }
+    public static boolean matches(String url,List<CollectionSitePolicy.Site> sites,boolean publicWeb,boolean rawContent) {
         if(publicWeb) {
             try {
                 URI u=URI.create(url);String host=u.getHost();
                 if (!("http".equals(u.getScheme()) || "https".equals(u.getScheme())) || host==null || u.getPort()!=-1
                     || u.getUserInfo()!=null || u.getRawQuery()!=null || u.getRawFragment()!=null
                     || !host.matches("(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,63}")
-                    || java.util.regex.Pattern.compile("(?:^|[.-])(localhost|local|internal|intranet|lan|home|corp|private|test|invalid|example|onion|admin|mail|webmail|outlook|gmail|whatsapp|telegram|chat|messages|messenger|slack|discord|teams|bank|banking|finance|paypal|stripe|health|medical|hospital|clinic|login|auth|accounts|account|wallet)(?:[.-]|$)",java.util.regex.Pattern.CASE_INSENSITIVE).matcher(host).find()) return false;
+                    || java.util.regex.Pattern.compile(rawContent ? "(?:^|[.-])(localhost|local|internal|intranet|lan|home|corp|private|test|invalid|example|onion|admin|mail|webmail|outlook|gmail|whatsapp|telegram|chat|messages|messenger|slack|discord|teams|paypal|stripe|login|auth|accounts|account|wallet)(?:[.-]|$)" : "(?:^|[.-])(localhost|local|internal|intranet|lan|home|corp|private|test|invalid|example|onion|admin|mail|webmail|outlook|gmail|whatsapp|telegram|chat|messages|messenger|slack|discord|teams|bank|banking|finance|paypal|stripe|health|medical|hospital|clinic|login|auth|accounts|account|wallet)(?:[.-]|$)",java.util.regex.Pattern.CASE_INSENSITIVE).matcher(host).find()) return false;
                 String prefix=host.matches("(?:www\\.)?google\\.(?:com|co\\.kr|co\\.uk|co\\.jp|[a-z]{2})") ? "/search" : host.matches("(?:search|m\\.search)\\.naver\\.com") ? "/search.naver" : "";
                 return u.getRawPath().matches(java.util.regex.Pattern.quote(prefix+MARKER)+"[a-f0-9]{64}")
                     || u.getRawPath().matches(java.util.regex.Pattern.quote(MARKER)+"[a-f0-9]{64}");
@@ -68,18 +71,24 @@ public final class MetadataPage {
         return publicText(query) && !java.util.regex.Pattern.compile("\\b(?:medical|diagnosis|patient|prescription|symptoms?|treatment|cancer|hiv|aids|depression|banking|finance|loan|credit|insurance|password|cookie|token)\\b|의료|진료|환자|질병|증상|치료|처방|우울|암 검사|대출|신용|계좌|금융|주민|비밀번호",java.util.regex.Pattern.CASE_INSENSITIVE).matcher(query).find();
     }
     public static void validateContent(CreatePageVisitRequest r,List<CollectionSitePolicy.Site> sites,boolean publicWeb) {
+        validateContent(r,sites,publicWeb,false);
+    }
+    public static boolean credentialText(String text) {
+        return text != null && Pattern.compile("(?:bearer\\s+[a-z0-9._-]+|(?:password|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|session[_ -]?(?:id|token|key|credential)|cookie|passwd|secret|비밀번호)\\s*[\"']?\\s*[:=]\\s*\\S+)",Pattern.CASE_INSENSITIVE).matcher(text).find();
+    }
+    public static void validateContent(CreatePageVisitRequest r,List<CollectionSitePolicy.Site> sites,boolean publicWeb,boolean rawContent) {
         r.validateV2();
-        if(!matches(r.normalizedUrl(),sites,publicWeb)) throw invalidContent();
+        if(!matches(r.normalizedUrl(),sites,publicWeb,rawContent)) throw invalidContent();
         URI page=URI.create(r.normalizedUrl());
         boolean search=(page.getHost().matches("(?:www\\.)?google\\.(?:com|co\\.kr|co\\.uk|co\\.jp|[a-z]{2})") && page.getPath().startsWith("/search"+MARKER))
             || (page.getHost().matches("(?:search|m\\.search)\\.naver\\.com") && page.getPath().startsWith("/search.naver"+MARKER));
         if(!page.getHost().equals(r.domain()) || !Boolean.valueOf(search).equals(r.isSearchResultPage())
             || r.title().isBlank() || TITLE.equals(r.title()) || r.title().startsWith("Topic: ") || CONTENT.equals(r.content())
-            || !publicText(r.title()) || !publicText(r.content()) || search && (!publicSearchQuery(r.searchQuery()) || QUERY.equals(r.searchQuery())
+            || (rawContent ? credentialText(r.title()) || credentialText(r.content()) || credentialText(r.searchQuery()) : !publicText(r.title()) || !publicText(r.content())) || search && ((!rawContent && !publicSearchQuery(r.searchQuery())) || QUERY.equals(r.searchQuery())
                 || !r.searchQuery().equals(r.searchQuery().replaceAll("\\s+"," ").trim()))
             || r.title().matches("(?s).*[\\x00-\\x1f\\x7f].*")) throw invalidContent();
     }
     private static ConflictException invalidContent() {
-        return new ConflictException("COLLECTION_POLICY_BLOCKED","공개 본문·제목·검색어와 개인정보 검사를 확인하세요.");
+        return new ConflictException("COLLECTION_POLICY_BLOCKED","본문·제목·검색어 형식, 정책 범위와 Credential 보호를 확인하세요.");
     }
 }

@@ -60,6 +60,14 @@ describe('real Content Script foreground boundary (synthetic DOM only)', () => {
     allowed = true; window.dispatchEvent(new Event('focus')); await tick(2000);
     expect(observations().some(m => !!m.snapshot)).toBe(true);
   });
+  it('keeps one handshake timer across repeated reauthentication and never reads a stopped page',async()=>{
+    allowed=false;await import('../real/content');await tick();
+    const capture=(chrome.runtime.onMessage.addListener as any).mock.calls[0][0];
+    for(let i=0;i<4;i++){allowed=true;capture({type:'v2-capture'});await tick();allowed=false;await tick(1000);}
+    expect(vi.getTimerCount()).toBe(1);
+    const title=vi.spyOn(document,'title','get');messages=[];await tick(3000);
+    expect(title).not.toHaveBeenCalled();expect(observations()).toHaveLength(0);
+  });
   it('does not let a stale authorization response cancel a newer activation timer', async () => {
     let resolve!: (context: any) => void;
     const pending = new Promise(context => { resolve = context; });

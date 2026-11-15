@@ -1,4 +1,4 @@
-import { highRiskText, maskPublicContacts } from '../shared/privacy';
+import { credentialText, highRiskText, maskPublicContacts } from '../shared/privacy';
 import { inspectUrl, normalizeUrl, searchEngine } from '../shared/url';
 import { cleanText, isExcludedDocument, isVisible, textFrom } from './extraction';
 
@@ -13,12 +13,12 @@ function organic(container: Element): boolean {
   const scope = container.closest('.MjjYud,[data-block-id]') ?? container;
   return ![scope, ...scope.querySelectorAll('span,button,[aria-label]')].some(label => isVisible(label) && (AD_LABEL.test(cleanText(label.textContent ?? '')) || AD_LABEL.test(label.getAttribute('aria-label') ?? '')));
 }
-function result(container: Element, titleElement: Element | null, snippetElement: Element | null, base: URL) {
+function result(container: Element, titleElement: Element | null, snippetElement: Element | null, base: URL, rawContent = false) {
   if (!titleElement || !organic(container) || !safe(titleElement)) return null;
   const link = titleElement.closest('a[href]');
   if (!link || !container.contains(link)) return null;
   let target: string | null;
-  try { target = normalizeUrl(new URL(link.getAttribute('href')!, base).href); }
+  try { target = normalizeUrl(new URL(link.getAttribute('href')!, base).href, rawContent); }
   catch { return null; }
   if (!target || searchEngine(new URL(target)) || /(?:^|\.)(?:googleadservices\.com|doubleclick\.net|adcr\.naver\.com|ads\.naver\.com|ader\.naver\.com)$/.test(new URL(target).hostname)) return null;
   const title = cleanText(textFrom(titleElement));
@@ -26,19 +26,19 @@ function result(container: Element, titleElement: Element | null, snippetElement
   const description = snippetElement && safe(snippetElement) ? cleanText(textFrom(snippetElement)) : '';
   return { title, description };
 }
-function googleResults(doc: Document, base: URL) {
-  // shortcut: Google live DOM was blocked during verification; validate these conservative structures manually before broadening support.
+function googleResults(doc: Document, base: URL, rawContent = false) {
+  // Verified desktop Google organic cards (2026-11-15); nested wrappers share the same heading.
   const titles = new Set<Element>();
   return [...doc.querySelectorAll('#search #rso .MjjYud, #search #rso .g')].flatMap(container => {
     const title = container.querySelector('a[href] h3');
     if (!title || titles.has(title)) return [];
     titles.add(title);
-    const entry = result(container, title, container.querySelector('[data-sncf],.VwiC3b,.IsZvec'), base);
+    const entry = result(container, title, container.querySelector('[data-sncf],.VwiC3b,.IsZvec'), base, rawContent);
     return entry ? [entry] : [];
   });
 }
 const NAVER_WEB_CARD = '.fds-web-doc-root.fds-web-normal-doc-root';
-function naverResults(doc: Document, base: URL) {
+function naverResults(doc: Document, base: URL, rawContent = false) {
   // Live desktop 2026-10-19: semantic web/list/normal-card boundaries; never all headlines.
   const titles = new Set<Element>();
   return [...doc.querySelectorAll(`#main_pack [data-block-id^="web/"], #main_pack [data-template-id="ugcItem"][data-template-type="searchBasic"], #main_pack .fds-web-root .fds-web-list-root > ${NAVER_WEB_CARD}`)].flatMap(container => {
@@ -62,16 +62,17 @@ function naverResults(doc: Document, base: URL) {
     // Multiple matching snippets are ambiguous; do not guess which belongs to the title.
     if (modern && descriptions.length > 1) return [];
     const description = descriptions[0] ?? null;
-    const entry = result(container, title, description, base);
+    const entry = result(container, title, description, base, rawContent);
     if (entry) titles.add(title);
     return entry ? [entry] : [];
   });
 }
-export function extractSearchContent(doc: Document, raw: string, maskContacts = false): { content: string; organicResultCount: number } | null {
-  const inspected = inspectUrl(raw);
-  if (!inspected?.isSearchResultPage || !inspected.searchQuery || isExcludedDocument(doc, inspected.url)) return null;
-  const entries = searchEngine(inspected.url) === 'google' ? googleResults(doc, inspected.url) : naverResults(doc, inspected.url);
+export function extractSearchContent(doc: Document, raw: string, maskContacts = false, rawContent = false): { content: string; organicResultCount: number } | null {
+  const inspected = inspectUrl(raw, false, rawContent);
+  if (!inspected?.isSearchResultPage || !inspected.searchQuery || !rawContent && isExcludedDocument(doc, inspected.url)) return null;
+  const entries = searchEngine(inspected.url) === 'google' ? googleResults(doc, inspected.url, rawContent) : naverResults(doc, inspected.url, rawContent);
   if (maskContacts && entries.some(entry => highRiskText(entry.title) || highRiskText(entry.description))) throw new Error('SENSITIVE_CONTENT');
+  if (rawContent && (credentialText(inspected.searchQuery) || entries.some(e => credentialText(e.title) || credentialText(e.description)))) throw new Error('CREDENTIAL_CONTENT');
   const seen = new Set<string>();
   const blocks: string[] = [];
   const query = maskContacts ? maskPublicContacts(inspected.searchQuery) : inspected.searchQuery;

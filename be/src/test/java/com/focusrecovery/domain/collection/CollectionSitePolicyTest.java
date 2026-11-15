@@ -82,9 +82,9 @@ class CollectionSitePolicyTest {
     @Test void syntheticReleaseNeverEnablesRealProfile() throws Exception {
         setup("test");assertThat(policy.current()).isNotNull();env.setActiveProfiles("real-collection");assertThat(policy.current()).isNull();
     }
-    @Test void individualLocalAppliesTheCardValueCheckAtTheProductionVisitBoundary() throws Exception {
+    @Test void historicalV6AppliesTheCardValueCheckAtTheProductionVisitBoundary() throws Exception {
         setup("individual-local");
-        Files.copy(Path.of("../docs/data-collection/TEAM_POLICY.json"),dir.resolve("policy.json"),StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(Path.of("../docs/data-collection/TEAM_POLICY.v6.json"),dir.resolve("policy.json"),StandardCopyOption.REPLACE_EXISTING);
         when(jdbc.queryForObject(anyString(),eq(Integer.class),any(),any(),any())).thenReturn(1);
         policy=new CollectionSitePolicy(env,jdbc,Clock.systemUTC(),mapper);
         assertThat(policy.realProfile()).isTrue();

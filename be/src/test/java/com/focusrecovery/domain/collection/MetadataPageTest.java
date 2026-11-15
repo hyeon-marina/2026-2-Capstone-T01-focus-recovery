@@ -6,6 +6,20 @@ import org.junit.jupiter.api.Test;
 import com.focusrecovery.domain.visit.dto.CreatePageVisitRequest;
 
 class MetadataPageTest {
+    @Test void sharedV7CredentialAndHostBoundaries() throws Exception {
+        var cases=tools.jackson.databind.json.JsonMapper.builder().build().readTree(java.nio.file.Files.readString(java.nio.file.Path.of("../docs/contracts/v2/fixtures/raw-v7-boundaries.json")));
+        for(var c:cases.path("credentials")) {
+            String value=c.path("text").asText();boolean blocked=c.path("blocked").asBoolean();
+            assertThat(MetadataPage.credentialText(value)).as(value).isEqualTo(blocked);
+            var r=request("https://public.org","","Public","공개 기술 문서의 통제된 가상 예시입니다. ".repeat(4)+value,null,false);
+            if(blocked)assertThatThrownBy(()->MetadataPage.validateContent(r,List.of(),true,true)).hasFieldOrPropertyWithValue("code","COLLECTION_POLICY_BLOCKED");
+            else MetadataPage.validateContent(r,List.of(),true,true);
+        }
+        for(var c:cases.path("hosts")) {
+            var r=request("https://"+c.path("host").asText(),"","Public","Public documentation text ".repeat(4),null,false);
+            assertThat(MetadataPage.matches(r.normalizedUrl(),List.of(),true,true)).as(c.path("host").asText()).isEqualTo(c.path("allowed").asBoolean());
+        }
+    }
     @Test void sharedFrontendBackendAiPrivacyCorpus() throws Exception {
         var cases=tools.jackson.databind.json.JsonMapper.builder().build().readTree(java.nio.file.Files.readString(java.nio.file.Path.of("../docs/contracts/v2/fixtures/privacy-text.json")));
         for (var c:cases) assertThat(MetadataPage.publicText(c.path("text").asText()))
@@ -39,5 +53,18 @@ class MetadataPageTest {
         for(String raw:List.of("https://docs.python.org/3/tutorial/","https://blog.python.org"+MetadataPage.MARKER+"a".repeat(64)+"?q=secret"))
             assertThat(MetadataPage.matches(raw,List.of(),true)).isFalse();
         MetadataPage.validate(request("https://www.google.com","/search","Topic: PYTHON",MetadataPage.CONTENT,MetadataPage.QUERY,true),List.of(),true);
+    }
+
+    @Test void v7PublicPiiAndSensitiveTermsAreRawWhileCredentialsAndInvalidVisitsStayBlocked() {
+        String text="공개 의료 patient 계좌번호 fictional@example.org 010-0000-0000 02-000-0000 ".repeat(3);
+        for (boolean search:List.of(false,true)) {
+            var r=request(search?"https://www.google.com":"https://health.public.org",search?"/search":"","공개 의료",text,search?"medical fictional@example.org":null,search);
+            MetadataPage.validateContent(r,List.of(),true,true);
+            assertThatThrownBy(()->MetadataPage.validateContent(r,List.of(),true,false)).hasFieldOrPropertyWithValue("code","COLLECTION_POLICY_BLOCKED");
+        }
+        for(String value:List.of("password=fictional-value","Bearer fictional-token","api_key=fictional-key","비밀번호: fictional-value")) {
+            var r=request("https://public.org","","Public",text+value,null,false);
+            assertThatThrownBy(()->MetadataPage.validateContent(r,List.of(),true,true)).hasFieldOrPropertyWithValue("code","COLLECTION_POLICY_BLOCKED");
+        }
     }
 }

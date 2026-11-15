@@ -1,3 +1,4 @@
+import { credentialText } from '../shared/privacy';
 import { validMetadataTitle, METADATA_CONTENT, OMITTED_QUERY } from '../shared/metadata';
 import { describeMetadataUrl } from '../../real/url';
 import { UUID4 } from './contract';
@@ -15,7 +16,7 @@ import { allowedSite, validPolicy, publicText, publicSearchQuery, type SitePolic
 import { validSnapshot } from './contract';
 import type { PageSnapshot } from '../shared/types';
 import { MAX_OBSERVATION_GAP_MS } from './collector';
-declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string; metadataOnly?: boolean; pageContent?: boolean; maskContacts?: boolean; publicWeb?: boolean };
+declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string; metadataOnly?: boolean; pageContent?: boolean; maskContacts?: boolean; rawContent?: boolean; publicWeb?: boolean };
 
 export function installV2Browser(options: { uiPath: string; pilot: boolean; participant: boolean; real?: boolean }) {
 if (options.pilot && !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(API_BASE_URL)) throw new Error('V2_SYNTHETIC_ONLY');
@@ -32,9 +33,9 @@ const metadataKey = real && build?.metadataOnly ? (async () => {
   return bytes;
 })() : undefined;
 async function descriptionFor(raw: string) {
-  return build?.metadataOnly ? describeMetadataUrl(raw, sitePolicy?.sites ?? [], await metadataKey!, runtime.snapshot().session!.sessionId, build?.publicWeb, build?.pageContent, build?.maskContacts) : describeUrl(raw);
+  return build?.metadataOnly ? describeMetadataUrl(raw, sitePolicy?.sites ?? [], await metadataKey!, runtime.snapshot().session!.sessionId, build?.publicWeb, build?.pageContent, build?.maskContacts, build?.rawContent) : describeUrl(raw);
 }
-const permits = (raw: string) => real ? !!sitePolicy && Date.parse(sitePolicy.expiresAt) > Date.now() && allowedSite(raw, sitePolicy.sites, build?.metadataOnly === true, build?.publicWeb) : !!fixtureId(raw);
+const permits = (raw: string) => real ? !!sitePolicy && Date.parse(sitePolicy.expiresAt) > Date.now() && allowedSite(raw, sitePolicy.sites, build?.metadataOnly === true, build?.publicWeb, build?.rawContent) : !!fixtureId(raw);
 async function collectionAccess() {
   const a = await readCollectionAccess();
   if (real) {
@@ -56,7 +57,7 @@ const runtime = new V2Runtime(new V2Repository(API_BASE_URL), { ...v2HttpTranspo
       ? postJson(`/api/collection/assignments/${selectedAssignment}/start`, {}, key)
       : v2HttpTransport.start(goal, key);
   },
-});
+}, build?.rawContent === true);
 const reportAttempts = new Map<string, string>();
 const reportedFailures = new Set<string>();
 // Ephemeral, fixed codes only: never retain a URL, document text, input value or credential.
@@ -74,16 +75,16 @@ async function syncReport() {
     if (typeof attemptId !== 'string') throw new Error('ATTEMPT_NOT_FOUND');
     reportAttempts.set(sessionId, attemptId);
   }
-  for (const c of s.candidates) if (c.excluded && !reportedFailures.has(c.id)) { await accessRequest(`/api/collection/attempts/${attemptId}/failures`, {
+  for (const c of s.candidates) if (c.excluded && !c.failureAcknowledged && !reportedFailures.has(c.id)) { await accessRequest(`/api/collection/attempts/${attemptId}/failures`, {
     failureId: c.id, reasonCode: c.extractionFailureReason ?? c.excluded, observedAt: c.visitedAt,
-  }); reportedFailures.add(c.id); }
+  }); await runtime.acknowledgeFailure(c.id); reportedFailures.add(c.id); }
   if (s.lifecycle === 'ENDED' && s.end?.phase === 'acked' && s.notifications.every(r => r.shownAck && (!r.selection || r.selectionAck))) await accessRequest(`/api/collection/attempts/${attemptId}/delivered`, {
     visitCount: s.compactedCount + s.posts.entries.filter(e => e.phase === 'acked').length, lastSequence: s.nextSequence - 1,
   });
 }
 function snapshot() {
   const s = runtime.snapshot();
-  const diagnostics = { diagnostic, collecting: runtime.collecting(),
+  const diagnostics = { excludedCandidates: s.discardedCandidates + s.candidates.filter(c => c.excluded).length, collectingCandidates: s.candidates.filter(c => !c.closed && !c.post && !c.excluded).length, diagnostic, collecting: runtime.collecting(),
     localVisits: s.collectionAllowed ? s.compactedCount + s.posts.entries.length : 0,
     activeDurationMs: s.collectionAllowed ? s.candidates.find(c => c.id === s.tabs[s.foreground ?? -1])?.behavior.activeDurationMs ?? 0 : 0 };
   if (!options.participant) return { ...s, ...diagnostics };
@@ -93,6 +94,7 @@ function snapshot() {
     pending: s.collectionAllowed ? [...s.posts.entries, ...s.behaviors.entries].filter(e => e.phase !== 'acked').length : 0,
     notificationPending: s.collectionAllowed ? s.notifications.filter(r => !r.shownAck || r.selection && !r.selectionAck).length : 0,
     notificationAcknowledged: s.collectionAllowed ? s.notifications.filter(r => r.selectionAck).length : 0,
+    sessionAssignment: s.start?.plannedSessionId,
     pendingAssignment: s.lifecycle === 'START_PENDING' ? s.start?.plannedSessionId : undefined, quarantineClose: s.quarantineClose?.phase, endPhase: s.end?.phase, quarantined: !!s.quarantine, withdrawalPhase: s.withdrawal?.phase,
   };
 }
@@ -179,7 +181,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
           return { access, withdrawal };
         } catch (e) { return { error: e instanceof AccessError ? e.kind : 'network' }; }
       }
-      if (m?.type === 'v2-recollect' && typeof m.attemptId === 'string' && UUID4.test(m.attemptId)) return accessRequest(`/api/collection/attempts/${m.attemptId}/recollect`, { reasonCode: m.reasonCode });
+      if (m?.type === 'v2-recollect' && typeof m.attemptId === 'string' && UUID4.test(m.attemptId)) return accessRequest(`/api/collection/attempts/${m.attemptId}/recollect`, { reasonCode: m.reasonCode, plannedSessionId: m.plannedSessionId, sessionId: m.sessionId, confirmCompleted: m.confirmCompleted === true });
       if (m?.type === 'v2-assignments') return accessRequest('/api/collection/assignments');
       if (m?.type === 'v2-progress') { await syncReport(); return accessRequest('/api/collection/progress'); }
       if (m?.type === 'v2-start') {
@@ -196,6 +198,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
         await focus(t);
         await captureAllowedTabs();
       }
+      if (m?.type === 'v2-resume') { await runtime.resume(m.plannedSessionId); await captureAllowedTabs(); }
       if (m?.type === 'v2-retry') { await runtime.retry(); await runtime.flushNotifications(); await captureAllowedTabs(); }
       if (m?.type === 'v2-alert') return statusClient.candidate();
       if (m?.type === 'v2-shown') {
@@ -232,7 +235,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       }
       await focus(t);
       if (tabId !== focused || arrivedRevision !== navigationRevision.get(tabId)) return {collecting:false};
-      return {collecting,maskContacts:build?.maskContacts === true,pageContent:build?.pageContent === true,publicWeb:build?.publicWeb === true,metadataOnly:build?.metadataOnly === true,
+      return {collecting,rawContent:build?.rawContent === true,maskContacts:build?.maskContacts === true,pageContent:build?.pageContent === true,publicWeb:build?.publicWeb === true,metadataOnly:build?.metadataOnly === true,
         ...(source?{source}:{}),description:collecting && build?.metadataOnly ? await descriptionFor(source?.url ?? m.raw) : undefined};
     }
     if (m?.type === 'v2-context') return { collecting: !!sender.url && permits(sender.url) && runtime.collecting() };
@@ -262,6 +265,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
         diagnose(frameDiagnostics.has(m.diagnosticCode) ? m.diagnosticCode : !permitted ? 'SITE_PERMISSION_REQUIRED' : m.failureReason === 'INPUT_FOCUSED' ? 'INPUT_FOCUSED' : 'POLICY');
         await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()};
       }
+      if (build?.rawContent && (!permitted || m.safe !== true)) { diagnose('POLICY'); await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()}; }
       if (!permitted || m.safe !== true) { diagnose('SENSITIVE_CONTENT'); await runtime.quarantine('SENSITIVE_CONTENT', t.wall); return { collecting: false }; }
       if (!m.visible) { await runtime.leave(tabId, t); return { collecting: runtime.collecting() }; }
       if (documents.get(tabId) !== sender.documentId) { documents.set(tabId, sender.documentId);boundaries.set(tabId,t); }
@@ -270,8 +274,9 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       if (s && (!validSnapshot(s, runtime.snapshot().session!.sessionId) || s.normalizedUrl !== description.normalizedUrl || s.identity !== description.identity
         || build?.pageContent && (!s.title.trim() || validMetadataTitle(s.title) || s.content === METADATA_CONTENT || s.searchQuery === OMITTED_QUERY)
         || build?.metadataOnly && !build?.pageContent && (!validMetadataTitle(s.title) || s.content !== ('content' in description ? description.content : ''))
-        || build?.pageContent && s.isSearchResultPage && !publicSearchQuery(s.searchQuery ?? '')
-        || s.searchQuery !== description.searchQuery || s.isSearchResultPage !== description.isSearchResultPage || !publicText(s.title,s.content,s.searchQuery ?? ''))) {
+        || build?.pageContent && !build.rawContent && s.isSearchResultPage && !publicSearchQuery(s.searchQuery ?? '')
+        || s.searchQuery !== description.searchQuery || s.isSearchResultPage !== description.isSearchResultPage || (build?.rawContent ? credentialText(s.title+'\n'+s.content+'\n'+(s.searchQuery ?? '')) : !publicText(s.title,s.content,s.searchQuery ?? '')))) {
+        if (build?.rawContent) { diagnose('POLICY'); await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()}; }
         await runtime.quarantine('SENSITIVE_CONTENT', t.wall);return { collecting: false };
       }
       const generation = build?.pageContent ? description.identity : s ? [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s.title+'\n'+s.content)))].map(b=>b.toString(16).padStart(2,'0')).join('') : 'extracting';
