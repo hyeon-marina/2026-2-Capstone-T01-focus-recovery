@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
 import java.util.*;
 import java.util.concurrent.*;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import com.focusrecovery.domain.analysis.dto.V2AnalysisInput;
 import com.focusrecovery.domain.analysis.dto.V2AnalysisCompletion;
@@ -24,11 +25,12 @@ public class V2AiClient {
 	private final JsonMapper mapper;
 	private final JsonMapper strict;
 	private final HttpClient http;
+	private final Environment environment;
 	private static final Set<String> ERRORS = Set.of("INVALID_REQUEST", "COMPOSE_ID_CONFLICT", "COMPOSE_IN_PROGRESS",
 		"ANALYSIS_ID_CONFLICT", "ANALYSIS_IN_PROGRESS", "AI_COMPOSITION_FAILED", "AI_ANALYSIS_FAILED", "AI_NOT_READY", "PRIVACY_RETRACTED");
 	private static final Set<String> TRANSIENT = Set.of("AI_TIMEOUT", "AI_UNAVAILABLE", "AI_NOT_READY", "COMPOSE_IN_PROGRESS", "AI_COMPOSITION_FAILED");
-	public V2AiClient(AiProperties ai, V2DispatchProperties dispatch, JsonMapper mapper, @org.springframework.beans.factory.annotation.Value("${focus-recovery.v2.dispatch.service-token:}") String serviceToken) {
-        this.serviceToken = serviceToken;
+	public V2AiClient(AiProperties ai, V2DispatchProperties dispatch, JsonMapper mapper, Environment environment, @org.springframework.beans.factory.annotation.Value("${focus-recovery.v2.dispatch.service-token:}") String serviceToken) {
+        this.serviceToken = serviceToken; this.environment = environment;
 		this.ai = ai; this.dispatch = dispatch; this.mapper = mapper;
 		this.strict = mapper.rebuild().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
 		this.http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(ai.connectTimeout()).build();
@@ -80,7 +82,10 @@ public class V2AiClient {
 	}
 	private JsonNode post(String path, String payload) {
 		var target = ai.baseUrl().resolve(path);
-        if (serviceToken.length() < 32 || !("https".equals(target.getScheme()) || "http".equals(target.getScheme()) && Set.of("localhost","127.0.0.1").contains(target.getHost())))
+        if (serviceToken.length() < 32 || !("https".equals(target.getScheme()) || "http".equals(target.getScheme()) &&
+            (Set.of("localhost","127.0.0.1").contains(target.getHost())
+                // Same trust boundary as RetractionDispatcher: plaintext only to the private compose service.
+                || Arrays.equals(environment.getActiveProfiles(), new String[]{"real-collection"}) && "ai".equals(target.getHost()))))
             throw new V2AiException("AI_NOT_READY", true);
         HttpRequest request = HttpRequest.newBuilder(ai.baseUrl().resolve(path)).timeout(dispatch.responseTimeout())
 			.header("Content-Type", "application/json").header("Authorization", "Bearer " + serviceToken).POST(HttpRequest.BodyPublishers.ofString(payload)).build();
