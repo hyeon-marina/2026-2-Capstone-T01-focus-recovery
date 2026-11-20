@@ -16,9 +16,10 @@ import tools.jackson.databind.json.JsonMapper;
 
 class V2AiClientTest {
 	MockV2AiServer ai;
-	V2AiClient client(String url, Duration timeout) {
+	V2AiClient client(String url, Duration timeout, String... profiles) {
 		var settings = new V2DispatchProperties(false, timeout, timeout.plusSeconds(2), Duration.ZERO, Duration.ofMillis(10), 1);
-		return new V2AiClient(new AiProperties(URI.create(url), Duration.ofMillis(100), Duration.ofSeconds(10), 0.001), settings, JsonMapper.builder().findAndAddModules().build(), "synthetic-internal-service-token-95-0123456789");
+		var environment = new org.springframework.mock.env.MockEnvironment(); environment.setActiveProfiles(profiles);
+		return new V2AiClient(new AiProperties(URI.create(url), Duration.ofMillis(100), Duration.ofSeconds(10), 0.001), settings, JsonMapper.builder().findAndAddModules().build(), environment, "synthetic-internal-service-token-95-0123456789");
 	}
 	Composition.Input input() { return new Composition.Input(2, UUID.randomUUID(), UUID.randomUUID(), 0, "a".repeat(64), List.of(new Composition.Visit(UUID.randomUUID(), 1))); }
 	@BeforeEach void open() { ai = new MockV2AiServer(); }
@@ -27,6 +28,13 @@ class V2AiClientTest {
 		ai.handler = (path, body) -> { try { Thread.sleep(400); } catch (InterruptedException e) { Thread.currentThread().interrupt(); } return ai.normal(path, body); };
 		assertThatThrownBy(() -> client(ai.url(), Duration.ofMillis(100)).compose(input())).isInstanceOf(V2AiException.class).extracting("code").isEqualTo("AI_TIMEOUT");
 		assertThatThrownBy(() -> client("http://127.0.0.1:1", Duration.ofSeconds(1)).compose(input())).isInstanceOf(V2AiException.class).extracting("code").isEqualTo("AI_UNAVAILABLE");
+	}
+	@Test void plaintextComposeServiceHostIsAllowedOnlyForRealCollection() {
+		// real-collection reaches AI at http://ai:8000; the guard must not reject it before any HTTP attempt.
+		assertThatThrownBy(() -> client("http://ai:1", Duration.ofSeconds(1), "real-collection").compose(input())).isInstanceOf(V2AiException.class).extracting("code").isEqualTo("AI_UNAVAILABLE");
+		assertThatThrownBy(() -> client("http://ai:1", Duration.ofSeconds(1), "individual-local").compose(input())).isInstanceOf(V2AiException.class).extracting("code").isEqualTo("AI_NOT_READY");
+		assertThatThrownBy(() -> client("http://ai:1", Duration.ofSeconds(1), "real-collection", "test").compose(input())).isInstanceOf(V2AiException.class).extracting("code").isEqualTo("AI_NOT_READY");
+		assertThatThrownBy(() -> client("http://example.org:1", Duration.ofSeconds(1), "real-collection").compose(input())).isInstanceOf(V2AiException.class).extracting("code").isEqualTo("AI_NOT_READY");
 	}
 	@ParameterizedTest @ValueSource(strings={"duplicate-key", "invalid-json", "version-type", "missing-field"})
 	void rejectsWireErrorsBeforeDtoCoercion(String error) {

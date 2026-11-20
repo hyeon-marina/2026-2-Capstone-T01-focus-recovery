@@ -70,6 +70,10 @@ class V2LiveHttpTest {
 		await(() -> states.findFirstByIdWindowIdOrderByIdStateVersionDesc(window).map(s -> s.getId().stateVersion() == 2).orElse(false));
 		JsonNode drift = call("GET", base + "/analysis-status", null); assertThat(drift.at("/currentDecision/finalState").stringValue()).isEqualTo("DRIFT");
 		assertThat(drift.get("alert").isObject()).isTrue(); assertThat(drift.at("/alert/stateVersion").longValue()).isEqualTo(2);
+		String alertPath = base + "/alerts/" + drift.at("/alert/alertId").stringValue(), shownAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS).toString();
+		assertThat(call("PATCH", alertPath + "/shown", Map.of("shownAt", shownAt)).get("shownAt").stringValue()).isEqualTo(shownAt);
+		JsonNode choice = call("POST", alertPath + "/responses", Map.of("action", "RETURN_TO_GOAL", "selectedAt", shownAt));
+		assertThat(choice.get("action").stringValue()).isEqualTo("RETURN_TO_GOAL"); assertThat(choice.get("feedbackId").isString()).isTrue();
 		JsonNode history = call("GET", base + "/windows/" + window + "/states", null); assertThat(history.get("items").size()).isEqualTo(2);
 		var analysis = analyses.findByWindowId(window).orElseThrow(); assertThat(analysis.getProcessingStatus()).isEqualTo(AnalysisStatus.COMPLETED);
 		assertThat(windows.findBySessionIdOrderByWindowIndex(session)).hasSize(1); assertThat(states.findByIdWindowIdOrderByIdStateVersionDesc(window)).hasSize(2);
