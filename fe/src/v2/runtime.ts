@@ -33,6 +33,9 @@ export class V2Runtime {
   private verifiedIdentity?: { participantId: string; expiresAt: string; credentialEpoch: number };
   private accessError?: string;
   private accessEpoch = 0;
+  private accessChecks = 0;
+  private settledAccessCheck = 0;
+  private userPrivacyPending = 0;
   private credentialEpoch = accessGeneration();
   private withdrawalRunning = false;
   private serverWithdrawalSeen = false;
@@ -54,13 +57,28 @@ export class V2Runtime {
   constructor(private repository: V2Repository, private transport: V2Transport, private resumeIncomplete = false, private freeGoalSession = false) {
     this.collector = new V2Collector(this.state, undefined, resumeIncomplete);
     const protect = async <T>(send: () => Promise<T>) => {
+      const epoch = this.accessEpoch, credential = accessGeneration();
+      const current = () => epoch === this.accessEpoch && credential === accessGeneration();
+      if (this.freeGoalSession) await this.verifyAccess();
       try {
-        await this.verifyAccess();
-        if (this.needsReconnect()) throw new AccessError('network');
-        return await send();
+        if (!this.freeGoalSession) await this.verifyAccess();
+        if (this.freeGoalSession && (!current() || !this.canSend())) throw new AccessError('account');
+        const result = await send();
+        if (this.freeGoalSession && !current()) throw new AccessError('account');
+        return result;
+      } catch (error) {
+        if (this.freeGoalSession && !current()) throw error;
+        if (error instanceof AccessError && (!this.freeGoalSession || error.kind !== 'account')) {
+          this.suspendAccess(); this.accessError = error.kind;
+        }
+        if (error && typeof error === 'object' && 'status' in error) {
+          if (error.status === 401 || this.freeGoalSession && error.status === 403) {
+            this.suspendAccess(); this.accessError = error.status === 401 ? 'authentication' : 'consent';
+          }
+        }
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'PRIVACY_RETRACTED') this.held = true;
+        throw error;
       }
-      catch (e) { if (e instanceof AccessError) { this.suspendAccess(); this.accessError = e.kind; }
-        if (e && typeof e === 'object' && 'status' in e && e.status === 401) { this.suspendAccess(); this.accessError = 'authentication'; } if (e && typeof e === 'object' && 'code' in e && e.code === 'PRIVACY_RETRACTED') this.held = true; throw e; }
     };
     const mutate = <T>(op: () => T) => this.mutate(op).then(value => { this.kick(); return value; });
     this.posts = new VisitDelivery(mutate, () => this.canSend(), v => protect(() => transport.post(v)));
@@ -71,6 +89,10 @@ export class V2Runtime {
   suspendAccess() { this.accessEpoch++; this.access = undefined; this.accessError = 'AUTHENTICATION_REQUIRED';
     this.pauseAuthorization();
   }
+  beginUserPrivacyChange() {
+    if (this.userPrivacyPending++ === 0) this.suspendAccess();
+    return () => { this.userPrivacyPending--; };
+  }
   private pauseAuthorization() {
     if (this.freeGoalSession && this.committed.lifecycle === 'ACTIVE') this.reconnectRequired = true;
     for (const c of this.state.candidates) { c.cursor = undefined; if (!this.resumeIncomplete) c.closed = true; }
@@ -78,15 +100,19 @@ export class V2Runtime {
     delete this.state.lastVisit;
   }
   private authorized() {
-    return !this.serverWithdrawalSeen && !!this.access && this.credentialEpoch === accessGeneration() && Date.parse(this.access.expiresAt) > Date.now()
+    return !this.userPrivacyPending && !this.serverWithdrawalSeen && !!this.access && this.credentialEpoch === accessGeneration() && Date.parse(this.access.expiresAt) > Date.now()
       && !!this.committed.owner && this.access.participantId === this.committed.owner.participantId
       && this.access.consentId === this.committed.owner.consentId && this.access.consentValid && this.access.collectionEnabled && !this.access.withdrawn;
   }
   async verifyAccess(forStart = false, ownershipOnly = false) {
-    const epoch = this.accessEpoch, credential = accessGeneration();
+    if (this.userPrivacyPending && !ownershipOnly) throw new AccessError('authentication');
+    const epoch = this.accessEpoch, credential = accessGeneration(), check = ++this.accessChecks;
+    const current = () => epoch === this.accessEpoch && credential === accessGeneration()
+      && (!this.freeGoalSession || check >= this.settledAccessCheck);
     try {
       const access = await this.transport.access();
-      if (epoch !== this.accessEpoch || credential !== accessGeneration()) throw new AccessError('account');
+      if (!current()) throw new AccessError('account');
+      this.settledAccessCheck = check;
       if (!Number.isFinite(Date.parse(access.expiresAt)) || Date.parse(access.expiresAt) <= Date.now()) throw new AccessError('authentication');
       this.verifiedIdentity = { participantId: access.participantId, expiresAt: access.expiresAt, credentialEpoch: credential };
       const owner = this.committed.owner;
@@ -100,7 +126,8 @@ export class V2Runtime {
         || owner && access.consentId !== owner.consentId && !newSession)) throw new AccessError('consent');
       return access;
     } catch (e) {
-      if (this.freeGoalSession && (epoch !== this.accessEpoch || credential !== accessGeneration())) throw e;
+      if (this.freeGoalSession && !current()) throw e;
+      this.settledAccessCheck = check;
       this.pauseAuthorization();
       this.access = undefined; this.accessError = e instanceof AccessError ? e.kind : 'network';
       throw e;
@@ -119,7 +146,7 @@ export class V2Runtime {
       consentValid: this.access?.consentValid === true,
       collectionEnabled: this.access?.collectionEnabled === true,
       withdrawn: this.serverWithdrawalSeen || this.access?.withdrawn === true,
-      serverVerified: !!this.access && authenticated,
+      privacyPending: this.userPrivacyPending > 0,
       reconnectRequired: this.needsReconnect(),
     };
   }
@@ -201,7 +228,9 @@ export class V2Runtime {
     const previous = previousSessionId ? undefined : this.committed.start;
     const epoch = this.accessEpoch, credential = accessGeneration();
     if (previous && (previous.plannedSessionId && previous.plannedSessionId !== plannedSessionId || previous.goalText !== goalText || previous.collectionSpecVersion !== '2.0' || previous.apiBaseUrl !== API_BASE_URL)) throw new Error('V2_START_CONFLICT');
-    await this.mutate(() => {
+    const prepared = await this.mutate(() => {
+      if (this.freeGoalSession && (epoch !== this.accessEpoch || credential !== accessGeneration() || this.userPrivacyPending
+        || this.state.withdrawal)) return false;
       if (previousSessionId) {
         const revision = this.state.revision;
         this.posts.clear(); this.behaviors.clear(); this.ending.clear(); this.compactedIds = [];
@@ -211,7 +240,12 @@ export class V2Runtime {
       this.state.start ??= { ...(plannedSessionId ? { plannedSessionId } : {}),
         ...(this.freeGoalSession && previousSessionId ? { previousSessionId } : {}), goalText, idempotencyKey: crypto.randomUUID(), collectionSpecVersion: '2.0', apiBaseUrl: API_BASE_URL };
       this.state.lifecycle = 'START_PENDING';
+      return true;
     });
+    if (!prepared) throw new AccessError('account');
+    if (this.freeGoalSession && (epoch !== this.accessEpoch || credential !== accessGeneration() || this.userPrivacyPending)) {
+      throw new AccessError('account');
+    }
     this.stopping = false; this.held = false;
     await this.verifyAccess();
     const response = await this.transport.start(goalText, this.committed.start!.idempotencyKey);
@@ -247,15 +281,22 @@ export class V2Runtime {
   async foreground(tab: number | null, stamp: Stamp, switchEvent = false) {
     if (this.failed) throw new Error('V2_STORAGE_BLOCKED');
     if (!this.collecting()) return;
-    await this.mutate(() => { this.collector.foreground(tab, stamp, switchEvent); this.sync(true); });
+    await this.mutate(() => {
+      if (this.userPrivacyPending) return;
+      this.collector.foreground(tab, stamp, switchEvent); this.sync(true);
+    });
     this.kick();
   }
   async leave(tab: number, stamp: Stamp, navigation = false) {
     if (!this.collecting()) return;
-    await this.mutate(() => { navigation ? this.collector.invalidateTarget(tab, stamp) : this.collector.pause(tab, stamp); this.sync(true); });
+    await this.mutate(() => {
+      if (this.userPrivacyPending) return;
+      navigation ? this.collector.invalidateTarget(tab, stamp) : this.collector.pause(tab, stamp); this.sync(true);
+    });
     this.kick();
   }
   async stop(stamp: Stamp) {
+    if (this.freeGoalSession && (this.userPrivacyPending || this.stopping && !this.committed.quarantine)) throw new Error('V2_STOP_BLOCKED');
     this.stopping = true; // Synchronous intent precedes queued writes and in-flight HTTP replies.
     if (this.committed.quarantine && this.committed.session && !this.committed.withdrawal) {
       if (this.committed.quarantineClose?.phase === 'acknowledged') return;
@@ -264,10 +305,13 @@ export class V2Runtime {
       return;
     }
     if (this.committed.lifecycle !== 'ACTIVE') return;
-    await this.mutate(() => {
+    const stopped = await this.mutate(() => {
+      if (this.freeGoalSession && (this.state.withdrawal || this.userPrivacyPending)) return false;
       this.collector.finish(stamp); this.sync(true); this.ending.begin(this.state.session!, stamp.wall);
       this.state.lifecycle = 'END_PENDING';
+      return true;
     });
+    if (!stopped) { this.stopping = false; throw new Error('V2_STOP_BLOCKED'); }
     this.kick();
   }
   private quarantineNow(reason: NonNullable<V2State['quarantine']>['reason'], wall: number) {
@@ -445,7 +489,8 @@ export class V2Runtime {
     } finally { this.notificationRunning = false; }
   }
   async withdrawAll(wall = Date.now()) {
-    this.suspendAccess(); this.held = true;
+    this.suspendAccess();
+    if (!this.freeGoalSession) this.held = true;
     const identity = this.verifiedIdentity;
     const current = identity && identity.credentialEpoch === accessGeneration() && Date.parse(identity.expiresAt) > Date.now();
     if (this.committed.owner && current && identity.participantId !== this.committed.owner.participantId) throw new AccessError('account');
@@ -454,6 +499,7 @@ export class V2Runtime {
       const identity = await this.verifyAccess(false, true);
       await this.mutate(() => { this.state.owner = { participantId: identity.participantId, consentId: identity.consentId }; });
     }
+    this.held = true;
     await this.mutate(() => {
       this.state.withdrawal ??= { requestId: crypto.randomUUID(), phase: 'pending', attempts: 0 };
       this.quarantineNow('CONSENT_WITHDRAWN', wall);

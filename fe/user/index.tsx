@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import { normalizeGoal, validGoal } from '../src/shared/goal';
 import { FIXTURE_ORIGIN } from '../synthetic/catalog';
-import { isUserSnapshot, type UserCommand, type UserError, type UserReply, type UserSnapshot } from './protocol';
+import { isPrivacyCommand, isUserSnapshot, type UserCommand, type UserError, type UserReply, type UserSnapshot } from './protocol';
 import './style.css';
 
 const headings = {
@@ -24,6 +24,10 @@ const errors: Record<UserError, string> = {
 const analysis: Record<UserSnapshot['analysis'], string> = {
   unconnected: '분석 미연결', empty: '분석 결과 없음', pending: '분석 대기', delayed: '분석 지연', failed: '분석 실패', completed: '분석 완료',
 };
+const connectionLabels: Record<UserSnapshot['connection'], string> = {
+  unverified: '서버 검증 전', verified: '최근 서버 검증', stale: '서버 재확인 필요',
+  unreachable: '서버 응답 실패', 'auth-required': '인증 확인 필요', denied: '서버 접근 거부',
+};
 const timeFormat = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 function Popup() {
@@ -34,7 +38,7 @@ function Popup() {
   const [offline, setOffline] = useState(false);
   const [next, setNext] = useState(false);
   const [consent, setConsent] = useState(false);
-  const pending = useRef(false);
+  const pending = useRef<{ id: number; type: UserCommand['type'] } | undefined>(undefined);
   const generation = useRef(0);
 
   useEffect(() => {
@@ -61,13 +65,14 @@ function Popup() {
   }, []);
 
   async function request(command: UserCommand) {
-    if (pending.current) return;
-    pending.current = true;
-    generation.current++;
+    if (pending.current && (!isPrivacyCommand(command.type) || isPrivacyCommand(pending.current.type))) return;
+    const id = ++generation.current;
+    pending.current = { id, type: command.type };
     setBusy(command.type);
     setError(undefined);
     try {
       const reply: UserReply = await chrome.runtime.sendMessage(command);
+      if (pending.current?.id !== id) return;
       generation.current++;
       if ('snapshot' in reply && isUserSnapshot(reply.snapshot)) {
         setSnapshot(reply.snapshot);
@@ -78,8 +83,11 @@ function Popup() {
         setNext(false);
         setGoal('');
       }
-    } catch { generation.current++; setSnapshot(undefined); setOffline(true); }
-    finally { pending.current = false; setBusy(undefined); }
+    } catch {
+      if (pending.current?.id === id) { generation.current++; setSnapshot(undefined); setOffline(true); }
+    } finally {
+      if (pending.current?.id === id) { pending.current = undefined; setBusy(undefined); }
+    }
   }
 
   function authenticate(event: FormEvent<HTMLFormElement>) {
@@ -92,12 +100,14 @@ function Popup() {
 
   const size = normalizeGoal(goal).length;
   const s = snapshot;
-  const loginRequired = s?.access === 'auth' || s?.access === 'account';
-  const ready = s?.access === 'ready' && s.permission && !s.storageFailed;
-  const canStart = ready && s.connection === 'verified' && (s.lifecycle === 'IDLE' || s.lifecycle === 'ENDED' && next);
+  const loginRequired = !s?.privacyPending && (s?.access === 'auth' || s?.access === 'account');
+  const ready = s?.access === 'ready' && s.permission && !s.storageFailed && !s.privacyPending;
+  const privacyBusy = !!s?.privacyPending || !!busy && isPrivacyCommand(busy);
+  const canStart = ready && ['verified', 'stale'].includes(s.connection) && (s.lifecycle === 'IDLE' || s.lifecycle === 'ENDED' && next);
   const needsRecovery = s?.reconnectRequired || s?.deliveryIssue || s?.privacyHold;
   const fixture = `${FIXTURE_ORIGIN}/__focus_synthetic__/a`;
   const title = !s ? '작업 상태 확인'
+    : s.privacyPending && !s.withdrawalPending ? '접근 중단 처리 중'
     : loginRequired ? '합성 계정으로 시작'
     : s.access === 'consent' ? '합성 수집 동의'
     : s.access === 'withdrawn' ? (s.withdrawalPending ? '동의 철회 확인 중' : '수집 동의 철회됨')
@@ -112,6 +122,7 @@ function Popup() {
     <section aria-labelledby="heading" className="workspace">
       <h1 id="heading">{title}</h1>
       {!s && <p role="status">{offline ? '확장 프로그램 상태를 읽을 수 없어요. 팝업을 다시 열어 주세요.' : '저장된 작업 상태를 확인하고 있어요.'}</p>}
+      {s?.privacyPending && <p role="status">수집과 전송을 멈췄어요. 개인정보 요청을 처리하고 있어요.</p>}
       {s?.storageFailed && <p role="alert" className="notice">작업 저장소를 열 수 없어요. 기록을 보존하고 수집과 전송을 멈췄어요. 확장 프로그램을 다시 열어 상태를 확인해 주세요.</p>}
       {s && !s.permission && <p role="alert" className="notice">Chrome에서 합성 사이트 권한이 꺼져 있어요. 확장 프로그램의 사이트 액세스를 확인해 주세요.</p>}
       {error && <p className="notice" role="alert">{errors[error]}</p>}
@@ -162,8 +173,8 @@ function Popup() {
           <p className="notice">서버에 확인되지 않은 기록이 있어요. 연결을 확인한 뒤 다시 보내 주세요.</p>
           <button disabled={!ready || !!busy} onClick={() => void request({ type: 'retry' })}>미전송 기록 다시 보내기</button>
         </>}
-        <button className="primary" disabled={!!busy || s.storageFailed || s.access === 'withdrawn'} onClick={() => {
-          if (s.startedAt) void request({ type: 'stop', startedAt: s.startedAt });
+        <button className="primary" disabled={!!busy || s.storageFailed || s.privacyPending || s.access === 'withdrawn'} onClick={() => {
+          if (s.sessionHandle) void request({ type: 'stop', sessionHandle: s.sessionHandle });
         }}>{busy === 'stop' ? '종료 요청 중…' : '작업 종료'}</button>
       </>}
       {s?.lifecycle === 'END_PENDING' && !loginRequired && <>
@@ -177,14 +188,17 @@ function Popup() {
     </section>
     <footer>
       <a href={fixture} target="_blank" rel="noreferrer">합성 페이지 열기 <span aria-hidden="true">↗</span></a>
-      {s && <span className={s.connection === 'verified' ? 'connected' : ''}>{s.connection === 'verified' ? '서버 확인됨' : '연결 미확인'}</span>}
+      {s && <span role="status" className={s.connection === 'verified' ? 'connected' : ''}
+        title={s.serverCheckedAt ? `마지막 검증 ${timeFormat.format(s.serverCheckedAt)}` : undefined}>
+        {connectionLabels[s.connection]}
+      </span>}
     </footer>
     {s && <details className="settings">
       <summary>연결 및 동의 설정</summary>
       <div className="settings-actions">
         <button disabled={!!busy} onClick={() => void request({ type: 'access' })}>접근 상태 확인</button>
-        {s.access !== 'auth' && <button disabled={!!busy} onClick={() => { setConsent(false); void request({ type: 'logout' }); }}>로그아웃</button>}
-        {s.access === 'ready' && <button disabled={!!busy} onClick={() => {
+        {s.access !== 'auth' && <button disabled={privacyBusy} onClick={() => { setConsent(false); void request({ type: 'logout' }); }}>로그아웃</button>}
+        {s.access === 'ready' && <button disabled={privacyBusy} onClick={() => {
           if (window.confirm('합성 수집 동의를 철회하고 수집과 전송을 중단할까요?')) void request({ type: 'withdraw' });
         }}>합성 동의 철회</button>}
       </div>

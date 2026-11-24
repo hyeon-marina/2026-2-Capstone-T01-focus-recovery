@@ -30,8 +30,8 @@ const viewport = { width: 380, height: 560 };
 let context, worker, id, popup, page, version;
 const fixture = letter => `${FIXTURE_ORIGIN}/__focus_synthetic__/${letter}`;
 
-async function launch() {
-  context = await chromium.launchPersistentContext(join(temp, 'profile'), {
+async function launch(profile = 'profile') {
+  context = await chromium.launchPersistentContext(join(temp, profile), {
     channel: 'chromium', executablePath: process.env.CHROMIUM_PATH, headless: !process.env.HEADED, viewport,
     args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
   });
@@ -47,8 +47,10 @@ async function openPopup() {
 }
 const button = name => popup.getByRole('button', { name, exact: true });
 const heading = name => popup.getByRole('heading', { name, exact: true }).waitFor();
-const command = data => popup.evaluate(data => chrome.runtime.sendMessage(data), data);
+const sendFrom = (view, data) => view.evaluate(data => chrome.runtime.sendMessage(data), data);
+const command = data => sendFrom(popup, data);
 const state = async () => (await command({ type: 'status' })).snapshot;
+const fromViewStatus = async view => (await sendFrom(view, { type: 'status' })).snapshot;
 async function waitFor(check, reason, timeout = 22000) {
   const until = Date.now() + timeout;
   while (Date.now() < until) {
@@ -73,6 +75,28 @@ async function restartWorker() {
   await cdp.send('ServiceWorker.enable');
   await cdp.send('ServiceWorker.stopAllWorkers');
   await cdp.detach();
+}
+function holdResponse(key) {
+  let hit, unblock;
+  const received = new Promise(resolve => { hit = resolve; });
+  const held = new Promise(resolve => { unblock = resolve; });
+  mock.faults[key] = () => { hit(); return held; };
+  return {
+    async received() {
+      let timer;
+      try {
+        await Promise.race([received, new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`No HTTP request reached ${key}`)), 20000);
+        })]);
+      } finally { clearTimeout(timer); }
+    },
+    release() { delete mock.faults[key]; unblock(); },
+  };
+}
+async function secondPopup() {
+  const view = await context.newPage();
+  await view.goto(`chrome-extension://${id}/${USER_POPUP}`);
+  return view;
 }
 async function disk() {
   return popup.evaluate(async name => {
@@ -116,6 +140,7 @@ try {
   await button('합성 동의 저장').click();
   await heading('오늘의 작업 목표');
   assert.equal(await button('작업 시작').isDisabled(), true);
+  mock.faults.startedAt = new Date(Date.now() - 10000).toISOString();
   const goal = 'React 상태 관리 방식에 대한 자료 조사하기';
   await popup.getByLabel('최초 작업 목표').fill('  ' + goal + '  ');
   await popup.getByLabel('최초 작업 목표').focus();
@@ -134,6 +159,9 @@ try {
   } finally { release(); delete mock.faults.holdStart; }
   await heading('작업 진행 중');
   const first = lastSession();
+  const firstHandle = (await state()).sessionHandle;
+  assert.match(firstHandle, /^[a-f0-9]{64}$/);
+  assert.ok(!JSON.stringify(await state()).includes((await disk()).start.idempotencyKey));
   assert.equal(first.session.goalText, goal);
   assert.equal(first.session.collectionSpecVersion, '2.0');
   assert.equal(startRequests().length, 1);
@@ -169,6 +197,71 @@ try {
   await login(ALICE, '작업 진행 중');
   await waitFor(async () => (await state()).collecting, 'Chrome active restore');
   assert.equal((await disk()).session.sessionId, first.session.sessionId);
+  assert.equal((await state()).sessionHandle, firstHandle);
+  const serverReadCount = mock.accessReads;
+  const checkedAt = (await state()).serverCheckedAt;
+  await mock.offline();
+  await popup.close(); await openPopup();
+  await popup.getByText('최근 서버 검증', { exact: true }).waitFor();
+  for (let i = 0; i < 4; i++) assert.equal((await state()).serverCheckedAt, checkedAt);
+  assert.equal(mock.accessReads, serverReadCount, 'status never probes HTTP');
+  assert.equal((await command({ type: 'access' })).error, 'network');
+  await popup.getByText('서버 응답 실패', { exact: true }).waitFor();
+  assert.equal((await state()).lifecycle, 'ACTIVE');
+  assert.equal((await state()).collecting, false);
+  await screen('05-server-unreachable');
+  await mock.online();
+  mock.faults.accessStatus = 503;
+  assert.equal((await command({ type: 'access' })).snapshot.connection, 'unreachable');
+  mock.faults.accessStatus = 403;
+  assert.equal((await command({ type: 'access' })).snapshot.connection, 'denied');
+  delete mock.faults.accessStatus;
+  assert.equal((await command({ type: 'access' })).snapshot.connection, 'verified');
+  assert.equal((await state()).collecting, true);
+
+  const logoutView = await secondPopup();
+  const accessDelay = holdResponse('holdAccess');
+  const logoutDelay = holdResponse('holdLogout');
+  const heldAccess = command({ type: 'access' });
+  await accessDelay.received();
+  await popup.getByText('연결 및 동의 설정', { exact: true }).click();
+  await button('접근 상태 확인').click();
+  assert.equal(await button('접근 상태 확인').isDisabled(), true);
+  const logoutRequests = () => mock.requests.filter(r => r.url === '/api/auth/logout').length;
+  const priorLogouts = logoutRequests();
+  try {
+    await button('로그아웃').click();
+    await logoutDelay.received();
+    const duplicate = sendFrom(logoutView, { type: 'logout' });
+    await waitFor(async () => (await state()).privacyPending, 'logout intent while both replies are held');
+    assert.equal((await state()).collecting, false);
+    assert.equal((await fromViewStatus(logoutView)).collecting, false);
+    assert.equal(logoutRequests(), priorLogouts + 1);
+    const lastSeq = (await disk()).nextSequence, before = writes().length;
+    await popup.bringToFront();
+    assert.equal((await disk()).nextSequence, lastSeq);
+    assert.equal(writes().length, before);
+    logoutDelay.release();
+    assert.equal((await duplicate).snapshot.access, 'auth');
+    accessDelay.release();
+    assert.equal((await heldAccess).snapshot.collecting, false);
+  } finally { logoutDelay.release(); accessDelay.release(); }
+  await logoutView.close();
+  await heading('합성 계정으로 시작');
+  await login(ALICE, '작업 진행 중');
+  await waitFor(async () => (await state()).collecting, 'same owned session after logout and reauthentication');
+  const interruptedLogout = holdResponse('holdLogout');
+  const interrupted = command({ type: 'logout' }).catch(() => undefined);
+  try {
+    await interruptedLogout.received();
+    await restartWorker();
+    await waitFor(async () => (await state()).access === 'auth' && !(await state()).privacyPending, 'interrupted logout recovered');
+    assert.deepEqual(await popup.evaluate(() => chrome.storage.session.get()), {});
+  } finally { interruptedLogout.release(); }
+  await interrupted;
+  await login(ALICE, '작업 진행 중');
+  console.log('PASS H: server endpoint stopped, 503 and 403, verified recovery, concurrent logout and late access reply');
+
   await end();
   assert.equal(first.session.status, 'ENDED');
   assert.ok([...first.visits.values()].every(v => v.applied >= 1));
@@ -178,6 +271,16 @@ try {
   const second = lastSession();
   assert.notEqual(second.session.sessionId, first.session.sessionId);
   assert.notEqual(second.session.goalText, first.session.goalText);
+  assert.equal(second.session.startedAt, first.session.startedAt);
+  const oldView = await secondPopup();
+  const staleStop = { type: 'stop', sessionHandle: firstHandle };
+  assert.equal((await sendFrom(oldView, staleStop)).error, 'blocked');
+  assert.deepEqual(await sendFrom(oldView, { type: 'stop' }), { error: 'invalid' });
+  assert.deepEqual(await sendFrom(oldView, { type: 'stop', sessionHandle: 'malformed' }), { error: 'invalid' });
+  assert.equal((await sendFrom(oldView, { type: 'stop', sessionHandle: '0'.repeat(64) })).error, 'blocked');
+  assert.equal(second.session.status, 'ACTIVE');
+  const secondHandle = (await state()).sessionHandle;
+  assert.notEqual(secondHandle, firstHandle);
   await screen('04-active-long-goal');
   assert.equal(second.visits.size, 0);
   mock.faults.dropPost = true;
@@ -197,7 +300,19 @@ try {
   await restartWorker();
   await waitFor(async () => (await disk()).posts.entries[0]?.phase === 'acked', 'same Visit acknowledged after Worker restart');
   assert.ok(writes().slice(beforeRetry).some(r => r.body.visitId === storedPost.visitId));
-  await end();
+  assert.equal((await state()).sessionHandle, secondHandle);
+  assert.equal((await sendFrom(oldView, staleStop)).error, 'blocked');
+  const stop = { type: 'stop', sessionHandle: secondHandle };
+  const endDelay = holdResponse('holdEnd');
+  try {
+    const results = await Promise.all([command(stop), sendFrom(oldView, stop)]);
+    assert.deepEqual(results.map(r => r.error).sort(), ['blocked', undefined]);
+    await endDelay.received();
+    assert.equal(mock.requests.filter(r => r.url === `/api/sessions/${second.session.sessionId}/end`).length, 1);
+  } finally { endDelay.release(); }
+  await heading('작업 종료 완료');
+  assert.equal((await sendFrom(oldView, stop)).error, 'blocked');
+  await oldView.close();
   assert.equal(second.visits.size, 1);
   const [sole] = second.visits.values();
   const patchCalls = writes().filter(r => r.method === 'PATCH' && r.url.includes(storedPost.visitId));
@@ -227,6 +342,22 @@ try {
   mock.faults.startResponse = session => ({ ...session, goalText: 'Mismatched session goal' });
   assert.equal((await command({ type: 'retry-start' })).error, 'response');
   delete mock.faults.startResponse;
+  const pendingOwnerView = await secondPopup();
+  let releaseStart;
+  mock.faults.holdStart = new Promise(resolve => { releaseStart = resolve; });
+  const beforePending = startRequests().length;
+  const oldStart = command({ type: 'retry-start' });
+  try {
+    await waitFor(() => startRequests().length > beforePending, 'delayed START with existing key');
+    const loggedOut = await sendFrom(pendingOwnerView, { type: 'logout' });
+    assert.equal(loggedOut.snapshot.access, 'auth');
+    assert.equal((await disk()).lifecycle, 'START_PENDING');
+  } finally { delete mock.faults.holdStart; releaseStart(); }
+  assert.equal((await oldStart).snapshot.collecting, false);
+  assert.equal((await disk()).start.idempotencyKey, thirdKey);
+  await pendingOwnerView.close();
+  await heading('합성 계정으로 시작');
+  await login(ALICE, '작업 시작 확인 중');
   await button('같은 시작 요청 다시 확인').click();
   await heading('작업 진행 중');
   assert.equal(mock.sessions.size, count);
@@ -253,6 +384,7 @@ try {
   await screen('07-ended');
   await start('인증 만료와 권한 차단 검증하기');
   const fourth = lastSession();
+  const fourthHandle = (await state()).sessionHandle;
   console.log('PASS E: server committed END without response, Worker queried existing session and allowed next goal');
 
   const beforePrivacy = writes().length;
@@ -306,10 +438,13 @@ try {
   await button('접근 상태 확인').click();
   await heading('합성 계정으로 시작');
   assert.equal((await state()).collecting, false);
+  assert.equal((await state()).connection, 'auth-required');
   await login(BOB, '합성 계정으로 시작');
   await popup.getByRole('alert').waitFor();
   assert.equal((await state()).goal, undefined);
   assert.equal((await state()).access, 'account');
+  assert.equal((await state()).sessionHandle, undefined);
+  assert.equal((await command({ type: 'stop', sessionHandle: fourthHandle })).error, 'blocked');
   assert.equal((await disk()).session.sessionId, fourth.session.sessionId);
   alice.expiresAt = '2099-01-01T00:00:00.000Z';
   alice.enabled = false;
@@ -319,17 +454,71 @@ try {
   await button('접근 상태 확인').click();
   await heading('작업 진행 중');
   await waitFor(async () => (await state()).collecting, 'same owner, same consent reconnect');
-  popup.once('dialog', dialog => void dialog.accept());
-  await button('합성 동의 철회').click();
+  const patchDelay = holdResponse('holdPatch');
+  const queryDelay = holdResponse('holdQuery');
+  const privacyView = await secondPopup();
+  await page.goto(fixture('b')); await page.bringToFront();
+  await waitFor(() => fourth.visits.size === 1, 'Visit sent before withdrawal');
+  await popup.bringToFront();
+  await patchDelay.received();
+  const beforeWithdrawal = writes().length;
+  const reconnect = command({ type: 'reconnect' });
+  await queryDelay.received();
+  try {
+    mock.faults.dropWithdrawal = true;
+    const withdrawal = sendFrom(privacyView, { type: 'withdraw' });
+    await waitFor(async () => (await disk()).withdrawal, 'durable withdrawal while previous HTTP replies are held');
+    const duplicate = sendFrom(privacyView, { type: 'withdraw' });
+    assert.equal((await state()).collecting, false);
+    assert.equal((await command({ type: 'stop', sessionHandle: fourthHandle })).error, 'blocked');
+    await Promise.all([withdrawal, duplicate]);
+    const pending = await disk();
+    assert.equal(pending.withdrawal.phase, 'pending');
+    assert.ok(pending.posts.entries[0]?.visit, 'withdrawal preserves the original Visit');
+    assert.equal((await state()).lifecycle, 'ACTIVE');
+    assert.equal(writes().length, beforeWithdrawal);
+    queryDelay.release();
+    patchDelay.release();
+    assert.equal((await reconnect).snapshot.collecting, false);
+    mock.faults.dropWithdrawal = false;
+    await restartWorker();
+    await waitFor(async () => (await disk()).withdrawal?.phase === 'acknowledged', 'withdrawal recovery after Worker restart');
+    const withdrawals = mock.requests.filter(r => r.url === '/api/consent/withdrawals');
+    assert.ok(withdrawals.length >= 2 && withdrawals.every(r => r.body.requestId === pending.withdrawal.requestId));
+  } finally { queryDelay.release(); patchDelay.release(); }
+  await privacyView.close();
   await heading('수집 동의 철회됨');
   assert.equal((await state()).collecting, false);
-  assert.equal((await disk()).withdrawal.phase, 'acknowledged');
-  await page.goto(fixture('b')); await page.bringToFront();
+  await page.goto(fixture('c')); await page.bringToFront();
   await new Promise(resolve => setTimeout(resolve, 5500));
-  assert.equal(writes().length, beforePrivacy);
+  assert.equal(writes().length, beforeWithdrawal);
   assert.equal((await disk()).session.sessionId, fourth.session.sessionId);
   console.log('PASS G: denied external/forged scope, expired authentication, wrong owner, server denial and withdrawal');
-  console.log(JSON.stringify({ result: 'PASS', chrome: version, scenarios: 7, firstSessionVisits: first.visits.size,
+  console.log('PASS I: held PATCH and reconnect crossed by withdrawal; late responses, duplicate and stop fenced; withdrawal restored');
+
+  await context.close(); context = undefined;
+  await launch('withdraw-start'); await openPopup();
+  await login(BOB);
+  await popup.getByRole('checkbox').check();
+  await button('합성 동의 저장').click();
+  await heading('오늘의 작업 목표');
+  let releaseNew;
+  mock.faults.holdStart = new Promise(resolve => { releaseNew = resolve; });
+  const lastCount = startRequests().length;
+  const pendingStart = command({ type: 'start', goal: '시작 응답 지연 중 동의 철회 검증' });
+  try {
+    await waitFor(() => startRequests().length > lastCount, 'server accepted the new start before withdrawal');
+    const pending = await disk();
+    assert.equal(pending.lifecycle, 'START_PENDING');
+    assert.equal((await command({ type: 'withdraw' })).snapshot.access, 'withdrawn');
+    assert.equal((await disk()).start.idempotencyKey, pending.start.idempotencyKey);
+  } finally { delete mock.faults.holdStart; releaseNew(); }
+  await pendingStart;
+  assert.equal((await disk()).lifecycle, 'START_PENDING');
+  assert.equal((await disk()).session, undefined);
+  assert.equal((await state()).collecting, false);
+  console.log('PASS J: start response arriving after withdrawal cannot activate a session');
+  console.log(JSON.stringify({ result: 'PASS', chrome: version, scenarios: 10, firstSessionVisits: first.visits.size,
     posts: writes().filter(r => r.method === 'POST').length, patches: writes().filter(r => r.method === 'PATCH').length }));
 } finally {
   await context?.close();

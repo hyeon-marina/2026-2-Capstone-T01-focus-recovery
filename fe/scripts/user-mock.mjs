@@ -45,6 +45,7 @@ export async function startMock() {
     participantId: randomUUID(), expiresAt: '2099-01-01T00:00:00.000Z', enabled: true, consentId: null, withdrawn: false,
   }]));
   const sessions = new Map(), starts = new Map(), requests = [];
+  let accessReads = 0;
   const faults = {};
   const fixture = createServer((req, res) => {
     const id = fixtureId(FIXTURE_ORIGIN + req.url);
@@ -63,8 +64,18 @@ export async function startMock() {
     let body;
     try { body = await json(req); } catch { return fail(400); }
     const owner = account.participantId;
-    if (method === 'GET' && url === '/api/auth/me') return send(200, { participantId: owner, expiresAt: account.expiresAt });
-    if (method === 'POST' && url === '/api/auth/logout') return res.writeHead(204).end();
+    if (method === 'GET' && url === '/api/auth/me') {
+      accessReads++;
+      const identity = { participantId: owner, expiresAt: account.expiresAt };
+      if (faults.holdAccess) await faults.holdAccess();
+      if (faults.accessStatus) return fail(faults.accessStatus);
+      return send(200, identity);
+    }
+    if (method === 'POST' && url === '/api/auth/logout') {
+      requests.push({ method, url, owner });
+      if (faults.holdLogout) await faults.holdLogout();
+      return res.writeHead(204).end();
+    }
     if (url === '/api/consent' && ['GET', 'POST'].includes(method)) {
       if (method === 'POST') {
         if (account.withdrawn || !uuid.test(body?.requestId) || body.policyId !== policy.policyId || body.policyVersion !== policy.policyVersion || body.accepted !== true) return fail(403);
@@ -86,6 +97,8 @@ export async function startMock() {
         requestId: body.requestId, withdrawalId: randomUUID(), status: 'QUARANTINED',
         sessions: affected.map(s => ({ sessionId: s.session.sessionId, status: 'INVENTORIED' })), targets: [], unmet: ['EXTERNAL_EVIDENCE_MISSING'],
       };
+      requests.push({ method, url, body, owner });
+      if (faults.dropWithdrawal) return req.socket.destroy();
       return send(202, account.withdrawal);
     }
 
@@ -101,7 +114,7 @@ export async function startMock() {
       if (record && record.session.goalText !== body.goalText) return fail(422);
       if (!record) {
         if ([...sessions.values()].some(s => s.owner === owner && s.session.status === 'ACTIVE')) return fail(409);
-        const session = { ...body, sessionId: randomUUID(), startedAt: new Date().toISOString(), endedAt: null, status: 'ACTIVE' };
+        const session = { ...body, sessionId: randomUUID(), startedAt: faults.startedAt ?? new Date().toISOString(), endedAt: null, status: 'ACTIVE' };
         record = { owner, consentId: account.consentId, session, visits: new Map(), retractions: new Map(), quarantined: false };
         sessions.set(session.sessionId, record);
         starts.set(scopedKey, record);
@@ -134,12 +147,14 @@ export async function startMock() {
     if (account.withdrawn || record.quarantined) return fail(409, 'PRIVACY_RETRACTED');
     if (!account.enabled || record.consentId !== account.consentId) return fail(403);
     if (method === 'GET' && !suffix) {
+      if (faults.holdQuery) await faults.holdQuery();
       if (faults.offlineQuery) return fail(503);
       return send(200, faults.queryResponse ? faults.queryResponse(session) : session);
     }
     if (method === 'POST' && suffix === '/end') {
       if (!body || Object.keys(body).length) return fail(400);
       session.status = 'ENDED'; session.endedAt ??= new Date().toISOString();
+      if (faults.holdEnd) await faults.holdEnd();
       if (faults.dropEnd) return req.socket.destroy();
       return send(200, session);
     }
@@ -172,6 +187,7 @@ export async function startMock() {
         if (body.activeDurationMs < visit.behavior.activeDurationMs || body.tabSwitchCount < visit.behavior.tabSwitchCount) return fail(409, 'BEHAVIOR_COUNTER_DECREASED');
         visit.behavior = behavior(body); visit.updatedAt = new Date().toISOString(); visit.applied++;
       }
+      if (faults.holdPatch) await faults.holdPatch();
       if (faults.dropPatch) { faults.dropPatch = false; return req.socket.destroy(); }
       return send(200, { ...visit.behavior, visitId, applied, updatedAt: visit.updatedAt });
     }
@@ -181,7 +197,7 @@ export async function startMock() {
     await listen(fixture, FIXTURE_ORIGIN);
     await listen(api, MOCK_ORIGIN);
   } catch (error) { await Promise.all([close(fixture), close(api)]); throw error; }
-  return { accounts, sessions, requests, faults, close: () => Promise.all([close(fixture), close(api)]) };
+  return { accounts, sessions, requests, faults, get accessReads() { return accessReads; }, offline: () => close(api), online: () => listen(api, MOCK_ORIGIN), close: () => Promise.all([close(fixture), close(api)]) };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

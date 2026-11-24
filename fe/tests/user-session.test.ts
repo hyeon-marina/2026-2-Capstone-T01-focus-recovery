@@ -1,7 +1,7 @@
 import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { API_BASE_URL } from '../src/api/client';
-import { AccessError } from '../src/api/auth-fetch';
+import { AccessError, setCredential } from '../src/api/auth-fetch';
 import { SessionEndError } from '../src/api/session-end';
 import { VisitApiError } from '../src/api/visit';
 import { normalizeGoal, validGoal } from '../src/shared/goal';
@@ -14,7 +14,7 @@ import { observation, session, syntheticAccess, time } from './v2-fixture';
 
 const ended = { ...session, status: 'ENDED' as const, endedAt: '2026-11-10T00:10:00.000Z' };
 const snapshot: UserSnapshot = { lifecycle: 'IDLE', access: 'ready', connection: 'verified', collecting: false,
-  permission: true, storageFailed: false, reconnectRequired: false, deliveryIssue: false, privacyHold: false,
+  serverCheckedAt: 1, privacyPending: false, permission: true, storageFailed: false, reconnectRequired: false, deliveryIssue: false, privacyHold: false,
   analysis: 'unconnected', withdrawalPending: false };
 
 beforeEach(() => { vi.stubGlobal('indexedDB', new IDBFactory()); vi.stubGlobal('IDBKeyRange', IDBKeyRange); });
@@ -55,6 +55,9 @@ describe('user message and build boundaries', () => {
       { type: 'login', token: 'x'.repeat(64) }, { type: 'stop', startedAt: false },
     ]) expect(parseCommand(message)).toBeUndefined();
     expect(parseCommand({ type: 'withdraw' })).toEqual({ type: 'withdraw' });
+    expect(parseCommand({ type: 'stop', startedAt: session.startedAt })).toBeUndefined();
+    expect(parseCommand({ type: 'stop', sessionHandle: 'z'.repeat(64) })).toBeUndefined();
+    expect(parseCommand({ type: 'stop', sessionHandle: 'a'.repeat(64) })).toEqual({ type: 'stop', sessionHandle: 'a'.repeat(64) });
   });
   it('accepts only the registered popup document, not a content sender, iframe or another extension', () => {
     const url = 'chrome-extension://test/user/index.html';
@@ -209,5 +212,116 @@ describe('user Runtime lifecycle and recovery', () => {
     expect(runtime.snapshot().lifecycle).toBe('END_PENDING');
     expect(runtime.snapshot().posts.entries[0]?.visit).toBeDefined();
     expect(transport.end).not.toHaveBeenCalled();
+  });
+});
+
+describe('privacy intent and recent access verification', () => {
+  it('drops a previous access success after a newer request has failed', async () => {
+    const { runtime, transport } = setup();
+    await runtime.initialize();
+    await runtime.start(session.goalText);
+    let finish!: (access: typeof syntheticAccess) => void;
+    vi.mocked(transport.access).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const old = runtime.verifyAccess();
+    const rejected = expect(old).rejects.toThrow('ACCESS_ACCOUNT');
+    vi.mocked(transport.access).mockRejectedValueOnce(new AccessError('authentication', 401));
+    await expect(runtime.verifyAccess()).rejects.toThrow('ACCESS_AUTHENTICATION');
+    finish(syntheticAccess);
+    await rejected;
+    expect(runtime.collecting()).toBe(false);
+    expect(runtime.accessSnapshot().authenticated).toBe(false);
+  });
+
+  it('keeps a sent Visit unconfirmed across privacy suspension and rejects new work while access is paused', async () => {
+    const { runtime, repo, transport } = setup();
+    await runtime.initialize();
+    await runtime.start(session.goalText);
+    await runtime.foreground(1, time(0));
+    let finish!: () => void;
+    vi.mocked(transport.post).mockImplementationOnce(visit => new Promise(resolve => {
+      finish = () => resolve({ ...visit, updatedAt: null });
+    }));
+    for (let ms = 0; ms <= 5000; ms += 1000) await runtime.observe(observation(ms));
+    await until(() => !!finish);
+    const frozen = (await repo.load()).posts.entries[0].visit;
+    const resume = runtime.beginUserPrivacyChange();
+    expect(runtime.collecting()).toBe(false);
+    await expect(runtime.stop(time(5500))).rejects.toThrow('V2_STOP_BLOCKED');
+    await expect(runtime.retry()).rejects.toThrow('ACCESS_AUTHENTICATION');
+    finish();
+    await until(() => runtime.snapshot().posts.entries[0].phase === 'retry-wait');
+    expect((await repo.load()).posts.entries[0].visit).toEqual(frozen);
+    expect(transport.patch).not.toHaveBeenCalled();
+    resume();
+    expect(runtime.collecting()).toBe(false);
+  });
+
+
+  it('keeps an old END response pending after the credential switches to another account', async () => {
+    vi.stubGlobal('chrome', { storage: { session: { setAccessLevel: async () => {}, set: async () => {} } } });
+    const { runtime, transport, repo } = setup();
+    await runtime.initialize();
+    await runtime.start(session.goalText);
+    let finish!: (result: typeof ended) => void;
+    vi.mocked(transport.end).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    await runtime.stop(time(5500));
+    await until(() => !!finish);
+    runtime.suspendAccess();
+    await setCredential('b'.repeat(43));
+    vi.mocked(transport.access).mockResolvedValue({ ...syntheticAccess, participantId: crypto.randomUUID() });
+    await expect(runtime.verifyAccess(false, true)).rejects.toThrow('ACCESS_ACCOUNT');
+    finish(ended);
+    await until(() => runtime.snapshot().end?.phase === 'retry-wait');
+    expect((await repo.load()).lifecycle).toBe('END_PENDING');
+    expect(runtime.accessSnapshot().ownerVerified).toBe(false);
+    expect(runtime.collecting()).toBe(false);
+  });
+
+  it('expires the last verification label and fences HTTP after an intervening privacy intent', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_API_BASE_URL', MOCK_ORIGIN);
+    try {
+      const get = vi.fn(async () => ({}));
+      vi.stubGlobal('chrome', { permissions: { contains: async () => true }, storage: { session: { get } } });
+      const fetch = vi.fn(async (url: string) => url.endsWith('/me')
+        ? Response.json({ participantId: syntheticAccess.participantId, expiresAt: syntheticAccess.expiresAt })
+        : Response.json({ ...syntheticAccess, policy: {
+          policyId: 'fixture', policyVersion: '1', scope: 'SESSION_COLLECTION', status: 'SYNTHETIC',
+          purpose: 'synthetic', collectionItems: 'synthetic', useScope: 'synthetic', effectiveAt: session.startedAt,
+          retentionPolicyRef: null, approvalRef: null,
+        } }));
+      vi.stubGlobal('fetch', fetch);
+      const { authenticatedFetch } = await import('../src/api/auth-fetch');
+      const { createMockTransport, serverStatus, suspendUserHttp } = await import('../user/transport');
+      const transport = createMockTransport();
+      expect(serverStatus().connection).toBe('unverified');
+      await transport.access();
+      const recent = serverStatus();
+      expect(recent.connection).toBe('verified');
+      expect(serverStatus(recent.serverCheckedAt! + 30_000)).toEqual({ ...recent, connection: 'stale' });
+      let finishHttp!: (response: Response) => void;
+      fetch.mockImplementationOnce(() => new Promise(resolve => { finishHttp = resolve; }));
+      const delayed = authenticatedFetch(MOCK_ORIGIN + '/api/sessions');
+      await until(() => !!finishHttp);
+      await transport.access();
+      const newer = serverStatus();
+      finishHttp(new Response(null, { status: 503 }));
+      await delayed;
+      expect(serverStatus()).toEqual(newer);
+      const fetches = fetch.mock.calls.length;
+      let finishRead!: (storage: object) => void;
+      get.mockImplementationOnce(() => new Promise(resolve => { finishRead = resolve; }));
+      const pending = authenticatedFetch(MOCK_ORIGIN + '/api/sessions', { method: 'POST' });
+      const rejected = expect(pending).rejects.toMatchObject({ kind: 'account' });
+      const resume = suspendUserHttp();
+      finishRead({});
+      await rejected;
+      expect(fetch).toHaveBeenCalledTimes(fetches);
+      expect(serverStatus().connection).toBe('unverified');
+      resume();
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
   });
 });

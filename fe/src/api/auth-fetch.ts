@@ -3,6 +3,9 @@ import { API_BASE_URL } from './client';
 declare const __COLLECTION_BUILD__: { mode: string; buildId?: string };
 const TOKEN_KEY = 'focus.accessCredential';
 let generation = 0;
+type RequestScope = { check: () => void; report: (status: number | null) => void };
+let scopeForRequest: ((path: string, method: string) => RequestScope) | undefined;
+export function setRequestScope(scope: typeof scopeForRequest) { scopeForRequest = scope; }
 export class AccessError extends Error {
   constructor(public kind: 'authentication' | 'network' | 'consent' | 'account', public status?: number) { super(kind === 'network' ? 'network' : `ACCESS_${kind.toUpperCase()}`); }
 }
@@ -19,6 +22,8 @@ export async function authenticatedFetch(url: string, init?: RequestInit) {
   const target = new URL(url), expected = new URL(API_BASE_URL);
   if (target.origin !== expected.origin || !target.pathname.startsWith('/api/') || target.username || target.password) throw new AccessError('authentication');
   const started = generation;
+  const scope = scopeForRequest?.(target.pathname, init?.method ?? 'GET');
+  scope?.check();
   const stored = globalThis.chrome?.storage?.session ? await chrome.storage.session.get(TOKEN_KEY) : {};
   if (started !== generation) throw new AccessError('account');
   const token = stored[TOKEN_KEY];
@@ -26,12 +31,17 @@ export async function authenticatedFetch(url: string, init?: RequestInit) {
   if (typeof __COLLECTION_BUILD__ !== 'undefined' && __COLLECTION_BUILD__.buildId) headers.set('X-Collection-Build', __COLLECTION_BUILD__.buildId);
   if (typeof token === 'string' && target.protocol !== 'https:' && !['localhost','127.0.0.1'].includes(target.hostname)) throw new AccessError('authentication');
   if (typeof token === 'string') headers.set('Authorization', `Bearer ${token}`);
+  scope?.check(); // The credential read can yield to a newer privacy intent.
   try {
     const response = await fetch(url, { ...init, ...(token ? { headers } : {}), credentials: 'omit', redirect: 'error', cache: 'no-store' });
     if (started !== generation) throw new AccessError('account');
+    scope?.check();
+    scope?.report(response.status);
     return response;
   } catch (error) {
     if (error instanceof AccessError) throw error;
+    if (scope && started !== generation) throw new AccessError('account');
+    scope?.report(null);
     throw new AccessError('network');
   }
 }

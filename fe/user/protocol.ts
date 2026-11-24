@@ -6,7 +6,10 @@ export type UserCommand =
   | { type: typeof simple[number] }
   | { type: 'login'; token: string }
   | { type: 'start'; goal: string }
-  | { type: 'stop'; startedAt: string };
+  | { type: 'stop'; sessionHandle: string };
+
+export const isPrivacyCommand = (type: UserCommand['type']) => type === 'logout' || type === 'withdraw';
+const validHandle = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 
 export function parseCommand(value: unknown): UserCommand | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return;
@@ -18,8 +21,8 @@ export function parseCommand(value: unknown): UserCommand | undefined {
     return { type: 'login', token: data.token };
   }
   if (data.type === 'start' && typeof data.goal === 'string' && validGoal(data.goal)) return { type: 'start', goal: data.goal };
-  if (data.type === 'stop' && typeof data.startedAt === 'string' && Number.isFinite(Date.parse(data.startedAt))) {
-    return { type: 'stop', startedAt: data.startedAt };
+  if (data.type === 'stop' && validHandle(data.sessionHandle)) {
+    return { type: 'stop', sessionHandle: data.sessionHandle };
   }
 }
 
@@ -30,13 +33,17 @@ export function trustedPopup(sender: chrome.runtime.MessageSender, id: string, u
 }
 
 const accessStates = ['auth', 'consent', 'ready', 'denied', 'account', 'withdrawn'] as const;
+const connectionStates = ['unverified', 'verified', 'stale', 'unreachable', 'auth-required', 'denied'] as const;
+export type ServerConnection = typeof connectionStates[number];
 const errors = ['invalid', 'auth', 'consent', 'account', 'network', 'response', 'blocked'] as const;
 export type UserError = typeof errors[number];
 export type AnalysisStatus = 'unconnected' | 'empty' | 'pending' | 'delayed' | 'failed' | 'completed';
 export interface UserSnapshot {
   lifecycle: V2State['lifecycle'];
   access: typeof accessStates[number];
-  connection: 'verified' | 'unverified';
+  connection: ServerConnection;
+  serverCheckedAt?: number;
+  privacyPending: boolean;
   collecting: boolean;
   permission: boolean;
   storageFailed: boolean;
@@ -47,6 +54,7 @@ export interface UserSnapshot {
   analysis: AnalysisStatus;
   goal?: string;
   startedAt?: string;
+  sessionHandle?: string;
 }
 export type UserReply = { snapshot: UserSnapshot; error?: UserError } | { error: 'invalid' };
 
@@ -54,13 +62,16 @@ export function isUserSnapshot(value: unknown): value is UserSnapshot {
   if (!value || typeof value !== 'object') return false;
   const s = value as UserSnapshot;
   return ['IDLE', 'START_PENDING', 'ACTIVE', 'END_PENDING', 'ENDED'].includes(s.lifecycle) && accessStates.includes(s.access)
-    && ['verified', 'unverified'].includes(s.connection)
+    && connectionStates.includes(s.connection)
+    && (s.serverCheckedAt === undefined || Number.isSafeInteger(s.serverCheckedAt) && s.serverCheckedAt > 0)
+    && (!['verified', 'stale'].includes(s.connection) || s.serverCheckedAt !== undefined)
     && ['unconnected', 'empty', 'pending', 'delayed', 'failed', 'completed'].includes(s.analysis)
-    && [s.collecting, s.permission, s.storageFailed, s.reconnectRequired, s.deliveryIssue, s.privacyHold, s.withdrawalPending].every(v => typeof v === 'boolean')
+    && [s.collecting, s.permission, s.storageFailed, s.reconnectRequired, s.deliveryIssue, s.privacyHold, s.withdrawalPending, s.privacyPending].every(v => typeof v === 'boolean')
     && (s.goal === undefined || typeof s.goal === 'string' && validGoal(s.goal))
     && (s.startedAt === undefined || typeof s.startedAt === 'string' && Number.isFinite(Date.parse(s.startedAt)))
     && (s.lifecycle === 'IDLE' || !!s.goal)
     && (['IDLE', 'START_PENDING'].includes(s.lifecycle) === (s.startedAt === undefined))
-    && (!s.collecting || s.lifecycle === 'ACTIVE' && s.access === 'ready' && s.connection === 'verified'
-      && s.permission && !s.storageFailed && !s.reconnectRequired && !s.privacyHold);
+    && (s.lifecycle === 'ACTIVE' ? validHandle(s.sessionHandle) : s.sessionHandle === undefined)
+    && (!s.collecting || s.lifecycle === 'ACTIVE' && s.access === 'ready'
+      && s.permission && !s.storageFailed && !s.reconnectRequired && !s.privacyHold && !s.privacyPending);
 }
