@@ -23,7 +23,7 @@ export class SessionEndDelivery {
   private timer?: ReturnType<typeof setTimeout>;
   constructor(private mutate: <T>(operation: () => T) => Promise<T>, private canSend: () => boolean,
     private drained: () => boolean, private serverEndedConflict: () => boolean,
-    private send = endSession, private query = getSession) {}
+    private send = endSession, private query = getSession, private queryBeforeRetry = false) {}
   begin(session: WorkSessionResponse, now: number) {
     if (this.checkpoint) return;
     this.checkpoint = { apiBaseUrl: API_BASE_URL, session: structuredClone(session), requestedAt: new Date(now).toISOString(), phase: 'draining', attempts: 0 };
@@ -66,7 +66,11 @@ export class SessionEndDelivery {
       let response: WorkSessionResponse | undefined, failure: SessionEndError | undefined;
       try {
         // A SESSION_ENDED data rejection is evidence of a conflict, never a data ACK.
-        response = e.request ? await this.send(e.session, structuredClone(e.request)) : await this.query(e.session);
+        if (!e.request || this.queryBeforeRetry && e.attempts > 1) {
+          response = await this.query(e.session);
+          if (!matchesSession(response, e.session)) throw new SessionEndError('response', '서버 세션 정보가 일치하지 않습니다.', false);
+        }
+        if (e.request && response?.status !== 'ENDED') response = await this.send(e.session, structuredClone(e.request));
         if (!matchesSession(response, e.session) || e.request && !matchesEndedSession(response, e.session)) {
           throw new SessionEndError('response', '서버 종료 응답 확인이 필요합니다.', false);
         }

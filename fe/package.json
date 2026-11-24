@@ -9,6 +9,9 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "npm run typecheck && vite build && vite build --config vite.content.config.ts",
+    "build:user": "npm run typecheck && vite build --mode user-mock --config vite.user.config.ts && vite build --config vite.synthetic.content.config.ts --outDir dist-user",
+    "mock:user": "node --experimental-strip-types scripts/user-mock.mjs",
+    "test:user:browser": "node --experimental-strip-types scripts/user-browser-test.mjs",
     "build:dev": "vite build --mode development && vite build --config vite.content.config.ts --mode development",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

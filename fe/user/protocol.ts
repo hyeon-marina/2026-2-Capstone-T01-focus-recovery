@@ -1,0 +1,66 @@
+import { validGoal } from '../src/shared/goal';
+import type { V2State } from '../src/v2/state';
+
+const simple = ['status', 'access', 'agree', 'retry-start', 'reconnect', 'retry', 'logout', 'withdraw'] as const;
+export type UserCommand =
+  | { type: typeof simple[number] }
+  | { type: 'login'; token: string }
+  | { type: 'start'; goal: string }
+  | { type: 'stop'; startedAt: string };
+
+export function parseCommand(value: unknown): UserCommand | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+  const data = value as Record<string, unknown>;
+  const size = Object.keys(data).length;
+  if (size === 1 && simple.some(type => type === data.type)) return value as UserCommand;
+  if (size !== 2) return;
+  if (data.type === 'login' && typeof data.token === 'string' && /^synthetic-user-133-[A-Za-z0-9_-]{24,109}$/.test(data.token)) {
+    return { type: 'login', token: data.token };
+  }
+  if (data.type === 'start' && typeof data.goal === 'string' && validGoal(data.goal)) return { type: 'start', goal: data.goal };
+  if (data.type === 'stop' && typeof data.startedAt === 'string' && Number.isFinite(Date.parse(data.startedAt))) {
+    return { type: 'stop', startedAt: data.startedAt };
+  }
+}
+
+export function trustedPopup(sender: chrome.runtime.MessageSender, id: string, url: string) {
+  return sender.id === id && sender.url === url && (sender.origin === undefined || sender.origin === `chrome-extension://${id}`)
+    && (sender.frameId === undefined || sender.frameId === 0)
+    && (sender.documentLifecycle === undefined || sender.documentLifecycle === 'active');
+}
+
+const accessStates = ['auth', 'consent', 'ready', 'denied', 'account', 'withdrawn'] as const;
+const errors = ['invalid', 'auth', 'consent', 'account', 'network', 'response', 'blocked'] as const;
+export type UserError = typeof errors[number];
+export type AnalysisStatus = 'unconnected' | 'empty' | 'pending' | 'delayed' | 'failed' | 'completed';
+export interface UserSnapshot {
+  lifecycle: V2State['lifecycle'];
+  access: typeof accessStates[number];
+  connection: 'verified' | 'unverified';
+  collecting: boolean;
+  permission: boolean;
+  storageFailed: boolean;
+  reconnectRequired: boolean;
+  deliveryIssue: boolean;
+  privacyHold: boolean;
+  withdrawalPending: boolean;
+  analysis: AnalysisStatus;
+  goal?: string;
+  startedAt?: string;
+}
+export type UserReply = { snapshot: UserSnapshot; error?: UserError } | { error: 'invalid' };
+
+export function isUserSnapshot(value: unknown): value is UserSnapshot {
+  if (!value || typeof value !== 'object') return false;
+  const s = value as UserSnapshot;
+  return ['IDLE', 'START_PENDING', 'ACTIVE', 'END_PENDING', 'ENDED'].includes(s.lifecycle) && accessStates.includes(s.access)
+    && ['verified', 'unverified'].includes(s.connection)
+    && ['unconnected', 'empty', 'pending', 'delayed', 'failed', 'completed'].includes(s.analysis)
+    && [s.collecting, s.permission, s.storageFailed, s.reconnectRequired, s.deliveryIssue, s.privacyHold, s.withdrawalPending].every(v => typeof v === 'boolean')
+    && (s.goal === undefined || typeof s.goal === 'string' && validGoal(s.goal))
+    && (s.startedAt === undefined || typeof s.startedAt === 'string' && Number.isFinite(Date.parse(s.startedAt)))
+    && (s.lifecycle === 'IDLE' || !!s.goal)
+    && (['IDLE', 'START_PENDING'].includes(s.lifecycle) === (s.startedAt === undefined))
+    && (!s.collecting || s.lifecycle === 'ACTIVE' && s.access === 'ready' && s.connection === 'verified'
+      && s.permission && !s.storageFailed && !s.reconnectRequired && !s.privacyHold);
+}

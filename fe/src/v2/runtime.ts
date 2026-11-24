@@ -11,7 +11,7 @@ import { serialExecutor } from '../background/serial';
 import { behaviorSnapshot } from '../api/behavior';
 import { savePageVisit } from '../api/visit';
 import { updateVisitBehavior } from '../api/behavior';
-import { endSession, getSession } from '../api/session-end';
+import { endSession, getSession, matchesSession } from '../api/session-end';
 import { isV2Session } from './contract';
 import { V2Collector, canCompact, type Observation } from './collector';
 import { V2Repository, drained } from './repository';
@@ -44,16 +44,21 @@ export class V2Runtime {
   private stopping = false;
   private held = false;
   private starting = false;
+  private reconnectRequired = false;
   private notificationRunning = false;
   private retractionRunning = false;
   private compactedIds: string[] = [];
   private posts: VisitDelivery;
   private behaviors: BehaviorDelivery;
   private ending: SessionEndDelivery;
-  constructor(private repository: V2Repository, private transport: V2Transport, private resumeIncomplete = false) {
+  constructor(private repository: V2Repository, private transport: V2Transport, private resumeIncomplete = false, private freeGoalSession = false) {
     this.collector = new V2Collector(this.state, undefined, resumeIncomplete);
     const protect = async <T>(send: () => Promise<T>) => {
-      try { await this.verifyAccess(); return await send(); }
+      try {
+        await this.verifyAccess();
+        if (this.needsReconnect()) throw new AccessError('network');
+        return await send();
+      }
       catch (e) { if (e instanceof AccessError) { this.suspendAccess(); this.accessError = e.kind; }
         if (e && typeof e === 'object' && 'status' in e && e.status === 401) { this.suspendAccess(); this.accessError = 'authentication'; } if (e && typeof e === 'object' && 'code' in e && e.code === 'PRIVACY_RETRACTED') this.held = true; throw e; }
     };
@@ -61,12 +66,13 @@ export class V2Runtime {
     this.posts = new VisitDelivery(mutate, () => this.canSend(), v => protect(() => transport.post(v)));
     this.behaviors = new BehaviorDelivery(mutate, id => this.canSend() && this.committed.posts.entries.some(e => e.visitId === id && e.phase === 'acked'), (s, id, b) => protect(() => transport.patch(s, id, b)));
     this.ending = new SessionEndDelivery(mutate, () => this.canSend(), () => drained(this.committed),
-      () => [...this.state.posts.entries, ...this.state.behaviors.entries].some(e => e.code === 'SESSION_ENDED'), (s, b) => protect(() => transport.end(s, b)), s => protect(() => transport.query(s)));
+      () => [...this.state.posts.entries, ...this.state.behaviors.entries].some(e => e.code === 'SESSION_ENDED'), (s, b) => protect(() => transport.end(s, b)), s => protect(() => transport.query(s)), freeGoalSession);
   }
   suspendAccess() { this.accessEpoch++; this.access = undefined; this.accessError = 'AUTHENTICATION_REQUIRED';
     this.pauseAuthorization();
   }
   private pauseAuthorization() {
+    if (this.freeGoalSession && this.committed.lifecycle === 'ACTIVE') this.reconnectRequired = true;
     for (const c of this.state.candidates) { c.cursor = undefined; if (!this.resumeIncomplete) c.closed = true; }
     if (!this.resumeIncomplete) this.state.tabs = {};
     delete this.state.lastVisit;
@@ -89,19 +95,38 @@ export class V2Runtime {
       if (access.withdrawn && owner) this.serverWithdrawalSeen = true;
       this.access = access; this.credentialEpoch = credential; this.accessError = undefined;
       if (Date.parse(access.expiresAt) <= Date.now()) throw new AccessError('authentication');
+      if (this.freeGoalSession && this.committed.lifecycle === 'ACTIVE' && !this.authorized()) this.pauseAuthorization();
       if (!ownershipOnly && (this.serverWithdrawalSeen || !access.consentValid || !access.collectionEnabled || access.withdrawn
         || owner && access.consentId !== owner.consentId && !newSession)) throw new AccessError('consent');
       return access;
     } catch (e) {
+      if (this.freeGoalSession && (epoch !== this.accessEpoch || credential !== accessGeneration())) throw e;
       this.pauseAuthorization();
       this.access = undefined; this.accessError = e instanceof AccessError ? e.kind : 'network';
       throw e;
     }
   }
+  private needsReconnect() {
+    return this.reconnectRequired && this.committed.lifecycle === 'ACTIVE';
+  }
+  accessSnapshot() {
+    const identity = this.verifiedIdentity;
+    const authenticated = !!identity && identity.credentialEpoch === accessGeneration() && Date.parse(identity.expiresAt) > Date.now()
+      && this.accessError !== 'authentication' && this.accessError !== 'AUTHENTICATION_REQUIRED';
+    return {
+      authenticated,
+      ownerVerified: authenticated && identity.participantId === this.committed.owner?.participantId,
+      consentValid: this.access?.consentValid === true,
+      collectionEnabled: this.access?.collectionEnabled === true,
+      withdrawn: this.serverWithdrawalSeen || this.access?.withdrawn === true,
+      serverVerified: !!this.access && authenticated,
+      reconnectRequired: this.needsReconnect(),
+    };
+  }
   get foregroundTab() { return this.committed.foreground; }
-  collecting() { return this.authorized() && !this.failed && !this.stopping && !this.held && !this.committed.quarantine && this.committed.lifecycle === 'ACTIVE'; }
+  collecting() { return this.authorized() && !this.needsReconnect() && !this.failed && !this.stopping && !this.held && !this.committed.quarantine && this.committed.lifecycle === 'ACTIVE'; }
   snapshot() { return { ...structuredClone(this.committed), accessError: this.accessError, authenticated: !!this.access, collectionAllowed: this.authorized(), storageFailed: this.failed, alertsSuppressed: !this.authorized() || this.failed || this.stopping || this.held || Boolean(this.committed.quarantine) }; }
-  private canSend() { return this.authorized() && !this.failed && !this.held && !this.committed.quarantine && !this.posts.blocked && !this.behaviors.blocked; }
+  private canSend() { return this.authorized() && !this.needsReconnect() && !this.failed && !this.held && !this.committed.quarantine && !this.posts.blocked && !this.behaviors.blocked; }
   private install(s: V2State) {
     this.state = s; this.collector = new V2Collector(s, undefined, this.resumeIncomplete);
     this.posts.checkpoint = s.posts; this.behaviors.checkpoint = s.behaviors; this.ending.checkpoint = s.end;
@@ -111,6 +136,7 @@ export class V2Runtime {
       const s = await this.repository.load();
       this.compactedIds = s.session ? await this.repository.compactedVisitIds(s.session.sessionId) : [];
       this.committed = structuredClone(s); this.install(s);
+      this.reconnectRequired = this.freeGoalSession && s.lifecycle === 'ACTIVE';
       await this.mutate(() => {
         // Worker generation cannot establish a return interval, even for a surviving Chrome document.
         for (const c of s.candidates) {
@@ -173,6 +199,7 @@ export class V2Runtime {
     const access = await this.verifyAccess(true);
     const previousSessionId = this.committed.lifecycle === 'ENDED' ? this.committed.session?.sessionId : undefined;
     const previous = previousSessionId ? undefined : this.committed.start;
+    const epoch = this.accessEpoch, credential = accessGeneration();
     if (previous && (previous.plannedSessionId && previous.plannedSessionId !== plannedSessionId || previous.goalText !== goalText || previous.collectionSpecVersion !== '2.0' || previous.apiBaseUrl !== API_BASE_URL)) throw new Error('V2_START_CONFLICT');
     await this.mutate(() => {
       if (previousSessionId) {
@@ -181,23 +208,35 @@ export class V2Runtime {
         this.install({ ...initialState(API_BASE_URL), revision });
       }
       this.state.owner ??= { participantId: access.participantId, consentId: access.consentId };
-      this.state.start ??= { ...(plannedSessionId ? { plannedSessionId } : {}), goalText, idempotencyKey: crypto.randomUUID(), collectionSpecVersion: '2.0', apiBaseUrl: API_BASE_URL };
+      this.state.start ??= { ...(plannedSessionId ? { plannedSessionId } : {}),
+        ...(this.freeGoalSession && previousSessionId ? { previousSessionId } : {}), goalText, idempotencyKey: crypto.randomUUID(), collectionSpecVersion: '2.0', apiBaseUrl: API_BASE_URL };
       this.state.lifecycle = 'START_PENDING';
     });
     this.stopping = false; this.held = false;
     await this.verifyAccess();
     const response = await this.transport.start(goalText, this.committed.start!.idempotencyKey);
-    if (!isV2Session(response) || response.status !== 'ACTIVE' || response.goalText !== goalText || response.sessionId === previousSessionId) throw new Error('V2_VERSION_OR_SESSION_MISMATCH');
-    await this.mutate(() => { this.state.session = response; this.state.lifecycle = 'ACTIVE'; });
+    if (!isV2Session(response) || response.status !== 'ACTIVE' || response.goalText !== goalText
+      || response.sessionId === (previousSessionId ?? previous?.previousSessionId)) throw new Error('V2_VERSION_OR_SESSION_MISMATCH');
+    const activated = await this.mutate(() => {
+      if (this.freeGoalSession && (epoch !== this.accessEpoch || credential !== accessGeneration() || !this.authorized())) return false;
+      const { sessionId, goalText, startedAt, status, endedAt, collectionSpecVersion } = response;
+      this.state.session = this.freeGoalSession ? { sessionId, goalText, startedAt, status, endedAt, collectionSpecVersion } : response;
+      this.state.lifecycle = 'ACTIVE'; this.reconnectRequired = false;
+      return true;
+    });
+    if (!activated) throw new AccessError('authentication');
     this.kick();
   }
   async observe(observation: Observation) {
     if (this.stopping || this.held || this.committed.quarantine || this.committed.lifecycle !== 'ACTIVE') return;
+    const sessionId = this.committed.session?.sessionId;
     try { await this.verifyAccess(); } catch { return; }
+    if (this.freeGoalSession && !this.collecting()) return;
     if (this.committed.candidates.length >= 200) await this.compact(observation.stamp);
     if (this.stopping || this.held) return;
     if (!observation.safe || !observation.permitted) return this.quarantine('SENSITIVE_CONTENT', observation.stamp.wall);
     await this.mutate(() => {
+      if (this.freeGoalSession && (!this.collecting() || sessionId !== this.committed.session?.sessionId)) return;
       this.collector.observe(observation);
       this.collector.expire(observation.stamp);
       // Backpressure preserves all unresolved data rather than evicting it.
@@ -294,10 +333,25 @@ export class V2Runtime {
     this.kick();
   }
   async resume(plannedSessionId: string) {
-    if (this.committed.lifecycle !== 'ACTIVE' || this.committed.start?.plannedSessionId !== plannedSessionId || !this.committed.session || this.committed.quarantine || this.committed.withdrawal) throw new Error('V2_RESUME_BLOCKED');
+    if (!plannedSessionId || this.committed.lifecycle !== 'ACTIVE' || this.committed.start?.plannedSessionId !== plannedSessionId || !this.committed.session || this.committed.quarantine || this.committed.withdrawal) throw new Error('V2_RESUME_BLOCKED');
     await this.verifyAccess();
     const session = await this.transport.query(this.committed.session);
     if (!isV2Session(session) || session.sessionId !== this.committed.session.sessionId || session.status !== 'ACTIVE') throw new Error('V2_RESUME_BLOCKED');
+    await this.retry();
+  }
+  async resumeUserSession() {
+    const { session, lifecycle, start, quarantine, withdrawal } = this.committed;
+    if (!this.freeGoalSession || !session || lifecycle !== 'ACTIVE' || start?.plannedSessionId || quarantine || withdrawal || this.stopping) {
+      throw new Error('V2_RESUME_BLOCKED');
+    }
+    this.reconnectRequired = true;
+    const epoch = this.accessEpoch, credential = accessGeneration();
+    await this.verifyAccess();
+    const result = await this.transport.query(session);
+    if (!matchesSession(result, session) || result.status !== 'ACTIVE' || this.committed.lifecycle !== 'ACTIVE'
+      || this.committed.session?.sessionId !== session.sessionId || this.stopping || this.committed.quarantine
+      || epoch !== this.accessEpoch || credential !== accessGeneration() || !this.authorized()) throw new Error('V2_RESUME_BLOCKED');
+    this.reconnectRequired = false;
     await this.retry();
   }
   async retry() {
