@@ -42,12 +42,12 @@ Worker가 저장과 라이프사이클을 소유한다. 팝업은 `status`로 Wo
 | `login` / `agree` | 합성 자격정보 / 서버가 내려준 합성 정책의 동의 |
 | `start` / `retry-start` | 새 목표 문자열 / 저장된 목표와 같은 시작 키 |
 | `reconnect` / `retry` | 동일 자유 목표 세션 조회 / 미확인 전송·종료·철회 재시도 |
-| `stop` | 화면에 표시한 세션 시작 시각과 Worker의 현재 시작 시각 대조 후 종료 의도 접수 |
-| `logout` / `withdraw` | 신뢰 컨텍스트 자격정보 해제 / 기존 철회·격리 전송기 호출 |
+| `stop` | 사용자용 `sessionHandle`을 현재 활성 세션의 값과 대조하고 발신자·소유권·개인정보 상태를 다시 확인한 후 종료 의도 접수 |
+| `logout` / `withdraw` | 유효한 신뢰 UI 메시지 수신 즉시 일반 수집과 전송 차단. 별도로 순서화한 신뢰 컨텍스트 자격정보 해제 또는 기존 철회·격리 전송기 호출 |
 
 `installV2Browser`는 사용자용 실행 정책에 공통 Chrome 이벤트, 합성 Content Script, `V2Collector`를 연결한다. 기존 participant의 배정·Attempt·품질·알림 명령은 사용자용 채널에서 호출할 수 없다. DB 이름을 선택하는 기존 `V2Repository`가 `focus-recovery-user-v2-mock`을 열고 수집용 호출에는 기존 기본값을 적용한다. 같은 포맷과 CAS 커밋, Visit POST, Behavior PATCH, 멱등 키, ACK 검증, 개인정보 격리 및 전송기를 공유한다. 체류시간 5초, 4초 복귀, 5분 행동 갱신 규칙은 기존 수집기가 처리한다.
 
-사용자용 스냅샷은 인증·권한·서버 확인·수집·저장 오류와 현재 상태를 전달한다. Worker는 검증된 소유자에 한해 목표와 시작 시각을 전달한다. 합성 카탈로그의 본문, Credential, 세션 ID, 내부 키와 ACK는 Worker에 남는다. Content Script는 지정한 최상위 현재 문서에서 합성 카탈로그의 식별자만 보내고 Worker는 사전 정의된 제목·본문을 매핑한다.
+사용자용 스냅샷은 인증·권한·수집·저장 오류 및 서버 검증 결과를 전달한다. Worker 메시지 실패는 팝업의 상태 조회 오류로 표시한다. `connection`은 마지막 HTTP 접근 검증을 설명하며 `serverCheckedAt`은 그 시각이다. `status`는 로컬 읽기만 한다. Worker는 검증된 소유자에 한해 목표와 시작 시각을 전달하고, 활성 작업에는 불투명한 종료 식별자를 추가한다. 합성 카탈로그의 본문, Credential, 세션 ID, 내부 키와 ACK는 Worker에 남는다. Content Script는 지정한 최상위 현재 문서에서 합성 카탈로그의 식별자만 보내고 Worker는 사전 정의된 제목·본문을 매핑한다.
 
 ## 상태 전환
 
@@ -78,7 +78,7 @@ CHROMIUM_PATH='/absolute/path/to/Google Chrome for Testing' \
 
 E2E가 자체 Mock 서버를 시작하며 `mkdtemp`로 새 Chrome 프로필을 만든다. 수동 실행 중인 Mock 서버는 E2E 전에 종료한다. `CHROMIUM_PATH`를 생략하면 설치된 Playwright Chromium을 사용한다. `USER_TEST_EVIDENCE`는 선택 사항이다. 단위 테스트에는 목표 경계, 메시지 발신자·payload·스냅샷, origin 및 DB 격리, 동시 시작, 응답 유실과 이전 세션 응답, 동의·세션 소유권, 저장 실패와 종료 충돌을 포함했다.
 
-### 실행 결과
+### 최초 구현 실행 결과
 
 macOS 27.2.1 arm64, Node 25.9.0, npm 11.12.1에서 Lockfile로 패키지 109개를 설치했다. React 19.3.0, Vite 7.3.7, TypeScript 5.9.3, Vitest 3.2.7, Playwright 1.64.0이다. 로컬 일반 Chrome은 158.0.8127.36이고, 모든 브라우저 회귀에는 별도 Chrome for Testing 151.0.7922.34를 사용했다.
 
@@ -106,6 +106,8 @@ macOS 27.2.1 arm64, Node 25.9.0, npm 11.12.1에서 Lockfile로 패키지 109개�
 
 ## 실제 화면
 
+아래는 PR #134 추가 수정 후 다시 촬영한 합성 화면이다. 서버 접근이 실패해도 로컬 작업 상태가 남는 [서버 응답 실패 화면](evidence/issue133/05-server-unreachable.png)도 포함했다.
+
 | 최초 접근 | 목표 입력 | 시작 확인 |
 | --- | --- | --- |
 | ![합성 인증](evidence/issue133/01-access.png) | ![최초 작업 목표](evidence/issue133/02-goal.png) | ![작업 시작 요청 확인](evidence/issue133/03-starting.png) |
@@ -122,3 +124,41 @@ macOS 27.2.1 arm64, Node 25.9.0, npm 11.12.1에서 Lockfile로 패키지 109개�
 | R3 Worker 기반 DRIFT | OUT_OF_SCOPE | `user/background.ts`와 `src/v2/status.ts`에서 현재 활성 세션·권한을 대조하는 검증. `UserSnapshot.analysis`는 결과 없음·대기·지연·실패·완료를 렌더링할 수 있고 이 빌드는 `분석 미연결`을 표시 |
 | R4 알림 영수증, R5 고정 주기, R6 실제 통합 | OUT_OF_SCOPE | 세션별 알림 영수증·스케줄과 승인 환경 검증. Window 실패 복구는 #131과 연계 |
 | 참여자 운영 Chrome·실제 사이트, 실모델, 운영 DB 및 배포 | OUT_OF_SCOPE | 합성 프로필과 로컬 테스트의 실행 결과로 운영 승인을 확인할 수 없음 |
+
+## PR #134 추가 검토 및 개선
+
+검토 기준은 공식 PR과 개인 Fork에서 확인한 `4a6c93e91b29eedb43a156a3e219f475d9d58374`다. 같은 브랜치에서 기존 배정형 수집과 사용자용 Mock을 격리해 확인했다.
+
+| 개선사항 | 기존 HEAD의 Chrome 재현 | 수정 및 판정 |
+| --- | --- | --- |
+| 로그아웃·철회 지연 | 활성 세션의 `/api/auth/me` 응답을 보류했다. 신뢰 UI의 로그아웃 및 철회 명령이 대기했고 두 경우 모두 `collecting=true`가 유지됐다. | 발신자와 입력을 검증한 직후 런타임 접근과 일반 HTTP를 중단한다. 인증 저장과 개인정보 명령은 세션 요청과 별개로 순서를 보장한다. 중복 요청을 합치고 이미 전송한 요청의 늦은 응답을 이전 Epoch 결과로 폐기한다. |
+| 서버 연결 표시 | API 리스너를 닫고 팝업을 다시 열어도 `서버 확인됨`이 표시됐다. `status`는 마지막 성공을 재사용한다. | `최근 서버 검증`과 검증 시각을 표기한다. 30초 이상 지난 결과는 `서버 재확인 필요`다. HTTP 연결 실패·5xx, 401, 403과 인증 만료를 구분한다. |
+| 종료 세션 식별 | 시작 시각을 같게 설정한 서로 다른 세션에서 이전 UI의 `stop`이 후속 세션을 종료했다. | 현재 활성 세션의 불투명한 `sessionHandle`로 종료 명령을 확인한다. Worker 재시작 뒤에도 같은 세션은 같은 값을 반환한다. |
+
+### 접근 중단과 저장
+
+`user/background.ts`는 신뢰 UI와 요청을 검사한 뒤 접근 중단 의도를 반영한다. `V2Runtime`의 접근 Epoch와 `user/transport.ts`의 요청 경계는 새 일반 데이터 전송을 차단한다. `auth-fetch.ts`는 사용자 Worker에서 설정한 검사를 Credential 조회 뒤와 HTTP 응답 수신 뒤에도 적용한다. 이미 서버가 받은 요청은 서버에서 적용됐을 수 있다. 늦게 도착한 ACK로 새 접근을 열거나 원본을 지우지 않는다.
+
+인증 저장과 로그아웃·철회는 같은 인증 작업 순서에서 처리한다. Worker가 로그아웃 요청 도중 중단되면 신뢰 세션 저장소의 표식을 읽어 먼저 로컬 Credential을 제거한다. 철회는 기존 IndexedDB 요청 ID와 영수증 복구를 사용한다. 철회 도중 허용되는 HTTP에는 소유권 확인 및 철회 접수가 포함된다. 저장 포맷과 수집용 DB의 스키마는 그대로 적용한다.
+
+### 검증 상태와 종료 식별
+
+`user/transport.ts`는 실제 HTTP 결과와 인증·동의 검증 완료 시각을 기록한다. 폐기된 세대의 결과와 더 최근에 처리된 요청보다 오래된 응답은 표시값을 갱신하지 않는다. `V2Runtime`도 더 최근의 접근 검증 결과를 이전 응답으로 되돌리지 않는다. 팝업의 500ms 조회는 기존 로컬 조회로 유지하며, 추가 주기성 HTTP 및 Health Check는 필요하지 않다.
+
+서버 `sessionId`를 활용하는 방식은 직접 비교를 지원하며 팝업에 서버 식별자를 전달한다. 이번에는 저장된 세션 ID와 시작 요청 키에 사용자용 종료 문맥을 붙여 SHA-256으로 파생하는 방식 B를 채택했다. 기존 저장값만 사용하므로 Worker 교체 후에도 일관되고 별도 저장소가 필요하지 않다. `user/protocol.ts`가 형식을 검사하고 `user/background.ts`가 일치 여부와 소유권·활성 상태·철회를 검사한다. `V2Runtime`은 정상 종료가 이미 진행 중이면 중복 명령을 막는다.
+
+### 추가 검증 결과
+
+환경은 macOS arm64, Node 25.9.0, npm 11.12.1, Chrome for Testing 151.0.7922.34다. 프런트엔드 자동 테스트는 수정 전 1,144건 통과·0 실패·2 Skip, 수정 후 **1,148건 통과·0 실패·2 Skip**이다. `tests/user-session.test.ts`에서 신규 4건과 기존 메시지 검사를 통과했다. 비동기 Credential 조회 직후 전송 차단, 이전 접근 결과 무효화, 이미 전송한 POST의 원본 보존, 계정 전환 후 이전 END 응답 차단, 30초 검증 상태 전환을 확인했다.
+
+| 실행 명령 | 결과 |
+| --- | --- |
+| `npm run typecheck`, `npm test`, `npm run build:user` | PASS · 신규 4건 포함, 1,148건 통과·0 실패·기존 opt-in 2건 Skip |
+| `npm run test:user:browser` | PASS · A~G 유지, H~J 추가. 정상 방문 3건, 전체 Visit POST 7회·PATCH 6회, 지연 로그아웃·철회, 중단된 로그아웃과 철회 ACK 유실의 Worker 재시작 복구, `START_PENDING` 접근 변경, API 중단·403·503·401, 같은 시작 시각, 이전·잘못된·중복 종료 명령 |
+| `npm run build`, `build:dev`, `build:synthetic`, `build:participant`, `build:pilot`, `build:real` | PASS · 루프백 예시 값 및 사이트를 비운 DRAFT 정책 |
+| `HEADED=1 npm run test:browser`, `npm run test:v2:browser` | PASS · v1 창 전환·최소화·복원, v2 Mock 전송·SPA·알림·철회 및 재시작 |
+| `npm run test:participant:browser`, `npm run test:real:locked` | PASS · 별도 Chrome 프로필의 준비·DRAFT 잠금 |
+| `npm run test:collection:browser`, `npm run test:real:browser` | PASS · `CollectionLiveHttpTest`와 `CollectionRealHtmlHttpTest`, Spring/H2 및 Mock FastAPI, 각각 10 Visit·8 Window. JUnit 2건 통과·0 실패·0 Skip |
+| `npm run test:raw:browser` | PASS · 새 임시 MySQL 8.4, 합성 10 Visit·0 Window, 네트워크·Worker·Chrome 복구 |
+
+추가 검증에서 실제 사용자용 BE, 운영 계정·프로필·데이터와 R3~R6는 범위 밖이다. 인증·동의 검사 및 IndexedDB 형식을 유지했으며 필수 회귀는 분리된 합성 프로필에서 실행했다.
