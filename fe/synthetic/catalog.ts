@@ -5,6 +5,6 @@ export const catalog: Record<string, string> = Object.fromEntries(['a', 'b', 'c'
 export function fixtureId(raw: string): string | undefined {
   try {
     const u = new URL(raw), id = u.pathname.split('/').at(-1)!;
-    return u.origin === FIXTURE_ORIGIN && u.pathname === `/__focus_synthetic__/${id}` && catalog[id] ? id : undefined;
+    return u.origin === FIXTURE_ORIGIN && u.pathname === `/__focus_synthetic__/${id}` && Object.hasOwn(catalog, id) ? id : undefined;
   } catch { return; }
 }

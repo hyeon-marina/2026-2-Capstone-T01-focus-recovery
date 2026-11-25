@@ -28,6 +28,8 @@ export function validateV2(s: V2State, api: string) {
     || s.withdrawal.phase === 'acknowledged' && !validWithdrawal(s.withdrawal.ack, s.withdrawal.requestId))) fail();
   if (s.posts.apiBaseUrl !== api || s.behaviors.apiBaseUrl !== api || s.start && s.start.apiBaseUrl !== api) throw new StorageFailure('server-changed');
   if (s.start?.plannedSessionId !== undefined && !/^PLAN-\d{3}$/.test(s.start.plannedSessionId)) fail();
+  if (s.start?.previousSessionId !== undefined && (!UUID4.test(s.start.previousSessionId) || s.start.plannedSessionId
+    || s.session?.sessionId === s.start.previousSessionId)) fail();
   if (s.start && (!UUID4.test(s.start.idempotencyKey) || s.start.collectionSpecVersion !== '2.0'
     || !validGoal(s.start.goalText) || normalizeGoal(s.start.goalText) !== s.start.goalText)) fail();
   if (s.lifecycle !== 'IDLE' && !s.start || ['ACTIVE', 'END_PENDING', 'ENDED'].includes(s.lifecycle)
@@ -96,11 +98,11 @@ function complete(tx: IDBTransaction) {
 }
 export class V2Repository {
   private db?: IDBDatabase;
-  constructor(readonly apiBaseUrl: string) {}
+  constructor(readonly apiBaseUrl: string, private readonly databaseName = DB_NAME) {}
   private async open() {
     if (this.db) return this.db;
     this.db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const r = indexedDB.open(DB_NAME, DB_VERSION);
+      const r = indexedDB.open(this.databaseName, DB_VERSION);
       r.onupgradeneeded = () => {
         for (const name of ['state', 'v2', 'v2-receipts']) if (!r.result.objectStoreNames.contains(name)) r.result.createObjectStore(name);
       };

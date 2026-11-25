@@ -18,7 +18,7 @@ export interface V2State {
   lifecycle: 'IDLE' | 'START_PENDING' | 'ACTIVE' | 'END_PENDING' | 'ENDED';
   owner?: { participantId: string; consentId: string | null };
   withdrawal?: { requestId: string; phase: 'pending' | 'sending' | 'acknowledged'; attempts: number; ack?: import('./access').WithdrawalReceipt };
-  start?: { plannedSessionId?: string; idempotencyKey: string; goalText: string; collectionSpecVersion: '2.0'; apiBaseUrl: string };
+  start?: { plannedSessionId?: string; previousSessionId?: string; idempotencyKey: string; goalText: string; collectionSpecVersion: '2.0'; apiBaseUrl: string };
   session?: V2Session;
   foreground: number | null; lastTab: number | null; lastVisit?: string;
   candidates: Candidate[]; tabKeys: Record<number, string>; discardedCandidates: number; tabs: Record<number, string>;

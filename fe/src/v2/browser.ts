@@ -6,11 +6,11 @@ import { setCredential, AccessError } from '../api/auth-fetch';
 import { readCollectionAccess, accessRequest } from './access';
 import { V2StatusClient } from './status';
 import { ApiError, postJson, API_BASE_URL } from '../api/client';
-import { V2Runtime, v2HttpTransport } from './runtime';
+import { V2Runtime, v2HttpTransport, type V2Transport } from './runtime';
 import { V2Repository } from './repository';
 import { describeUrl } from '../shared/url';
 import { serialExecutor } from '../background/serial';
-import { catalog, fixtureId } from '../../synthetic/catalog';
+import { catalog, fixtureId, FIXTURE_ORIGIN } from '../../synthetic/catalog';
 import type { Stamp } from './state';
 import { allowedSite, validPolicy, publicText, publicSearchQuery, type SitePolicy } from '../../real/policy';
 import { validSnapshot } from './contract';
@@ -18,7 +18,20 @@ import type { PageSnapshot } from '../shared/types';
 import { MAX_OBSERVATION_GAP_MS } from './collector';
 declare const __COLLECTION_BUILD__: { buildId: string; policyDigest: string; sites: { origin: string; pathPrefix: string }[]; mode: string; metadataOnly?: boolean; pageContent?: boolean; maskContacts?: boolean; rawContent?: boolean; publicWeb?: boolean };
 
-export function installV2Browser(options: { uiPath: string; pilot: boolean; participant: boolean; real?: boolean }) {
+type UserMessageHandler = (message: unknown, sender: chrome.runtime.MessageSender, reply: (value: unknown) => void) => boolean;
+type UserBrowser = {
+  databaseName: string;
+  transport: V2Transport;
+  setup: (runtime: V2Runtime, ready: Promise<void>, capture: () => Promise<void>, stamp: () => Stamp) => UserMessageHandler;
+};
+type BrowserOptions = { uiPath: string } & (
+  { pilot: boolean; participant: boolean; real?: boolean; user?: never }
+  | { user: UserBrowser; pilot?: never; participant?: never; real?: never }
+);
+
+export function installV2Browser(options: BrowserOptions) {
+const user = options.user;
+const captures = !!user || options.pilot || options.real;
 if (options.pilot && !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(API_BASE_URL)) throw new Error('V2_SYNTHETIC_ONLY');
 let sitePolicy: SitePolicy | undefined;
 const real = options.real === true;
@@ -35,7 +48,13 @@ const metadataKey = real && build?.metadataOnly ? (async () => {
 async function descriptionFor(raw: string) {
   return build?.metadataOnly ? describeMetadataUrl(raw, sitePolicy?.sites ?? [], await metadataKey!, runtime.snapshot().session!.sessionId, build?.publicWeb, build?.pageContent, build?.maskContacts, build?.rawContent) : describeUrl(raw);
 }
-const permits = (raw: string) => real ? !!sitePolicy && Date.parse(sitePolicy.expiresAt) > Date.now() && allowedSite(raw, sitePolicy.sites, build?.metadataOnly === true, build?.publicWeb, build?.rawContent) : !!fixtureId(raw);
+const permits = (raw: string) => {
+  if (user) {
+    const id = fixtureId(raw);
+    return !!id && raw === `${FIXTURE_ORIGIN}/__focus_synthetic__/${id}`;
+  }
+  return real ? !!sitePolicy && Date.parse(sitePolicy.expiresAt) > Date.now() && allowedSite(raw, sitePolicy.sites, build?.metadataOnly === true, build?.publicWeb, build?.rawContent) : !!fixtureId(raw);
+};
 async function collectionAccess() {
   const a = await readCollectionAccess();
   if (real) {
@@ -49,7 +68,7 @@ async function collectionAccess() {
 const epoch = crypto.randomUUID();
 const stamp = (): Stamp => ({ epoch, mono: performance.now(), wall: Date.now() });
 let selectedAssignment: string | undefined;
-const runtime = new V2Runtime(new V2Repository(API_BASE_URL), { ...v2HttpTransport,
+const runtime = new V2Runtime(new V2Repository(API_BASE_URL, user?.databaseName), user?.transport ?? { ...v2HttpTransport,
   access: collectionAccess,
   start: async (goal, key) => {
     if (!options.pilot && !real) throw new Error('PARTICIPANT_COLLECTION_BLOCKED');
@@ -57,7 +76,7 @@ const runtime = new V2Runtime(new V2Repository(API_BASE_URL), { ...v2HttpTranspo
       ? postJson(`/api/collection/assignments/${selectedAssignment}/start`, {}, key)
       : v2HttpTransport.start(goal, key);
   },
-}, build?.rawContent === true);
+}, build?.rawContent === true, !!user);
 const reportAttempts = new Map<string, string>();
 const reportedFailures = new Set<string>();
 // Ephemeral, fixed codes only: never retain a URL, document text, input value or credential.
@@ -102,7 +121,7 @@ const ready = runtime.initialize();
 const statusClient = new V2StatusClient(() => runtime.snapshot());
 const serial = serialExecutor();
 async function captureAllowedTabs() {
-  if (!options.pilot && !real) return;
+  if (!captures) return;
   const tab = await focus(stamp());
   if (!runtime.collecting()) return;
   if (tab?.id === undefined) { diagnose('NO_FOREGROUND_TAB'); return; }
@@ -154,8 +173,13 @@ async function focus(t: Stamp, switched = false) {
   }
   return tab;
 }
+const onUserMessage = user?.setup(runtime, ready, () => serial(captureAllowedTabs), stamp);
 chrome.runtime.onMessage.addListener((m, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return;
+  if (user && sender.url === chrome.runtime.getURL(options.uiPath)) return onUserMessage?.(m, sender, reply);
+  if (user && (!sender.url || !permits(sender.url) || !['v2-context', 'v2-leave', 'v2-observation'].includes(m?.type))) {
+    reply({ collecting: false }); return;
+  }
   const t = stamp();
   const arrivedRevision = sender.tab?.id === undefined ? undefined : navigationRevision.get(sender.tab.id);
   if (sender.url === chrome.runtime.getURL(options.uiPath) && ['v2-login','v2-logout','v2-withdraw'].includes(m?.type)) runtime.suspendAccess();
@@ -239,7 +263,10 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
         ...(source?{source}:{}),description:collecting && build?.metadataOnly ? await descriptionFor(source?.url ?? m.raw) : undefined};
     }
     if (m?.type === 'v2-context') return { collecting: !!sender.url && permits(sender.url) && runtime.collecting() };
-    if (m?.type === 'v2-leave') { await runtime.leave(tabId, t); return; }
+    if (m?.type === 'v2-leave') {
+      if (!user || documents.get(tabId) === sender.documentId) await runtime.leave(tabId, t);
+      return;
+    }
     if (real && m?.type === 'v2-observation') {
       if (typeof m.raw !== 'string' || !runtime.collecting()) return { collecting: false };
       if (!permits(m.raw)) { diagnose('POLICY'); await runtime.leave(tabId,t,true); return {collecting:runtime.collecting()}; }
@@ -294,6 +321,8 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       await syncReport();await runtime.compact(t);return { collecting:runtime.collecting() };
     }
     if (m?.type !== 'v2-observation'  || typeof m.raw !== 'string' || !fixtureId(m.raw) || fixtureId(m.raw) !== m.id) return;
+    if (user && (!permits(m.raw) || typeof m.safe !== 'boolean' || typeof m.visible !== 'boolean' || typeof m.ready !== 'boolean'
+      || !runtime.collecting())) return { collecting: false };
     const frame = await chrome.webNavigation.getFrame({ tabId, frameId: 0 });
     if (!frame || frame.documentId !== sender.documentId || frame.url !== m.raw) return;
     const permitted = await chrome.permissions.contains({ origins: ['http://127.0.0.1/*'] });
@@ -305,7 +334,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     if (documents.get(tabId) !== sender.documentId) {
       documents.set(tabId, sender.documentId); boundaries.set(tabId, t);
     }
-    if (m.ready !== true || typeof m.contentId !== 'string' || !catalog[m.contentId] || typeof m.titleId !== 'string' || !catalog[m.titleId]) return { collecting: runtime.collecting() };
+    if (m.ready !== true || typeof m.contentId !== 'string' || !Object.hasOwn(catalog, m.contentId) || typeof m.titleId !== 'string' || !Object.hasOwn(catalog, m.titleId)) return { collecting: runtime.collecting() };
     const generation = m.contentId;
     const previousContent = contentGenerations.get(tabId);
     if (previousContent && previousContent.raw === m.raw && previousContent.content !== generation) boundaries.set(tabId, t);
@@ -324,7 +353,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
   });
   return true;
 });
-if (options.pilot || real) {
+if (captures) {
 function event(operation: (t: Stamp) => Promise<void>) {
   const t = stamp();
   void serial(async () => { await ready; await operation(t); }).catch(() => {});
@@ -371,7 +400,10 @@ const routeChanged = (d: {frameId:number;tabId:number}) => {
 };
 chrome.webNavigation.onHistoryStateUpdated.addListener(routeChanged);
 chrome.webNavigation.onReferenceFragmentUpdated.addListener(routeChanged);
-chrome.permissions.onRemoved.addListener(() => event(t => runtime.quarantine('CONSENT_WITHDRAWN', t.wall)));
+chrome.permissions.onRemoved.addListener(permission => {
+  if (!user) { event(t => runtime.quarantine('CONSENT_WITHDRAWN', t.wall)); return; }
+  if (permission.origins?.includes('http://127.0.0.1/*')) runtime.suspendAccess();
+});
 chrome.alarms.onAlarm.addListener(() => event(async () => { runtime.wake(); }));
 }
 void ready.then(async () => { await chrome.alarms.create('v2-recovery', { periodInMinutes: 1 }); await captureAllowedTabs(); }).catch(() => {});

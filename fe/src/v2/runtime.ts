@@ -11,7 +11,7 @@ import { serialExecutor } from '../background/serial';
 import { behaviorSnapshot } from '../api/behavior';
 import { savePageVisit } from '../api/visit';
 import { updateVisitBehavior } from '../api/behavior';
-import { endSession, getSession } from '../api/session-end';
+import { endSession, getSession, matchesSession } from '../api/session-end';
 import { isV2Session } from './contract';
 import { V2Collector, canCompact, type Observation } from './collector';
 import { V2Repository, drained } from './repository';
@@ -33,6 +33,9 @@ export class V2Runtime {
   private verifiedIdentity?: { participantId: string; expiresAt: string; credentialEpoch: number };
   private accessError?: string;
   private accessEpoch = 0;
+  private accessChecks = 0;
+  private settledAccessCheck = 0;
+  private userPrivacyPending = 0;
   private credentialEpoch = accessGeneration();
   private withdrawalRunning = false;
   private serverWithdrawalSeen = false;
@@ -44,43 +47,72 @@ export class V2Runtime {
   private stopping = false;
   private held = false;
   private starting = false;
+  private reconnectRequired = false;
   private notificationRunning = false;
   private retractionRunning = false;
   private compactedIds: string[] = [];
   private posts: VisitDelivery;
   private behaviors: BehaviorDelivery;
   private ending: SessionEndDelivery;
-  constructor(private repository: V2Repository, private transport: V2Transport, private resumeIncomplete = false) {
+  constructor(private repository: V2Repository, private transport: V2Transport, private resumeIncomplete = false, private freeGoalSession = false) {
     this.collector = new V2Collector(this.state, undefined, resumeIncomplete);
     const protect = async <T>(send: () => Promise<T>) => {
-      try { await this.verifyAccess(); return await send(); }
-      catch (e) { if (e instanceof AccessError) { this.suspendAccess(); this.accessError = e.kind; }
-        if (e && typeof e === 'object' && 'status' in e && e.status === 401) { this.suspendAccess(); this.accessError = 'authentication'; } if (e && typeof e === 'object' && 'code' in e && e.code === 'PRIVACY_RETRACTED') this.held = true; throw e; }
+      const epoch = this.accessEpoch, credential = accessGeneration();
+      const current = () => epoch === this.accessEpoch && credential === accessGeneration();
+      if (this.freeGoalSession) await this.verifyAccess();
+      try {
+        if (!this.freeGoalSession) await this.verifyAccess();
+        if (this.freeGoalSession && (!current() || !this.canSend())) throw new AccessError('account');
+        const result = await send();
+        if (this.freeGoalSession && !current()) throw new AccessError('account');
+        return result;
+      } catch (error) {
+        if (this.freeGoalSession && !current()) throw error;
+        if (error instanceof AccessError && (!this.freeGoalSession || error.kind !== 'account')) {
+          this.suspendAccess(); this.accessError = error.kind;
+        }
+        if (error && typeof error === 'object' && 'status' in error) {
+          if (error.status === 401 || this.freeGoalSession && error.status === 403) {
+            this.suspendAccess(); this.accessError = error.status === 401 ? 'authentication' : 'consent';
+          }
+        }
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'PRIVACY_RETRACTED') this.held = true;
+        throw error;
+      }
     };
     const mutate = <T>(op: () => T) => this.mutate(op).then(value => { this.kick(); return value; });
     this.posts = new VisitDelivery(mutate, () => this.canSend(), v => protect(() => transport.post(v)));
     this.behaviors = new BehaviorDelivery(mutate, id => this.canSend() && this.committed.posts.entries.some(e => e.visitId === id && e.phase === 'acked'), (s, id, b) => protect(() => transport.patch(s, id, b)));
     this.ending = new SessionEndDelivery(mutate, () => this.canSend(), () => drained(this.committed),
-      () => [...this.state.posts.entries, ...this.state.behaviors.entries].some(e => e.code === 'SESSION_ENDED'), (s, b) => protect(() => transport.end(s, b)), s => protect(() => transport.query(s)));
+      () => [...this.state.posts.entries, ...this.state.behaviors.entries].some(e => e.code === 'SESSION_ENDED'), (s, b) => protect(() => transport.end(s, b)), s => protect(() => transport.query(s)), freeGoalSession);
   }
   suspendAccess() { this.accessEpoch++; this.access = undefined; this.accessError = 'AUTHENTICATION_REQUIRED';
     this.pauseAuthorization();
   }
+  beginUserPrivacyChange() {
+    if (this.userPrivacyPending++ === 0) this.suspendAccess();
+    return () => { this.userPrivacyPending--; };
+  }
   private pauseAuthorization() {
+    if (this.freeGoalSession && this.committed.lifecycle === 'ACTIVE') this.reconnectRequired = true;
     for (const c of this.state.candidates) { c.cursor = undefined; if (!this.resumeIncomplete) c.closed = true; }
     if (!this.resumeIncomplete) this.state.tabs = {};
     delete this.state.lastVisit;
   }
   private authorized() {
-    return !this.serverWithdrawalSeen && !!this.access && this.credentialEpoch === accessGeneration() && Date.parse(this.access.expiresAt) > Date.now()
+    return !this.userPrivacyPending && !this.serverWithdrawalSeen && !!this.access && this.credentialEpoch === accessGeneration() && Date.parse(this.access.expiresAt) > Date.now()
       && !!this.committed.owner && this.access.participantId === this.committed.owner.participantId
       && this.access.consentId === this.committed.owner.consentId && this.access.consentValid && this.access.collectionEnabled && !this.access.withdrawn;
   }
   async verifyAccess(forStart = false, ownershipOnly = false) {
-    const epoch = this.accessEpoch, credential = accessGeneration();
+    if (this.userPrivacyPending && !ownershipOnly) throw new AccessError('authentication');
+    const epoch = this.accessEpoch, credential = accessGeneration(), check = ++this.accessChecks;
+    const current = () => epoch === this.accessEpoch && credential === accessGeneration()
+      && (!this.freeGoalSession || check >= this.settledAccessCheck);
     try {
       const access = await this.transport.access();
-      if (epoch !== this.accessEpoch || credential !== accessGeneration()) throw new AccessError('account');
+      if (!current()) throw new AccessError('account');
+      this.settledAccessCheck = check;
       if (!Number.isFinite(Date.parse(access.expiresAt)) || Date.parse(access.expiresAt) <= Date.now()) throw new AccessError('authentication');
       this.verifiedIdentity = { participantId: access.participantId, expiresAt: access.expiresAt, credentialEpoch: credential };
       const owner = this.committed.owner;
@@ -89,19 +121,39 @@ export class V2Runtime {
       if (access.withdrawn && owner) this.serverWithdrawalSeen = true;
       this.access = access; this.credentialEpoch = credential; this.accessError = undefined;
       if (Date.parse(access.expiresAt) <= Date.now()) throw new AccessError('authentication');
+      if (this.freeGoalSession && this.committed.lifecycle === 'ACTIVE' && !this.authorized()) this.pauseAuthorization();
       if (!ownershipOnly && (this.serverWithdrawalSeen || !access.consentValid || !access.collectionEnabled || access.withdrawn
         || owner && access.consentId !== owner.consentId && !newSession)) throw new AccessError('consent');
       return access;
     } catch (e) {
+      if (this.freeGoalSession && !current()) throw e;
+      this.settledAccessCheck = check;
       this.pauseAuthorization();
       this.access = undefined; this.accessError = e instanceof AccessError ? e.kind : 'network';
       throw e;
     }
   }
+  private needsReconnect() {
+    return this.reconnectRequired && this.committed.lifecycle === 'ACTIVE';
+  }
+  accessSnapshot() {
+    const identity = this.verifiedIdentity;
+    const authenticated = !!identity && identity.credentialEpoch === accessGeneration() && Date.parse(identity.expiresAt) > Date.now()
+      && this.accessError !== 'authentication' && this.accessError !== 'AUTHENTICATION_REQUIRED';
+    return {
+      authenticated,
+      ownerVerified: authenticated && identity.participantId === this.committed.owner?.participantId,
+      consentValid: this.access?.consentValid === true,
+      collectionEnabled: this.access?.collectionEnabled === true,
+      withdrawn: this.serverWithdrawalSeen || this.access?.withdrawn === true,
+      privacyPending: this.userPrivacyPending > 0,
+      reconnectRequired: this.needsReconnect(),
+    };
+  }
   get foregroundTab() { return this.committed.foreground; }
-  collecting() { return this.authorized() && !this.failed && !this.stopping && !this.held && !this.committed.quarantine && this.committed.lifecycle === 'ACTIVE'; }
+  collecting() { return this.authorized() && !this.needsReconnect() && !this.failed && !this.stopping && !this.held && !this.committed.quarantine && this.committed.lifecycle === 'ACTIVE'; }
   snapshot() { return { ...structuredClone(this.committed), accessError: this.accessError, authenticated: !!this.access, collectionAllowed: this.authorized(), storageFailed: this.failed, alertsSuppressed: !this.authorized() || this.failed || this.stopping || this.held || Boolean(this.committed.quarantine) }; }
-  private canSend() { return this.authorized() && !this.failed && !this.held && !this.committed.quarantine && !this.posts.blocked && !this.behaviors.blocked; }
+  private canSend() { return this.authorized() && !this.needsReconnect() && !this.failed && !this.held && !this.committed.quarantine && !this.posts.blocked && !this.behaviors.blocked; }
   private install(s: V2State) {
     this.state = s; this.collector = new V2Collector(s, undefined, this.resumeIncomplete);
     this.posts.checkpoint = s.posts; this.behaviors.checkpoint = s.behaviors; this.ending.checkpoint = s.end;
@@ -111,6 +163,7 @@ export class V2Runtime {
       const s = await this.repository.load();
       this.compactedIds = s.session ? await this.repository.compactedVisitIds(s.session.sessionId) : [];
       this.committed = structuredClone(s); this.install(s);
+      this.reconnectRequired = this.freeGoalSession && s.lifecycle === 'ACTIVE';
       await this.mutate(() => {
         // Worker generation cannot establish a return interval, even for a surviving Chrome document.
         for (const c of s.candidates) {
@@ -173,31 +226,51 @@ export class V2Runtime {
     const access = await this.verifyAccess(true);
     const previousSessionId = this.committed.lifecycle === 'ENDED' ? this.committed.session?.sessionId : undefined;
     const previous = previousSessionId ? undefined : this.committed.start;
+    const epoch = this.accessEpoch, credential = accessGeneration();
     if (previous && (previous.plannedSessionId && previous.plannedSessionId !== plannedSessionId || previous.goalText !== goalText || previous.collectionSpecVersion !== '2.0' || previous.apiBaseUrl !== API_BASE_URL)) throw new Error('V2_START_CONFLICT');
-    await this.mutate(() => {
+    const prepared = await this.mutate(() => {
+      if (this.freeGoalSession && (epoch !== this.accessEpoch || credential !== accessGeneration() || this.userPrivacyPending
+        || this.state.withdrawal)) return false;
       if (previousSessionId) {
         const revision = this.state.revision;
         this.posts.clear(); this.behaviors.clear(); this.ending.clear(); this.compactedIds = [];
         this.install({ ...initialState(API_BASE_URL), revision });
       }
       this.state.owner ??= { participantId: access.participantId, consentId: access.consentId };
-      this.state.start ??= { ...(plannedSessionId ? { plannedSessionId } : {}), goalText, idempotencyKey: crypto.randomUUID(), collectionSpecVersion: '2.0', apiBaseUrl: API_BASE_URL };
+      this.state.start ??= { ...(plannedSessionId ? { plannedSessionId } : {}),
+        ...(this.freeGoalSession && previousSessionId ? { previousSessionId } : {}), goalText, idempotencyKey: crypto.randomUUID(), collectionSpecVersion: '2.0', apiBaseUrl: API_BASE_URL };
       this.state.lifecycle = 'START_PENDING';
+      return true;
     });
+    if (!prepared) throw new AccessError('account');
+    if (this.freeGoalSession && (epoch !== this.accessEpoch || credential !== accessGeneration() || this.userPrivacyPending)) {
+      throw new AccessError('account');
+    }
     this.stopping = false; this.held = false;
     await this.verifyAccess();
     const response = await this.transport.start(goalText, this.committed.start!.idempotencyKey);
-    if (!isV2Session(response) || response.status !== 'ACTIVE' || response.goalText !== goalText || response.sessionId === previousSessionId) throw new Error('V2_VERSION_OR_SESSION_MISMATCH');
-    await this.mutate(() => { this.state.session = response; this.state.lifecycle = 'ACTIVE'; });
+    if (!isV2Session(response) || response.status !== 'ACTIVE' || response.goalText !== goalText
+      || response.sessionId === (previousSessionId ?? previous?.previousSessionId)) throw new Error('V2_VERSION_OR_SESSION_MISMATCH');
+    const activated = await this.mutate(() => {
+      if (this.freeGoalSession && (epoch !== this.accessEpoch || credential !== accessGeneration() || !this.authorized())) return false;
+      const { sessionId, goalText, startedAt, status, endedAt, collectionSpecVersion } = response;
+      this.state.session = this.freeGoalSession ? { sessionId, goalText, startedAt, status, endedAt, collectionSpecVersion } : response;
+      this.state.lifecycle = 'ACTIVE'; this.reconnectRequired = false;
+      return true;
+    });
+    if (!activated) throw new AccessError('authentication');
     this.kick();
   }
   async observe(observation: Observation) {
     if (this.stopping || this.held || this.committed.quarantine || this.committed.lifecycle !== 'ACTIVE') return;
+    const sessionId = this.committed.session?.sessionId;
     try { await this.verifyAccess(); } catch { return; }
+    if (this.freeGoalSession && !this.collecting()) return;
     if (this.committed.candidates.length >= 200) await this.compact(observation.stamp);
     if (this.stopping || this.held) return;
     if (!observation.safe || !observation.permitted) return this.quarantine('SENSITIVE_CONTENT', observation.stamp.wall);
     await this.mutate(() => {
+      if (this.freeGoalSession && (!this.collecting() || sessionId !== this.committed.session?.sessionId)) return;
       this.collector.observe(observation);
       this.collector.expire(observation.stamp);
       // Backpressure preserves all unresolved data rather than evicting it.
@@ -208,15 +281,22 @@ export class V2Runtime {
   async foreground(tab: number | null, stamp: Stamp, switchEvent = false) {
     if (this.failed) throw new Error('V2_STORAGE_BLOCKED');
     if (!this.collecting()) return;
-    await this.mutate(() => { this.collector.foreground(tab, stamp, switchEvent); this.sync(true); });
+    await this.mutate(() => {
+      if (this.userPrivacyPending) return;
+      this.collector.foreground(tab, stamp, switchEvent); this.sync(true);
+    });
     this.kick();
   }
   async leave(tab: number, stamp: Stamp, navigation = false) {
     if (!this.collecting()) return;
-    await this.mutate(() => { navigation ? this.collector.invalidateTarget(tab, stamp) : this.collector.pause(tab, stamp); this.sync(true); });
+    await this.mutate(() => {
+      if (this.userPrivacyPending) return;
+      navigation ? this.collector.invalidateTarget(tab, stamp) : this.collector.pause(tab, stamp); this.sync(true);
+    });
     this.kick();
   }
   async stop(stamp: Stamp) {
+    if (this.freeGoalSession && (this.userPrivacyPending || this.stopping && !this.committed.quarantine)) throw new Error('V2_STOP_BLOCKED');
     this.stopping = true; // Synchronous intent precedes queued writes and in-flight HTTP replies.
     if (this.committed.quarantine && this.committed.session && !this.committed.withdrawal) {
       if (this.committed.quarantineClose?.phase === 'acknowledged') return;
@@ -225,10 +305,13 @@ export class V2Runtime {
       return;
     }
     if (this.committed.lifecycle !== 'ACTIVE') return;
-    await this.mutate(() => {
+    const stopped = await this.mutate(() => {
+      if (this.freeGoalSession && (this.state.withdrawal || this.userPrivacyPending)) return false;
       this.collector.finish(stamp); this.sync(true); this.ending.begin(this.state.session!, stamp.wall);
       this.state.lifecycle = 'END_PENDING';
+      return true;
     });
+    if (!stopped) { this.stopping = false; throw new Error('V2_STOP_BLOCKED'); }
     this.kick();
   }
   private quarantineNow(reason: NonNullable<V2State['quarantine']>['reason'], wall: number) {
@@ -294,10 +377,25 @@ export class V2Runtime {
     this.kick();
   }
   async resume(plannedSessionId: string) {
-    if (this.committed.lifecycle !== 'ACTIVE' || this.committed.start?.plannedSessionId !== plannedSessionId || !this.committed.session || this.committed.quarantine || this.committed.withdrawal) throw new Error('V2_RESUME_BLOCKED');
+    if (!plannedSessionId || this.committed.lifecycle !== 'ACTIVE' || this.committed.start?.plannedSessionId !== plannedSessionId || !this.committed.session || this.committed.quarantine || this.committed.withdrawal) throw new Error('V2_RESUME_BLOCKED');
     await this.verifyAccess();
     const session = await this.transport.query(this.committed.session);
     if (!isV2Session(session) || session.sessionId !== this.committed.session.sessionId || session.status !== 'ACTIVE') throw new Error('V2_RESUME_BLOCKED');
+    await this.retry();
+  }
+  async resumeUserSession() {
+    const { session, lifecycle, start, quarantine, withdrawal } = this.committed;
+    if (!this.freeGoalSession || !session || lifecycle !== 'ACTIVE' || start?.plannedSessionId || quarantine || withdrawal || this.stopping) {
+      throw new Error('V2_RESUME_BLOCKED');
+    }
+    this.reconnectRequired = true;
+    const epoch = this.accessEpoch, credential = accessGeneration();
+    await this.verifyAccess();
+    const result = await this.transport.query(session);
+    if (!matchesSession(result, session) || result.status !== 'ACTIVE' || this.committed.lifecycle !== 'ACTIVE'
+      || this.committed.session?.sessionId !== session.sessionId || this.stopping || this.committed.quarantine
+      || epoch !== this.accessEpoch || credential !== accessGeneration() || !this.authorized()) throw new Error('V2_RESUME_BLOCKED');
+    this.reconnectRequired = false;
     await this.retry();
   }
   async retry() {
@@ -391,7 +489,8 @@ export class V2Runtime {
     } finally { this.notificationRunning = false; }
   }
   async withdrawAll(wall = Date.now()) {
-    this.suspendAccess(); this.held = true;
+    this.suspendAccess();
+    if (!this.freeGoalSession) this.held = true;
     const identity = this.verifiedIdentity;
     const current = identity && identity.credentialEpoch === accessGeneration() && Date.parse(identity.expiresAt) > Date.now();
     if (this.committed.owner && current && identity.participantId !== this.committed.owner.participantId) throw new AccessError('account');
@@ -400,6 +499,7 @@ export class V2Runtime {
       const identity = await this.verifyAccess(false, true);
       await this.mutate(() => { this.state.owner = { participantId: identity.participantId, consentId: identity.consentId }; });
     }
+    this.held = true;
     await this.mutate(() => {
       this.state.withdrawal ??= { requestId: crypto.randomUUID(), phase: 'pending', attempts: 0 };
       this.quarantineNow('CONSENT_WITHDRAWN', wall);
