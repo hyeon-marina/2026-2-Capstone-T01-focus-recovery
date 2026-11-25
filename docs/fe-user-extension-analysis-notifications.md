@@ -57,7 +57,7 @@ IndexedDB와 Chrome API 사이에 단일 원자적 트랜잭션이 없다. 인�
 
 Mock은 표시 전 후보만 상태 응답에 반환하는 기존 BE 동작을 따른다. 이미 해당 후보의 `shownAt` 영수증이 있고 최신 판정이 동일한 DRIFT라면, 후보가 응답에서 빠져도 상세 탭에서 선택을 마칠 수 있다. 같은 판정에서 후보를 별도로 철회하거나 만료하는 정책을 도입한다면 사용자용 BE가 후보의 종료 여부를 조회할 수 있게 합의해야 한다. 사용자용 BE 통합 전에는 `shownAt`을 상세 화면 노출로 셀지, OS 노출·열람 지표를 별도로 어떻게 집계할지 정한다.
 
-R4는 기존 `NotificationReceipt`와 `sendNotification(sessionId, receipt)`를 재사용할 수 있다. 현재 세션의 영수증은 Worker 재시작 뒤 원본 시각으로 재전송할 수 있다. 종료 후 새 세션을 시작하면 기존 저장소가 이전 세션과 미확인 영수증을 함께 `session/{sessionId}` 레코드에 보존한다. 활성 세션 전송기는 이 보관 데이터를 읽지 않는다. 보관된 영수증의 세션별 Outbox 및 재전송은 R4의 연동 지점이다. [영수증과 ACK](../fe/src/v2/notifications.ts) · [세션 보관](../fe/src/v2/repository.ts)
+R4에서 사용자용 표시·선택 영수증을 세션별 Outbox로 이관했다. 종료한 작업의 미확인 기록도 원래 세션 경로로 백그라운드에서 확인한다. Chrome 알림 제출과 상세 화면 검증은 이 문서의 R3 흐름을 사용한다. [Outbox 설계 및 검증](fe-user-notification-outbox-issue137.md)
 
 ## 합성 재현
 
@@ -116,4 +116,4 @@ CHROMIUM_PATH='/absolute/path/to/Google Chrome for Testing' npm run test:user:br
 | 네이티브 OS 배너와 물리 클릭 | `BLOCKED`. 현재 macOS 자동화 환경에서 시스템 UI 접근성이 비활성이다. 격리 프로필 시연에 OS 설정 변경을 적용하지 않았다. |
 | 사람의 실제 열람 | `NOT_VERIFIED`. 상세 화면 커밋과 서버 ACK만 측정한다. |
 
-R6에서 네이티브 알림 표시를 관찰할 수 있는 독립 테스트 기기와 OS 알림 허용 상태를 준비한다. OS 배너를 실제로 클릭해 상세와 선택 ACK를 확인하고 집중 모드에서의 동작도 검증한다. R1 사용자용 BE 계약, R4 보관 영수증 Outbox, R5 고정 주기 평가 및 R6 운영 BE·AI는 후속 범위다.
+R6에서 네이티브 알림 표시를 관찰할 수 있는 독립 테스트 기기와 OS 알림 허용 상태를 준비한다. OS 배너를 실제로 클릭해 상세와 선택 ACK를 확인하고 집중 모드에서의 동작도 검증한다. R1 사용자용 BE 계약, R5 고정 주기 평가 및 R6 운영 BE·AI는 후속 범위다.

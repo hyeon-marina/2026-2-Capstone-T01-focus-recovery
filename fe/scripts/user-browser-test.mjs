@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
@@ -114,6 +114,21 @@ async function saved(key = 'current', store = 'v2') {
   }, { name: USER_DB, key, store });
 }
 const disk = () => saved();
+const outbox = () => popup.evaluate(async name => {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open(name);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  return new Promise(resolve => {
+    const tx = db.transaction('v2');
+    const request = tx.objectStore('v2').getAll(IDBKeyRange.bound('notification/', 'notification/\uffff'));
+    tx.oncomplete = () => { db.close(); resolve(request.result.filter(value => typeof value === 'object')); };
+  });
+}, USER_DB);
+const receiptFor = async alert => (await outbox()).find(r => r.alertId === alert.alertId);
+const setWorkerTime = when => worker.evaluate(time => { globalThis.notificationTest.time = time; }, when);
+const receiptRequests = (alert, kind) => mock.requests.filter(r => r.url.endsWith(`/alerts/${alert.alertId}/${kind}`));
 async function end() {
   await button('작업 종료').click();
   await heading('작업 종료 완료');
@@ -128,16 +143,15 @@ async function start(goal) {
 const startRequests = () => mock.requests.filter(r => r.url === '/api/sessions');
 const writes = () => mock.requests.filter(r => /\/visits/.test(r.url));
 
-async function launchNotificationTest(profile) {
-  await context?.close(); context = undefined;
-  await mock.close();
-  mock = await startMock();
-  const instrumented = join(temp, profile + '-extension');
-  await cp(extension, instrumented, { recursive: true });
+async function instrumentExtension(source, instrumented) {
+  await cp(source, instrumented, { recursive: true });
   const background = join(instrumented, manifest.background.service_worker);
+  const workerBuild = JSON.parse(await readFile(join(source, 'manifest.json'), 'utf8')).version;
   // Headless Chrome cannot click an OS banner. Capture the registered listener in this temporary copy.
   await writeFile(background, `
-    const bridge = globalThis.notificationTest = { submitted: [], attempts: [] };
+    const bridge = globalThis.notificationTest = { submitted: [], attempts: [], boot: crypto.randomUUID(), build: ${JSON.stringify(workerBuild)} };
+    const realNow = Date.now;
+    Date.now = () => bridge.time ?? realNow();
     const api = chrome.notifications;
     const create = api.create.bind(api);
     api.create = (id, options, callback) => {
@@ -209,6 +223,13 @@ async function launchNotificationTest(profile) {
       };
     }
   ` + await readFile(background, 'utf8'));
+}
+async function launchNotificationTest(profile, source = extension) {
+  await context?.close(); context = undefined;
+  await mock.close();
+  mock = await startMock();
+  const instrumented = join(temp, profile + '-extension');
+  await instrumentExtension(source, instrumented);
   id = undefined;
   await launch(profile, instrumented);
   await openPopup();
@@ -361,9 +382,9 @@ async function verifySubmissionRecovery() {
     sendFrom(otherDetail, { type: 'alert-select', viewId, action: 'CONTINUE_BROWSING' }),
   ]);
   await waitFor(() => concurrent.selection, 'one selection from two views');
-  await waitFor(async () => (await disk()).notifications.some(r => r.alertId === concurrent.alertId && r.selectionAck), 'selection ACK');
-  assert.equal((await disk()).notifications.filter(r => r.alertId === concurrent.alertId).length, 1);
-  assert.equal((await disk()).notifications.find(r => r.alertId === concurrent.alertId).selection.action, concurrent.selection.action);
+  await waitFor(async () => (await receiptFor(concurrent))?.selectionAck, 'selection ACK');
+  assert.equal((await outbox()).filter(r => r.alertId === concurrent.alertId).length, 1);
+  assert.equal((await receiptFor(concurrent)).selection.action, concurrent.selection.action);
   await detail.close(); await otherDetail.close();
   console.log('PASS recovery F: coalesced alarm/navigation/Popup and two detail views');
 
@@ -557,11 +578,26 @@ async function verifyAnalysisAndAlerts() {
     await waitFor(async () => (await submitted()).some(a => a.id.endsWith(other.alertId)), 'new session window 1 submitted');
     held.release();
     await detail.getByText('현재 확인할 수 있는 알림이 없어요.').waitFor();
-    const archived = (await saved('session/' + first.session.sessionId)).notifications;
-    assert.equal(archived[0].selection.action, 'RETURN_TO_GOAL');
-    assert.equal(archived[0].selectionAck, undefined);
+    await waitFor(async () => (await receiptFor(candidate))?.selectionDelivery.phase === 'retry-wait', 'lost ACK backoff recorded');
+    const previous = await receiptFor(candidate);
+    assert.equal(previous.sessionId, first.session.sessionId);
+    assert.equal(previous.selection.action, 'RETURN_TO_GOAL');
+    assert.equal(previous.selectionAck, undefined);
+    assert.equal((await state()).receipts.previousPending, 1);
     assert.deepEqual((await disk()).notifications, []);
+    const beforeRetry = receiptRequests(candidate, 'responses').length;
+    await alarm();
+    assert.equal(receiptRequests(candidate, 'responses').length, beforeRetry, 'alarm respects durable backoff');
     delete mock.faults.dropSelection;
+    const submittedBeforeRecovery = (await submitted()).length;
+    await setWorkerTime(previous.selectionDelivery.nextRetryAt + 1);
+    await alarm();
+    await waitFor(async () => (await receiptFor(candidate))?.selectionAck, 'session A recovers during session B');
+    await setWorkerTime(undefined);
+    assert.equal((await state()).receipts.previousPending, 0);
+    assert.equal((await submitted()).length, submittedBeforeRecovery, 'recovery never resubmits a native notification');
+    assert.equal((await receiptFor(candidate)).feedbackId, candidate.selection.feedbackId);
+    for (const attempt of receiptRequests(candidate, 'responses')) assert.deepEqual(attempt.body, writes[0].body);
 
     const click = context.waitForEvent('page');
     mock.faults.dropShown = 'always';
@@ -571,7 +607,8 @@ async function verifyAnalysisAndAlerts() {
     await secondDetail.getByRole('button', { name: '탐색 계속하기' }).click();
     await secondDetail.getByText(/서버에 기록했어요/).waitFor();
     assert.equal(other.selection.action, 'CONTINUE_BROWSING');
-    const [receipt] = (await disk()).notifications;
+    const receipt = await receiptFor(other);
+    assert.equal(receipt.sessionId, second.session.sessionId);
     assert.equal(receipt.shownAt, other.shownAt);
     assert.ok(receipt.shownAck && receipt.selectionAck);
     delete mock.faults.dropShown;
@@ -596,8 +633,10 @@ async function verifyAnalysisAndAlerts() {
     await waitFor(async () => (await listed())['focus-drift:' + afterLogout.alertId], 'new authorization revalidates candidate');
     const account = mock.accounts.get('Bearer ' + ALICE);
     account.expiresAt = '2000-01-01T00:00:00.000Z';
-    await alarm();
-    await waitFor(async () => (await state()).access === 'auth' && !Object.keys(await listed()).length, 'expired authorization clears alert');
+    await waitFor(async () => {
+      await alarm();
+      return (await state()).access === 'auth' && !Object.keys(await listed()).length;
+    }, 'expired authorization clears alert');
     account.expiresAt = '2099-01-01T00:00:00.000Z';
     await login(ALICE, '작업 진행 중');
     const beforeWithdrawal = setAnalysis(second, { windowIndex: 3, state: 'DRIFT', candidate: true });
@@ -615,6 +654,208 @@ async function verifyAnalysisAndAlerts() {
   await detail.close();
   console.log('PASS K: Chrome background submission, latest result, restart dedup, both choices, ACK loss and cross-session receipt isolation');
 }
+async function recoverWorker() {
+  const boot = await worker.evaluate(() => globalThis.notificationTest.boot);
+  await restartWorker();
+  await waitFor(async () => {
+    if (!(await state().catch(() => null))?.collecting) return false;
+    worker = context.serviceWorkers().find(candidate => new URL(candidate.url()).hostname === id) ?? worker;
+    return await worker.evaluate(() => globalThis.notificationTest.boot).catch(() => boot) !== boot;
+  }, 'restarted Worker restored the active session');
+}
+
+async function alarm() {
+  await worker.evaluate(() => globalThis.notificationTest.alarm({ name: 'user-analysis' }));
+}
+
+async function openAlert(record, index) {
+  const alert = setAnalysis(record, { windowIndex: index, state: 'DRIFT', candidate: true });
+  await waitFor(async () => {
+    await alarm();
+    return await worker.evaluate(id => chrome.notifications.getAll().then(values => !!values['focus-drift:' + id]), alert.alertId);
+  }, 'native alert ready');
+  const opened = context.waitForEvent('page');
+  await worker.evaluate(id => globalThis.notificationTest.click('focus-drift:' + id), alert.alertId);
+  const detail = await opened;
+  await detail.getByText(record.session.goalText, { exact: true }).waitFor();
+  return { alert, detail };
+}
+
+async function verifyOutboxRecovery() {
+  const profile = 'outbox';
+  await launchNotificationTest(profile);
+  await start('복구 테스트에서 첫 작업의 알림 확인하기');
+  const first = lastSession();
+  const heldShown = holdResponse('holdShown');
+  const { alert: a, detail: detailA } = await openAlert(first, 1);
+  try {
+    await heldShown.received();
+    assert.equal((await receiptFor(a)).shownDelivery.phase, 'sending');
+    assert.equal((await receiptFor(a)).shownAt, a.shownAt);
+    await recoverWorker();
+  } finally { heldShown.release(); }
+  const interrupted = await receiptFor(a);
+  assert.equal(interrupted.shownDelivery.attempts, 1);
+  assert.equal(interrupted.shownAck, false);
+  await setWorkerTime(interrupted.shownDelivery.nextRetryAt + 1);
+  await alarm();
+  await waitFor(async () => (await receiptFor(a))?.shownAck, 'shown ACK replayed after Worker interruption');
+  await setWorkerTime(undefined);
+  assert.equal(receiptRequests(a, 'shown').length, 2);
+  for (const request of receiptRequests(a, 'shown')) assert.deepEqual(request.body, { shownAt: a.shownAt });
+
+  mock.faults.receiptRequest = ({ kind, alert }) => alert === a && kind === 'responses' ? { status: 503 } : undefined;
+  await detailA.getByRole('button', { name: '목표로 돌아가기' }).click();
+  await waitFor(async () => (await receiptFor(a))?.selectionDelivery?.phase === 'retry-wait', 'first selection fails before storage');
+  const original = (await receiptFor(a)).selection;
+  assert.equal(a.selection, undefined);
+  await end();
+  await start('다음 작업에서 각 알림 전송의 격리 확인하기');
+  const second = lastSession();
+  mock.faults.receiptRequest = ({ kind, alert }) => alert === a || alert.sessionId === second.session.sessionId && kind === 'shown'
+    ? { status: 503 } : undefined;
+  const { alert: b, detail: detailB } = await openAlert(second, 1);
+  await waitFor(async () => (await receiptFor(b))?.shownDelivery.phase === 'retry-wait', 'second receipt is independently queued');
+  mock.faults.receiptRequest = ({ alert }) => alert === a ? { status: 503 } : undefined;
+  const due = Math.max((await receiptFor(a)).selectionDelivery.nextRetryAt, (await receiptFor(b)).shownDelivery.nextRetryAt);
+  await context.close(); context = undefined;
+  await launch(profile, join(temp, profile + '-extension'));
+  await openPopup();
+  await heading('합성 계정으로 시작');
+  assert.equal((await state()).receiptPending, false);
+  const other = mock.accounts.get('Bearer ' + BOB);
+  other.consentId = crypto.randomUUID();
+  const beforeAuth = receiptRequests(a, 'responses').length;
+  await command({ type: 'login', token: BOB });
+  assert.equal((await state()).receiptPending, false);
+  assert.equal((await state()).goal, undefined);
+  await setWorkerTime(due + 1);
+  await alarm();
+  assert.equal(receiptRequests(a, 'responses').length, beforeAuth);
+  await setWorkerTime(undefined);
+  await login(ALICE, '작업 진행 중');
+  assert.equal((await state()).receipts.previousPending, 1);
+
+  await setWorkerTime(due + 1);
+  await alarm();
+  await waitFor(async () => (await receiptFor(b))?.shownAck && (await receiptFor(a))?.selectionDelivery.attempts === 2,
+    'one failed prior receipt does not block another receipt');
+  const retry = (await receiptFor(a)).selectionDelivery;
+  await setWorkerTime(retry.nextRetryAt + 1);
+  await alarm();
+  await waitFor(async () => (await receiptFor(a))?.selectionDelivery.phase === 'exhausted', 'automatic budget is capped at three');
+  await setWorkerTime(undefined);
+  assert.equal(receiptRequests(a, 'responses').length, 3);
+  assert.ok(mock.requests.some(request => request.url === `/api/sessions/${first.session.sessionId}/alerts`));
+  await alarm();
+  assert.equal(receiptRequests(a, 'responses').length, 3);
+  delete mock.faults.receiptRequest;
+  await button('미확인 알림 기록 다시 보내기').click();
+  await waitFor(async () => (await receiptFor(a))?.selectionAck, 'manual recovery with the first action and timestamps');
+  assert.equal(a.selection.feedbackId, (await receiptFor(a)).feedbackId);
+  for (const request of receiptRequests(a, 'responses')) assert.deepEqual(request.body, { ...original, shownAt: a.shownAt });
+  assert.equal((await state()).receipts.previousPending, 0);
+
+  const historyPath = `/api/sessions/${second.session.sessionId}/alerts`;
+  const historyReads = mock.requests.filter(request => request.url === historyPath).length;
+  mock.faults.notificationResponse = (ack, { kind, alert }) => kind === 'shown' && alert.windowIndex === 2
+    ? { ...ack, sessionId: crypto.randomUUID() } : ack;
+  const { alert: c, detail: detailC } = await openAlert(second, 2);
+  await waitFor(async () => (await receiptFor(c))?.shownAck, 'wrong-session shown ACK reconciled from history');
+  delete mock.faults.notificationResponse;
+  assert.ok(mock.requests.filter(request => request.url === historyPath).length > historyReads);
+  c.selection = { feedbackId: crypto.randomUUID(), alertId: c.alertId, action: 'RETURN_TO_GOAL', selectedAt: c.shownAt };
+  await detailC.getByRole('button', { name: '탐색 계속하기' }).click();
+  await detailC.getByText(/서버에서 거절되거나 충돌했어요/).waitFor();
+  const conflict = await receiptFor(c);
+  assert.equal(conflict.selection.action, 'CONTINUE_BROWSING');
+  assert.equal(conflict.selectionDelivery.code, 'RESPONSE_ALREADY_RECORDED');
+  assert.equal(conflict.selectionAck, undefined);
+
+  const { alert: d, detail: detailD } = await openAlert(second, 3);
+  const heldSelection = holdResponse('holdSelection');
+  try {
+    await detailD.getByRole('button', { name: '목표로 돌아가기' }).click();
+    await heldSelection.received();
+    assert.equal((await command({ type: 'logout' })).snapshot.receiptPending, false);
+    heldSelection.release();
+    await login(ALICE, '작업 진행 중');
+    assert.equal((await receiptFor(d)).selectionAck, undefined);
+    assert.equal((await command({ type: 'withdraw' })).snapshot.access, 'withdrawn');
+    const beforeWithdrawal = receiptRequests(d, 'responses').length;
+    await setWorkerTime((await receiptFor(d)).selectionDelivery.nextRetryAt + 1);
+    await alarm();
+    assert.equal(receiptRequests(d, 'responses').length, beforeWithdrawal);
+    assert.equal((await state()).receiptPending, false);
+  } finally { heldSelection.release(); }
+  await detailB.close().catch(() => {});
+  console.log('PASS Outbox: Worker and Chrome recovery, owner isolation, independent retries, exhaustion, manual recovery, conflict, logout and withdrawal');
+}
+
+async function verifyArchiveUpgrade(legacyExtension) {
+  const profile = 'migration';
+  await launchNotificationTest(profile, resolve(legacyExtension));
+  await start('이전 버전에서 알림 선택 영수증 저장하기');
+  const first = lastSession();
+  const { alert: acked, detail: ackedDetail } = await openAlert(first, 1);
+  await ackedDetail.getByRole('button', { name: '탐색 계속하기' }).click();
+  await ackedDetail.getByText(/서버에 기록했어요/).waitFor();
+  const { alert: a, detail: detailA } = await openAlert(first, 2);
+  await waitFor(() => a.shownAt, 'legacy shown ACK stored');
+  mock.faults.dropSelection = 'always';
+  await detailA.getByRole('button', { name: '목표로 돌아가기' }).click();
+  await waitFor(() => a.selection, 'legacy server applied selection before losing ACK');
+  await end();
+  await start('이전 버전의 현재 알림 영수증도 복구하기');
+  const second = lastSession();
+  mock.faults.dropShown = 'always';
+  const { alert: b } = await openAlert(second, 1);
+  await waitFor(() => b.shownAt, 'legacy current shown ACK lost');
+  const { alert: c } = await openAlert(second, 2);
+  const legacy = await waitFor(async () => (await disk()).notifications.find(r => r.alertId === c.alertId), 'later receipt committed in legacy');
+  const archiveKey = 'session/' + first.session.sessionId;
+  const before = (await saved(archiveKey)).notifications;
+  assert.equal(before.find(r => r.alertId === a.alertId).selectionAck, undefined);
+  assert.equal(before.find(r => r.alertId === acked.alertId).selectionAck, true);
+  assert.equal((await disk()).notifications.find(r => r.alertId === b.alertId).shownAck, false);
+  assert.deepEqual(Object.keys(legacy).sort(), ['alertId', 'shownAck', 'shownAt']);
+  assert.deepEqual(await outbox(), []);
+  const writes = receiptRequests(a, 'responses').length;
+  const acknowledgedWrites = receiptRequests(acked, 'responses').length;
+  delete mock.faults.dropSelection;
+  await alarm();
+  await waitFor(() => receiptRequests(b, 'shown').length >= 2, 'legacy retries the active receipt');
+  assert.equal(receiptRequests(a, 'responses').length, writes);
+  assert.equal(receiptRequests(c, 'shown').length, 0, 'legacy first error prevents sending a later receipt');
+  assert.equal((await state()).receipts, undefined);
+  await context.close(); context = undefined;
+  const directory = join(temp, profile + '-extension');
+  const upgraded = profile + '-upgraded';
+  const previousDB = join(temp, profile, 'Default', 'IndexedDB');
+  const upgradedDB = join(temp, upgraded, 'Default', 'IndexedDB');
+  // Use the real legacy database with a fresh Worker registration and the same extension origin.
+  await mkdir(upgradedDB, { recursive: true });
+  const databases = (await readdir(previousDB)).filter(name => name.startsWith(`chrome-extension_${id}_`));
+  assert.ok(databases.some(name => name.endsWith('.indexeddb.leveldb')));
+  for (const database of databases) await cp(join(previousDB, database), join(upgradedDB, database), { recursive: true });
+  await instrumentExtension(extension, directory);
+  delete mock.faults.dropShown;
+  await launch(upgraded, directory);
+  await openPopup();
+  assert.equal(await worker.evaluate(() => globalThis.notificationTest.build), manifest.version);
+  await login(ALICE, '작업 진행 중');
+  await waitFor(async () => (await receiptFor(a))?.selectionAck && (await receiptFor(b))?.shownAck && (await receiptFor(c))?.shownAck,
+    'legacy receipts from both sessions recovered');
+  assert.deepEqual((await saved(archiveKey)).notifications, before);
+  assert.equal((await receiptFor(a)).feedbackId, a.selection.feedbackId);
+  assert.equal((await receiptFor(a)).shownAt, a.shownAt);
+  assert.equal((await receiptFor(b)).shownAt, b.shownAt);
+  await recoverWorker();
+  assert.equal((await outbox()).length, 4);
+  assert.equal(receiptRequests(acked, 'responses').length, acknowledgedWrites, 'confirmed selection is never replayed');
+  console.log('PASS Migration: reproduced archived receipt delivery gap and upgraded the actual IndexedDB written by PR #136 Chrome');
+}
+
 const lastSession = () => [...mock.sessions.values()].at(-1);
 const alice = mock.accounts.get('Bearer ' + ALICE);
 
@@ -1022,6 +1263,8 @@ async function verifyUserFlow() {
 }
 try {
   if (process.argv.includes('--recovery-only')) await verifySubmissionRecovery();
+  else if (process.argv.includes('--outbox-only')) await verifyOutboxRecovery();
+  else if (process.env.USER_LEGACY_EXTENSION) await verifyArchiveUpgrade(process.env.USER_LEGACY_EXTENSION);
   else await verifyUserFlow();
 } finally {
   await context?.close();

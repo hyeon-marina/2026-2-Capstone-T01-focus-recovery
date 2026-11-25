@@ -187,10 +187,19 @@ function Popup() {
       </>}
       {s?.lifecycle === 'ENDED' && !next && s.access === 'ready' && <>
         <p>서버에서 종료를 확인했어요. 새 목표로 작업을 시작할 수 있어요.</p>
-        {s.receiptPending && <button disabled={!ready || !!busy}
-          onClick={() => void request({ type: 'retry' })}>미확인 알림 기록 다시 보내기</button>}
         <button className="primary" disabled={!ready || !!busy} onClick={() => setNext(true)}>새 작업 준비</button>
       </>}
+      {s?.receipts && (s.receiptPending || s.receipts.acknowledged > 0) && <div role="status">
+        {s.receipts.acknowledged > 0 && <p>서버에 저장된 알림 기록 {s.receipts.acknowledged}건</p>}
+        {s.receiptPending && <p>기기에 저장된 미확인 알림 기록 {s.receipts.pending}건
+          {s.receipts.previousPending > 0 && ` (이전 작업 ${s.receipts.previousPending}건)`}</p>}
+        {s.receipts.retryWaiting > 0 && <p>연결을 확인한 뒤 자동으로 다시 보내요.</p>}
+        {s.receipts.exhausted > 0 && <p>자동 전송을 마쳤어요. 기기에 보관된 기록의 서버 저장 여부를 다시 확인할 수 있어요.</p>}
+        {s.receipts.rejected > 0 && <p>서버에서 거절되거나 충돌한 알림 기록은 기기에 보관했어요.</p>}
+        {s.receipts.accessBlocked > 0 && <p>알림 기록을 보내려면 연결 및 동의 상태를 확인해 주세요.</p>}
+      </div>}
+      {!!s?.receipts?.exhausted && <button disabled={!s.permission || !!busy || s.privacyPending}
+        onClick={() => void request({ type: 'retry-receipts' })}>미확인 알림 기록 다시 보내기</button>}
     </section>
     <footer>
       <a href={fixture} target="_blank" rel="noreferrer">합성 페이지 열기 <span aria-hidden="true">↗</span></a>

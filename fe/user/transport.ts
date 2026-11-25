@@ -54,7 +54,7 @@ export function createMockTransport() {
         if (started !== epoch || privacyPending && !privacyRequest) throw new AccessError('account');
       },
       report(status) {
-        if (started !== epoch || order < latestResult) return;
+        if (started !== epoch || order < latestResult || /^\/api\/sessions\/[^/]+\/alerts(?:\/|$)/.test(path)) return;
         latestResult = order;
         const connection = status === null || status >= 500 ? 'unreachable'
           : status === 401 ? 'auth-required' : status === 403 ? 'denied' : undefined;

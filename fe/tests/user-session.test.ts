@@ -140,8 +140,8 @@ describe('user Runtime lifecycle and recovery', () => {
     expect(runtime.snapshot().userAnalysis!.submissions[0].phase).toBe('retired');
     expect(await runtime.updateAlertSubmission({ ...submission, phase: 'reserved' }, 'submitting', allowed)).toBe(false);
   });
-  it('keeps a delayed shown ACK out of a replacement session', async () => {
-    const { runtime, transport } = setup();
+  it('applies a delayed shown ACK only to the original session after replacement', async () => {
+    const { runtime, transport, repo } = setup();
     await runtime.initialize();
     await runtime.start(session.goalText);
     const shownAt = new Date().toISOString(), alertId = crypto.randomUUID();
@@ -155,9 +155,11 @@ describe('user Runtime lifecycle and recovery', () => {
     await until(() => runtime.snapshot().lifecycle === 'ENDED');
     vi.mocked(transport.start).mockResolvedValueOnce({ ...session, sessionId: crypto.randomUUID(), goalText: 'New synthetic task' });
     await runtime.start('New synthetic task');
-    reply(Response.json({ alertId, shownAt }));
+    reply(Response.json({ alertId, shownAt, sessionId: session.sessionId }));
     await runtime.flushNotifications();
     expect(runtime.snapshot().notifications).toEqual([]);
+    expect(await repo.enableNotificationOutbox().list({ ...syntheticAccess, consentId: syntheticAccess.consentId! }))
+      .toEqual([expect.objectContaining({ alertId, sessionId: session.sessionId, shownAt, shownAck: true })]);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
   it.each([null, { ...session, collectionSpecVersion: '1.0' }, { ...session, goalText: 'Different goal' }])(

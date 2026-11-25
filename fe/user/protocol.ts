@@ -1,10 +1,11 @@
 import { validGoal } from '../src/shared/goal';
+import type { ReceiptPhase } from '../src/v2/notification-store';
 import type { V2State } from '../src/v2/state';
 import type { Decision } from '../src/v2/status';
 import { UUID4 } from '../src/v2/contract';
 import { USER_POPUP } from './mock-config';
 
-const simple = ['status', 'analysis-refresh', 'access', 'agree', 'retry-start', 'reconnect', 'retry', 'logout', 'withdraw'] as const;
+const simple = ['status', 'analysis-refresh', 'access', 'agree', 'retry-start', 'reconnect', 'retry', 'retry-receipts', 'logout', 'withdraw'] as const;
 export type UserCommand =
   | { type: typeof simple[number] }
   | { type: 'login'; token: string }
@@ -49,6 +50,8 @@ export interface AlertDetail {
   shown: boolean;
   action?: AlertAction;
   acknowledged?: boolean;
+  shownDelivery?: ReceiptPhase;
+  selectionDelivery?: ReceiptPhase;
 }
 export function parseAlertCommand(value: unknown): AlertCommand | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return;
@@ -84,11 +87,14 @@ export interface UserSnapshot {
   analysis: AnalysisStatus;
   finalState?: NonNullable<Decision['finalState']>;
   receiptPending: boolean;
+  receipts?: Record<typeof receiptCounts[number], number>;
   goal?: string;
   startedAt?: string;
   sessionHandle?: string;
 }
 export type UserReply = { snapshot: UserSnapshot; error?: UserError } | { error: 'invalid' };
+
+const receiptCounts = ['pending', 'previousPending', 'acknowledged', 'retryWaiting', 'exhausted', 'rejected', 'accessBlocked'] as const;
 
 export function isUserSnapshot(value: unknown): value is UserSnapshot {
   if (!value || typeof value !== 'object') return false;
@@ -100,6 +106,8 @@ export function isUserSnapshot(value: unknown): value is UserSnapshot {
     && ['unconnected', 'empty', 'pending', 'delayed', 'failed', 'invalidated', 'unavailable', 'completed'].includes(s.analysis)
     && (s.analysis === 'completed' ? ['NORMAL', 'TRANSITION', 'DRIFT'].includes(s.finalState!) : s.finalState === undefined)
     && [s.collecting, s.permission, s.storageFailed, s.reconnectRequired, s.deliveryIssue, s.privacyHold, s.withdrawalPending, s.privacyPending, s.receiptPending].every(v => typeof v === 'boolean')
+    && (s.receipts === undefined || !!s.receipts && receiptCounts.every(key =>
+      Number.isSafeInteger(s.receipts?.[key]) && s.receipts![key] >= 0))
     && (s.goal === undefined || typeof s.goal === 'string' && validGoal(s.goal))
     && (s.startedAt === undefined || typeof s.startedAt === 'string' && Number.isFinite(Date.parse(s.startedAt)))
     && (s.lifecycle === 'IDLE' || !!s.goal)

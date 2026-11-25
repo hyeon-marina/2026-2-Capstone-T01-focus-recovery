@@ -1,3 +1,4 @@
+import { NotificationStore } from './notification-store';
 import { validWithdrawal } from './access';
 import { validRetraction } from './retractions';
 import { validNotification } from './notifications';
@@ -107,7 +108,11 @@ function complete(tx: IDBTransaction) {
 }
 export class V2Repository {
   private db?: IDBDatabase;
+  private notifications?: NotificationStore;
   constructor(readonly apiBaseUrl: string, private readonly databaseName = DB_NAME) {}
+  enableNotificationOutbox() {
+    return this.notifications ??= new NotificationStore(this.apiBaseUrl, () => this.open());
+  }
   private async open() {
     if (this.db) return this.db;
     this.db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -177,6 +182,7 @@ export class V2Repository {
       try {
         if (newSession) store.add(previous, `session/${previous!.session!.sessionId}`);
         for (const receipt of receipts) tx.objectStore('v2-receipts').add(receipt, `${next.session!.sessionId}/${receipt.visitId}`);
+        this.notifications?.protect(store, saved);
         store.put(saved, 'current');
       } catch { tx.abort(); }
     };

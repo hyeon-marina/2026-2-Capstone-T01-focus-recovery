@@ -103,7 +103,8 @@ export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
     const send = (status, value) => res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify(value));
     const fail = (status, code = 'INVALID_REQUEST') => send(status, { code });
     const account = accounts.get(req.headers.authorization);
-    const { method, url } = req;
+    const { method } = req;
+    const { pathname: url, searchParams: query } = new URL(req.url, MOCK_ORIGIN);
     if (!account || Date.parse(account.expiresAt) <= Date.now()) return fail(401);
     let body;
     try { body = await json(req); } catch { return fail(400); }
@@ -198,11 +199,30 @@ export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
       if (faults.dropAnalysis) { faults.dropAnalysis = false; return req.socket.destroy(); }
       return send(200, faults.analysisResponse ? faults.analysisResponse(payload) : payload);
     }
+    if (method === 'GET' && suffix === '/alerts') {
+      const page = Number(query.get('page') ?? 0), size = Number(query.get('size') ?? 20);
+      if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(size) || size < 1 || size > 100) return fail(400);
+      const all = [...record.alerts.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.alertId.localeCompare(a.alertId));
+      const items = all.slice(page * size, (page + 1) * size).map(alert => ({
+        ...alertResponse(alert), ...(alert.invalidatedAt ? { invalidatedAt: alert.invalidatedAt } : {}), response: alert.selection ?? null,
+      }));
+      const payload = { items, page, size, totalElements: all.length, hasNext: (page + 1) * size < all.length };
+      return send(200, faults.historyResponse ? faults.historyResponse(payload, session) : payload);
+    }
     const alertRoute = suffix && /^\/alerts\/([a-f0-9-]+)\/(shown|responses)$/.exec(suffix);
     if (alertRoute && (alertRoute[2] === 'shown' && method === 'PATCH' || alertRoute[2] === 'responses' && method === 'POST')) {
       const alert = record.alerts.get(alertRoute[1]);
       if (!alert) return fail(404, 'ALERT_NOT_FOUND');
       const selecting = method === 'POST';
+      const faultContext = { session, alert, kind: alertRoute[2], body };
+      const beforeWrite = await faults.receiptRequest?.(faultContext);
+      if (beforeWrite?.drop) return req.socket.destroy();
+      if (beforeWrite?.status) {
+        if (beforeWrite.retryAfter) res.setHeader('Retry-After', beforeWrite.retryAfter);
+        return fail(beforeWrite.status, beforeWrite.code);
+      }
+      if (account.withdrawn || record.quarantined) return fail(409, 'PRIVACY_RETRACTED');
+      if (!account.enabled || record.consentId !== account.consentId) return fail(403);
       const shownAt = body?.shownAt, selectedAt = body?.selectedAt;
       if (!millis(shownAt) || Object.keys(body).length !== (selecting ? 3 : 1)
         || selecting && (!millis(selectedAt) || selectedAt < shownAt || Date.parse(selectedAt) > Date.now() + 5000
@@ -215,7 +235,7 @@ export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
       alert.shownAt = shownAt;
       if (selecting) alert.selection ??= { feedbackId: randomUUID(), alertId: alert.alertId, action: body.action, selectedAt };
       const fault = selecting ? 'Selection' : 'Shown';
-      if (faults['hold' + fault]) await faults['hold' + fault]();
+      if (faults['hold' + fault]) await faults['hold' + fault](faultContext);
       if (faults['drop' + fault]) {
         if (faults['drop' + fault] !== 'always') faults['drop' + fault] = false;
         return req.socket.destroy();
@@ -223,7 +243,7 @@ export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
       const ack = selecting ? alert.selection : alertResponse(alert);
       const httpStatus = selecting && !existing ? 201 : 200;
       onReceipt?.({ method, kind: alertRoute[2], httpStatus, action: selecting ? body.action : undefined });
-      return send(httpStatus, faults.notificationResponse ? faults.notificationResponse(ack) : ack);
+      return send(httpStatus, faults.notificationResponse ? faults.notificationResponse(ack, faultContext) : ack);
     }
     if (method === 'GET' && !suffix) {
       if (faults.holdQuery) await faults.holdQuery();
