@@ -1,12 +1,16 @@
 import { AccessError } from '../src/api/auth-fetch';
+import { getSession, SessionEndError } from '../src/api/session-end';
 import { serialExecutor } from '../src/background/serial';
 import { matchesDecision, readV2Status, V2StatusClient, type V2Status } from '../src/v2/status';
 import type { V2Runtime } from '../src/v2/runtime';
 import type { UserAlertSubmission } from '../src/v2/state';
+import { fixedAccessBlocks, fixedSlot, requestFixedCandidate } from './fixed-interval';
+import { FIXED_INTERVAL_MS } from './mock-config';
 import { alertUrl, parseAlertKey, type AlertCommand, type AlertDetail, type UserSnapshot } from './protocol';
 import { hasMockPermission } from './transport';
 
 const ALARM = 'user-analysis';
+const FIXED_ALARM = 'user-fixed-interval';
 const PREFIX = 'focus-drift:';
 const NAVIGATION_INTERVAL = 5_000;
 const PENDING_DELAY = 90_000;
@@ -33,6 +37,8 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     return active && `${active}:${epoch}`;
   };
   let latest: { scope: string; status?: V2Status; error?: 'delayed' | 'unavailable' } | undefined;
+  let latestFixed: { scope: string; alertId: string } | undefined;
+  let lastFixedCheck: { scope: string; slot: number } | undefined;
   let lastCheck = 0;
   let flight: { scope: string; done: Promise<void> } | undefined;
   let pendingChromeId: string | undefined;
@@ -41,6 +47,9 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     const current = scope();
     return readV2Status(sessionId, () => !!current && scope() === current);
   }, scope);
+  const submissions = (local = runtime.snapshot()) => {
+    return local.start?.alertMode === 'FIXED_INTERVAL' ? local.userFixedAlerts?.submissions : local.userAnalysis?.submissions;
+  };
 
   async function clearNotifications(keep?: string, notifications?: Record<string, true>) {
     await Promise.all(Object.keys(notifications ?? await getNotifications()).filter(id => id.startsWith(PREFIX) && id !== keep)
@@ -49,27 +58,28 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
   function clear(retire = false) {
     epoch++;
     latest = undefined;
+    latestFixed = undefined;
+    lastFixedCheck = undefined;
     lastCheck = 0;
     const sessionId = runtime.snapshot().session?.sessionId;
     if (pendingChromeId) void clearNotification(pendingChromeId).catch(() => {});
+    void chrome.alarms.clear(FIXED_ALARM).catch(() => {});
     void platform(() => clearNotifications()).catch(() => {});
     if (retire && sessionId) return runtime.retireAlertReservations(sessionId).catch(() => {});
   }
 
-  async function submit(alert: NonNullable<V2Status['alert']>, windowIndex: number, allowed: () => boolean) {
+  async function submit(candidate: UserAlertSubmission, allowed: () => boolean) {
     if (!allowed() || await notificationPermission() !== 'granted' || !await hasMockPermission() || !allowed()) return;
-    const id = PREFIX + alert.alertId;
+    const id = PREFIX + candidate.alertId;
     const listed = await getNotifications();
     await clearNotifications(id, listed);
     if (!allowed()) return;
-    let submission = runtime.snapshot().userAnalysis?.submissions.find(a => a.alertId === alert.alertId);
-    if (submission && !matchesDecision(submission, latest?.status?.currentDecision ?? null)) return;
+    let submission = submissions()?.find(a => a.alertId === candidate.alertId);
+    if (submission && ('slot' in submission
+      ? !('slot' in candidate) || candidate.slot !== submission.slot
+      : !matchesDecision(submission, latest?.status?.currentDecision ?? null))) return;
     if (submission?.phase === 'dismissed' || submission?.phase === 'retired') return;
     if (!submission) {
-      const candidate = {
-        alertId: alert.alertId, viewId: crypto.randomUUID(), windowId: alert.windowId!, windowIndex,
-        stateVersion: alert.stateVersion!, analysisId: alert.analysisId!,
-      };
       if (!await runtime.claimAlert(candidate, allowed) || !allowed()) return;
       submission = { ...candidate, phase: 'reserved' };
     }
@@ -85,7 +95,9 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     try {
       confirmed = await notificationCall<string>(callback => chrome.notifications.create(id, {
         type: 'basic', iconUrl: chrome.runtime.getURL('alert-icon.png'),
-        title: 'Focus Recovery', message: '지금 탐색을 점검하고 최초 작업 목표를 확인해 보세요.',
+        title: 'Focus Recovery', message: 'slot' in candidate
+          ? '작업 중간 점검 시간이에요. 최초 작업 목표를 확인해 보세요.'
+          : '지금 탐색을 점검하고 최초 작업 목표를 확인해 보세요.',
       }, callback)) === id;
     } catch { /* The next valid poll can reconcile positive Chrome evidence. */ }
     finally { pendingChromeId = undefined; }
@@ -93,18 +105,90 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     else await clearNotification(id);
   }
 
+  function blockAlerts(reason?: 'authentication' | 'consent') {
+    runtime.suspendAccess(reason);
+    void clear(true);
+  }
+
+  async function serverSessionActive(allowed: () => boolean) {
+    const local = runtime.snapshot().session;
+    if (!local || !allowed()) return false;
+    try {
+      const actual = await getSession(local, allowed);
+      if (!allowed()) return false;
+      if (actual.status === 'ACTIVE') return true;
+      blockAlerts();
+    } catch (error) {
+      if (!allowed()) return false;
+      if (error instanceof AccessError && (error.kind === 'authentication' || error.kind === 'consent')) blockAlerts(error.kind);
+      if (error instanceof SessionEndError && ([401, 403, 404].includes(error.status ?? 0)
+        || fixedAccessBlocks.includes(error.code ?? ''))) blockAlerts(error.status === 401 ? 'authentication' : 'consent');
+    }
+    return false;
+  }
+
+  async function readFixed(current: string, allowed: () => boolean) {
+    const { session, userFixedAlerts: checkpoint } = runtime.snapshot();
+    if (!session) return;
+    const slot = fixedSlot(session.startedAt);
+    const boundary = Date.parse(session.startedAt) + (Math.max(slot, checkpoint?.slot ?? 0) + 1) * FIXED_INTERVAL_MS;
+    const alarm = await chrome.alarms.get(FIXED_ALARM);
+    if (!allowed()) return;
+    if (alarm?.scheduledTime !== boundary) await chrome.alarms.create(FIXED_ALARM, { when: boundary });
+    const inSlot = () => allowed() && fixedSlot(session.startedAt) === slot;
+    if (slot < 1 || slot < (checkpoint?.slot ?? 0) || !inSlot()) return;
+    if (checkpoint?.slot === slot && checkpoint.skipped) return;
+    if (checkpoint?.slot !== slot) {
+      if (!await runtime.checkpointFixedSlot(slot, inSlot)) return;
+      if (checkpoint) await platform(() => clearNotifications());
+    }
+    const existing = checkpoint?.submissions.find(a => a.slot === slot);
+    if (existing?.phase === 'retired' || existing?.phase === 'dismissed') return;
+    const receipt = existing && runtime.notificationDetail(existing.alertId);
+    if (existing && latestFixed?.scope === current && latestFixed.alertId === existing.alertId) {
+      if (!receipt) await platform(() => submit(existing, inSlot));
+      return;
+    }
+    if (existing && receipt) {
+      if (await serverSessionActive(inSlot)) latestFixed = { scope: current, alertId: existing.alertId };
+    } else {
+      const result = await requestFixedCandidate(session, inSlot);
+      if (!allowed()) return;
+      if (result.kind === 'ended') { blockAlerts(); return; }
+      // A response crossing the local boundary can't identify a slot from the current DTO.
+      if (!inSlot()) return;
+      if (result.kind !== 'candidate') {
+        if (result.kind === 'disabled') latest = { scope: current, error: 'unavailable' };
+        await runtime.checkpointFixedSlot(slot, inSlot, true);
+        return;
+      }
+      if (existing ? existing.alertId !== result.alertId : checkpoint?.submissions.some(a => a.alertId === result.alertId)) {
+        await runtime.checkpointFixedSlot(slot, inSlot, true);
+        return;
+      }
+      const candidate = existing ?? { alertId: result.alertId, viewId: crypto.randomUUID(), slot };
+      if (!existing && (!await runtime.claimAlert(candidate, inSlot) || !inSlot())) return;
+      latest = undefined;
+      latestFixed = { scope: current, alertId: candidate.alertId };
+      await platform(() => submit(candidate, inSlot));
+    }
+  }
+
   async function read(current: string) {
     const allowed = () => scope() === current;
     try {
       if (!await hasMockPermission()) { if (allowed()) void clear(true); return; }
       if (!allowed()) return;
+      if (runtime.snapshot().start?.alertMode === 'FIXED_INTERVAL') {
+        await readFixed(current, allowed);
+        return;
+      }
       const result = await client.status(runtime.snapshot().userAnalysis?.cursor);
       if (!allowed()) return;
       if (!await hasMockPermission()) { if (allowed()) void clear(true); return; }
       if (!allowed()) return;
       if (result?.value.sessionStatus === 'ENDED') {
-        runtime.suspendAccess();
-        void clear(true);
+        blockAlerts();
         return;
       }
       if (result?.cursor) await runtime.checkpointAnalysis(result.cursor, result.alert, allowed);
@@ -113,12 +197,14 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
       const alert = result?.alert;
       if (alert?.alertType !== 'AI' || !result?.cursor) return;
       const { windowIndex } = result.cursor.current;
-      await platform(() => submit(alert, windowIndex, allowed)).catch(() => {});
+      await platform(() => submit({
+        alertId: alert.alertId, viewId: crypto.randomUUID(), windowId: alert.windowId!, windowIndex,
+        stateVersion: alert.stateVersion!, analysisId: alert.analysisId!,
+      }, allowed)).catch(() => {});
     } catch (error) {
       if (!allowed()) return;
-      if (error instanceof AccessError && ['authentication', 'consent'].includes(error.kind)) {
-        runtime.suspendAccess();
-        void clear(true);
+      if (error instanceof AccessError && (error.kind === 'authentication' || error.kind === 'consent')) {
+        blockAlerts(error.kind);
       } else latest = { scope: current, error: error instanceof AccessError && error.kind === 'network' ? 'delayed' : 'unavailable' };
     } finally {
       await platform(async () => {
@@ -143,13 +229,22 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
       return;
     }
     if (flight?.scope === current) return flight.done;
-    if (!force && latest?.scope === current && Date.now() - lastCheck < NAVIGATION_INTERVAL) return;
+    const { session, start } = runtime.snapshot();
+    const slot = start?.alertMode === 'FIXED_INTERVAL' && session ? fixedSlot(session.startedAt) : undefined;
+    const recent = slot === undefined ? latest?.scope === current : lastFixedCheck?.scope === current && lastFixedCheck.slot === slot;
+    if (!force && recent && Date.now() - lastCheck < NAVIGATION_INTERVAL) return;
+    if (slot !== undefined) lastFixedCheck = { scope: current, slot };
     lastCheck = Date.now();
     const done = read(current);
     const request = { scope: current, done };
     flight = request;
     try { await done; }
-    finally { if (flight === request) flight = undefined; }
+    finally {
+      if (flight === request) {
+        flight = undefined;
+        if (session && slot !== undefined && scope() === current && fixedSlot(session.startedAt) > slot) wake(true);
+      }
+    }
   }
 
   function analysis(permitted: boolean): Pick<UserSnapshot, 'analysis' | 'finalState'> {
@@ -168,20 +263,31 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
 
   function displayCandidate(alertId: string) {
     const current = scope();
-    const value = latest?.status;
-    if (!current || latest?.scope !== current || value?.sessionStatus !== 'ACTIVE') return;
     const local = runtime.snapshot();
-    const submission = local.userAnalysis?.submissions.find(a => a.alertId === alertId);
-    if (!submission || !mayHaveReachedChrome(submission) || !local.session || !matchesDecision(submission, value.currentDecision)) return;
+    if (!current || !local.session) return;
+    const submission = submissions(local)?.find(a => a.alertId === alertId);
+    if (!submission || !mayHaveReachedChrome(submission)) return;
     const receipt = runtime.notificationDetail(alertId);
+    if ('slot' in submission) {
+      if (latestFixed?.scope !== current || latestFixed.alertId !== alertId
+        || local.userFixedAlerts?.slot !== submission.slot || fixedSlot(local.session.startedAt) !== submission.slot) return;
+      return { session: local.session, receipt, viewId: submission.viewId, alertType: 'FIXED_INTERVAL' as const };
+    }
+    const value = latest?.status;
+    if (latest?.scope !== current || value?.sessionStatus !== 'ACTIVE' || !matchesDecision(submission, value.currentDecision)) return;
     const alert = value.alert;
     // The status endpoint omits a candidate after the server has recorded shownAt.
     if (alert ? alert.alertType !== 'AI' || alert.alertId !== alertId || alert.goalText !== local.session.goalText
       || !matchesDecision(alert, value.currentDecision) : !receipt) return;
-    return { session: local.session, receipt, viewId: submission.viewId };
+    return { session: local.session, receipt, viewId: submission.viewId, alertType: 'AI' as const };
   }
 
   function notificationToKeep() {
+    if (runtime.snapshot().start?.alertMode === 'FIXED_INTERVAL') {
+      const id = latestFixed?.alertId;
+      if (id && displayCandidate(id) && !runtime.notificationDetail(id)) return id;
+      return;
+    }
     const alert = latest?.status?.alert;
     if (alert?.alertType === 'AI' && displayCandidate(alert.alertId)) return alert.alertId;
     // Keep submitted notifications until a verified decision or access change supersedes them.
@@ -191,7 +297,7 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
         && !notifications.some(r => r.alertId === a.alertId))?.alertId;
     }
   }
-  const submissionFor = (viewId: string) => runtime.snapshot().userAnalysis?.submissions.find(a => a.viewId === viewId);
+  const submissionFor = (viewId: string) => submissions()?.find(a => a.viewId === viewId);
   async function detail(viewId: string): Promise<AlertDetail | undefined> {
     if (!await hasMockPermission()) return;
     const alertId = submissionFor(viewId)?.alertId;
@@ -199,6 +305,7 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     if (!candidate) return;
     const receipt = candidate.receipt;
     return {
+      alertType: candidate.alertType,
       goal: candidate.session.goalText,
       shown: !!receipt,
       ...(receipt ? { shownDelivery: receipt.shownDelivery.phase } : {}),
@@ -226,6 +333,8 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
       const allowed = () => scope() === current && displayCandidate(alertId)?.viewId === viewId;
       const candidate = displayCandidate(alertId);
       if (!candidate) return;
+      if (candidate.alertType === 'FIXED_INTERVAL' && (type === 'alert-open' || type === 'alert-select')
+        && !await serverSessionActive(allowed)) return;
       if (type === 'alert-shown') {
         if (!candidate.receipt) await runtime.recordShown({ sessionId: candidate.session.sessionId, alertId }, new Date(receivedAt).toISOString(), allowed);
         void platform(() => clearNotification(PREFIX + alertId)).catch(() => {});
@@ -245,7 +354,7 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
   chrome.webNavigation.onHistoryStateUpdated.addListener(navigation);
   chrome.webNavigation.onReferenceFragmentUpdated.addListener(navigation);
   chrome.alarms.onAlarm.addListener(alarm => {
-    if (alarm.name !== ALARM) return;
+    if (alarm.name !== ALARM && alarm.name !== FIXED_ALARM) return;
     wake(true);
     runtime.wakeNotifications();
   });
@@ -264,7 +373,7 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     const received = epoch;
     void ready.then(async () => {
       const current = scope();
-      const submission = runtime.snapshot().userAnalysis?.submissions.find(a => PREFIX + a.alertId === id);
+      const submission = submissions()?.find(a => PREFIX + a.alertId === id);
       if (current && received === epoch && submission && mayHaveReachedChrome(submission)) {
         await runtime.updateAlertSubmission(submission, 'dismissed', () => scope() === current);
       }
@@ -278,7 +387,10 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
       await poll(true);
       if (!await hasMockPermission() || await notificationPermission() !== 'granted' || epoch !== acceptedEpoch) return;
       const candidate = displayCandidate(alertId);
-      if (candidate) await chrome.tabs.create({ url: alertUrl(candidate.viewId) });
+      if (!candidate) return;
+      const allowed = () => epoch === acceptedEpoch && displayCandidate(alertId)?.viewId === candidate.viewId;
+      if (candidate.alertType === 'FIXED_INTERVAL' && !await serverSessionActive(allowed)) return;
+      if (allowed()) await chrome.tabs.create({ url: alertUrl(candidate.viewId) });
     })().catch(() => {});
   });
   void ready.then(async () => {

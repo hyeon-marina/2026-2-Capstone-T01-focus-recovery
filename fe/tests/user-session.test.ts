@@ -6,6 +6,7 @@ import { SessionEndError } from '../src/api/session-end';
 import { VisitApiError } from '../src/api/visit';
 import { normalizeGoal, validGoal } from '../src/shared/goal';
 import { V2Repository } from '../src/v2/repository';
+import { initialDelivery } from '../src/v2/notification-store';
 import { V2Runtime, type V2Transport } from '../src/v2/runtime';
 import type { Decision, V2Alert } from '../src/v2/status';
 import { fixtureId, FIXTURE_ORIGIN } from '../synthetic/catalog';
@@ -155,7 +156,7 @@ describe('user Runtime lifecycle and recovery', () => {
     await until(() => runtime.snapshot().lifecycle === 'ENDED');
     vi.mocked(transport.start).mockResolvedValueOnce({ ...session, sessionId: crypto.randomUUID(), goalText: 'New synthetic task' });
     await runtime.start('New synthetic task');
-    reply(Response.json({ alertId, shownAt, sessionId: session.sessionId }));
+    reply(Response.json({ alertId, shownAt, sessionId: session.sessionId, alertType: 'AI' }));
     await runtime.flushNotifications();
     expect(runtime.snapshot().notifications).toEqual([]);
     expect(await repo.enableNotificationOutbox().list({ ...syntheticAccess, consentId: syntheticAccess.consentId! }))
@@ -292,6 +293,56 @@ describe('user Runtime lifecycle and recovery', () => {
 });
 
 describe('privacy intent and recent access verification', () => {
+  it('keeps the original assignment when a pending start is retried with different build settings', async () => {
+    const { runtime, transport, repo } = setup();
+    await runtime.initialize();
+    vi.mocked(transport.start).mockRejectedValueOnce(new Error('START_ACK_LOST'));
+    await expect(runtime.start(session.goalText, undefined, 'FIXED_INTERVAL')).rejects.toThrow('START_ACK_LOST');
+    expect((await repo.load()).start?.alertMode).toBe('FIXED_INTERVAL');
+    const restored = new V2Runtime(repo, transport, false, true);
+    await restored.initialize();
+    await restored.start(session.goalText, undefined, 'AI');
+    expect((await repo.load()).start?.alertMode).toBe('FIXED_INTERVAL');
+    expect(vi.mocked(transport.start).mock.calls[0]).toEqual(vi.mocked(transport.start).mock.calls[1]);
+  });
+
+  it.each(['runtime first', 'outbox first'])('shares access response ordering when %s', async order => {
+    const { runtime, repo, transport } = setup();
+    await runtime.initialize();
+    const store = repo.enableNotificationOutbox();
+    const source = { participantId: syntheticAccess.participantId, consentId: syntheticAccess.consentId!, sessionId: crypto.randomUUID() };
+    const alertId = crypto.randomUUID();
+    await store.write(source, alertId, () => true, () => ({
+      ...source, apiOrigin: store.origin, alertId, shownAt: session.startedAt, shownAck: false, shownDelivery: initialDelivery(),
+    }));
+    const fetch = vi.fn(async () => Response.json({ ...source, alertId, shownAt: session.startedAt }));
+    vi.stubGlobal('fetch', fetch);
+    let finish!: (access: typeof syntheticAccess) => void;
+    vi.mocked(transport.access).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const denying = { ...syntheticAccess, collectionEnabled: false };
+    if (order === 'runtime first') {
+      const stale = runtime.verifyAccess().catch(error => error);
+      vi.mocked(transport.access).mockResolvedValueOnce(denying);
+      await runtime.retryNotifications();
+      finish(syntheticAccess);
+      expect(await stale).toBeInstanceOf(AccessError);
+    } else {
+      const stale = runtime.retryNotifications();
+      await until(() => !!finish);
+      vi.mocked(transport.access).mockResolvedValueOnce(denying);
+      await expect(runtime.verifyAccess()).rejects.toThrow('ACCESS_CONSENT');
+      finish(syntheticAccess);
+      await stale;
+    }
+    expect(fetch).not.toHaveBeenCalled();
+    expect((await runtime.notificationSummary()).pending).toBe(0);
+    expect((await store.list(source))[0].shownAck).toBe(false);
+    await runtime.verifyAccess();
+    await runtime.retryNotifications();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect((await store.list(source))[0].shownAck).toBe(true);
+  });
+
   it('drops a previous access success after a newer request has failed', async () => {
     const { runtime, transport } = setup();
     await runtime.initialize();

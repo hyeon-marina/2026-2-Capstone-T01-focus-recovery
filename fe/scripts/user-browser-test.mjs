@@ -5,7 +5,8 @@ import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { ALICE, BOB, setAnalysis, startMock } from './user-mock.mjs';
 import { FIXTURE_ORIGIN } from '../synthetic/catalog.ts';
-import { MOCK_ORIGIN, USER_DB, USER_POPUP } from '../user/mock-config.ts';
+import { FIXED_INTERVAL_MS, MOCK_ORIGIN, USER_DB, USER_POPUP } from '../user/mock-config.ts';
+import { compareAlerts, endedAlertHistory } from './user-evaluation.mjs';
 
 const extension = resolve('dist-user');
 const manifest = JSON.parse(await readFile(join(extension, 'manifest.json'), 'utf8'));
@@ -81,13 +82,13 @@ function holdResponse(key, accepts = () => true) {
   let active = false;
   const received = new Promise(resolve => { hit = resolve; });
   const held = new Promise(resolve => { unblock = resolve; });
-  mock.faults[key] = (...args) => { if (accepts(...args)) { active = true; hit(); return held; } };
+  mock.faults[key] = (...args) => { if (accepts(...args)) { active = true; hit(args[0]); return held; } };
   return {
     get active() { return active; },
     async received() {
       let timer;
       try {
-        await Promise.race([received, new Promise((_, reject) => {
+        return await Promise.race([received, new Promise((_, reject) => {
           timer = setTimeout(() => reject(new Error(`No HTTP request reached ${key}`)), 20000);
         })]);
       } finally { clearTimeout(timer); }
@@ -150,7 +151,7 @@ async function instrumentExtension(source, instrumented) {
   // Headless Chrome cannot click an OS banner. Capture the registered listener in this temporary copy.
   await writeFile(background, `
     const bridge = globalThis.notificationTest = { submitted: [], attempts: [], boot: crypto.randomUUID(), build: ${JSON.stringify(workerBuild)} };
-    const realNow = Date.now;
+    const realNow = bridge.realNow = Date.now;
     Date.now = () => bridge.time ?? realNow();
     const api = chrome.notifications;
     const create = api.create.bind(api);
@@ -224,10 +225,10 @@ async function instrumentExtension(source, instrumented) {
     }
   ` + await readFile(background, 'utf8'));
 }
-async function launchNotificationTest(profile, source = extension) {
+async function launchNotificationTest(profile, source = extension, alertMode = 'AI') {
   await context?.close(); context = undefined;
   await mock.close();
-  mock = await startMock();
+  mock = await startMock({ alertMode });
   const instrumented = join(temp, profile + '-extension');
   await instrumentExtension(source, instrumented);
   id = undefined;
@@ -640,8 +641,11 @@ async function verifyAnalysisAndAlerts() {
     account.expiresAt = '2099-01-01T00:00:00.000Z';
     await login(ALICE, '작업 진행 중');
     const beforeWithdrawal = setAnalysis(second, { windowIndex: 3, state: 'DRIFT', candidate: true });
-    await alarm();
-    await waitFor(async () => (await listed())['focus-drift:' + beforeWithdrawal.alertId], 'pending native notification before withdrawal');
+    await waitFor(async () => {
+      if ((await listed())['focus-drift:' + beforeWithdrawal.alertId]) return true;
+      await alarm();
+      return false;
+    }, 'pending native notification before withdrawal');
     const afterWithdrawal = setAnalysis(second, { windowIndex: 4, state: 'DRIFT', candidate: true });
     const lateWithdrawal = await holdAnalysis('analysis response held before withdrawal');
     try {
@@ -679,6 +683,303 @@ async function openAlert(record, index) {
   const detail = await opened;
   await detail.getByText(record.session.goalText, { exact: true }).waitFor();
   return { alert, detail };
+}
+
+const nativeId = alert => 'focus-drift:' + alert.alertId;
+const nativeListed = alert => worker.evaluate(id => chrome.notifications.getAll().then(all => !!all[id]), nativeId(alert));
+const fixedRequests = record => mock.requests.filter(r => r.url === `/api/sessions/${record.session.sessionId}/alerts/fixed-interval`);
+const testHook = (key, value) => worker.evaluate(([key, value]) => { globalThis.notificationTest[key] = value; }, [key, value]);
+
+async function verifyEvaluationMode(mode, source) {
+  const fixed = mode === 'FIXED_INTERVAL';
+  const profile = 'evaluation-' + mode.toLowerCase();
+  await launchNotificationTest(profile, source, mode);
+  const startedAt = Date.now();
+  async function clock(time) {
+    mock.faults.now = time;
+    await setWorkerTime(time);
+  }
+  await clock(startedAt);
+  await start('합성 탐색 자료를 비교하고 최초 작업 목표 확인하기');
+  const record = lastSession();
+  assert.equal((await disk()).start.alertMode, mode);
+  const phase = async alert => {
+    const state = await disk();
+    return (fixed ? state.userFixedAlerts : state.userAnalysis)?.submissions.find(a => a.alertId === alert.alertId)?.phase;
+  };
+  const until = (check, reason) => waitFor(async () => {
+    if (await check()) return true;
+    await alarm();
+    return false;
+  }, reason);
+  const baseUrl = MOCK_ORIGIN + '/api/sessions/' + record.session.sessionId;
+  const analysisStatus = async () => {
+    const response = await fetch(baseUrl + '/analysis-status', { headers: { Authorization: 'Bearer ' + ALICE } });
+    assert.equal(response.status, 200);
+    return response.json();
+  };
+  if (fixed) {
+    await waitFor(async () => await worker.evaluate(async () => (await chrome.alarms.get('user-fixed-interval'))?.scheduledTime)
+      === startedAt + FIXED_INTERVAL_MS, 'first fixed Chrome alarm scheduled from session start');
+    await clock(startedAt + FIXED_INTERVAL_MS - 1);
+    await alarm();
+    assert.equal(fixedRequests(record).length, 0);
+    assert.equal((await analysisStatus()).currentDecision, null);
+  }
+  await popup.close();
+  await clock(startedAt + FIXED_INTERVAL_MS);
+  let first;
+  if (fixed) {
+    const held = holdResponse('holdFixed');
+    try {
+      await worker.evaluate(() => chrome.alarms.create('user-fixed-interval', { when: globalThis.notificationTest.realNow() + 200 }));
+      const observed = await held.received();
+      assert.equal(observed.slot, 1);
+      first = observed.alert;
+      await Promise.all([alarm(), alarm(), alarm()]);
+      assert.equal(fixedRequests(record).length, 1);
+      mock.faults.dropFixed = true;
+    } finally { held.release(); }
+    let postPayload;
+    mock.faults.fixedResponse = payload => { postPayload = payload; return payload; };
+    await until(() => nativeListed(first), 'native fixed notification after candidate POST response loss');
+    delete mock.faults.fixedResponse;
+    assert.equal(postPayload.alertId, first.alertId);
+    assert.equal(postPayload.analysisId, null);
+    assert.equal(postPayload.windowIndex, null);
+    assert.ok(!('windowId' in postPayload) && !('stateVersion' in postPayload) && !('scheduledAt' in postPayload));
+    assert.deepEqual((await analysisStatus()).alert, { ...postPayload, windowId: null, stateVersion: null });
+    assert.equal(record.alerts.size, 1);
+    assert.equal(fixedRequests(record).length, 2);
+  } else {
+    first = setAnalysis(record, { windowIndex: 1, state: 'DRIFT', candidate: true });
+    await until(() => nativeListed(first), 'native AI notification with popup closed');
+    assert.equal(fixedRequests(record).length, 0);
+  }
+  await openPopup();
+  await waitFor(async () => await phase(first) === 'presented', 'first submission committed');
+  await recoverWorker();
+  await clock(startedAt + FIXED_INTERVAL_MS + 5);
+  await alarm();
+  assert.equal(await phase(first), 'presented');
+  assert.equal((await disk()).start.alertMode, mode);
+  assert.deepEqual(await worker.evaluate(() => globalThis.notificationTest.attempts), []);
+
+  async function openDetail(alert) {
+    const opened = context.waitForEvent('page');
+    await worker.evaluate(id => globalThis.notificationTest.click(id), nativeId(alert));
+    const detail = await opened;
+    await detail.getByRole('heading', { name: fixed ? '고정 주기 알림' : '목표 이탈 알림' }).waitFor();
+    await detail.getByText(record.session.goalText, { exact: true }).waitFor();
+    return detail;
+  }
+  mock.faults.dropShown = 'always';
+  const firstDetail = await openDetail(first);
+  const firstRetry = await waitFor(async () => {
+    const receipt = await receiptFor(first);
+    return receipt?.shownDelivery.phase === 'retry-wait' && receipt.shownDelivery.nextRetryAt;
+  }, 'first shown ACK was lost after server storage');
+  delete mock.faults.dropShown;
+  await clock(firstRetry + 1);
+  await until(async () => (await receiptFor(first))?.shownAck, 'first shown ACK recovered from original receipt');
+  await clock(firstRetry + 600);
+  await firstDetail.getByRole('button', { name: '목표로 돌아가기' }).click();
+  await waitFor(async () => (await receiptFor(first))?.selectionAck, 'first choice ACK');
+  await firstDetail.close();
+
+  await context.close(); context = undefined;
+  await launch(profile, join(temp, profile + '-extension'));
+  await openPopup();
+  await clock(firstRetry + 1_000);
+  await login(ALICE, '작업 진행 중');
+  assert.equal((await disk()).start.alertMode, mode);
+  assert.equal(await nativeListed(first), false);
+  assert.deepEqual(await worker.evaluate(() => globalThis.notificationTest.attempts), []);
+
+  // A failed analysis and an unavailable status endpoint must not gate the fixed POST.
+  if (fixed) {
+    setAnalysis(record, { windowIndex: 1, state: 'FAILED' });
+    assert.equal((await analysisStatus()).currentDecision.decisionStatus, 'FAILED');
+    mock.faults.offlineAnalysis = true;
+  }
+  const secondTime = startedAt + 3 * FIXED_INTERVAL_MS + 7500;
+  await clock(secondTime);
+  let second = fixed ? undefined : setAnalysis(record, { windowIndex: 3, state: 'DRIFT', candidate: true });
+  await until(async () => {
+    second ??= record.fixedSlots.get(3);
+    return second && await nativeListed(second);
+  }, 'second native notification after skipping a period');
+  if (fixed) {
+    assert.deepEqual([...record.fixedSlots.keys()], [1, 3]);
+    assert.equal(Date.parse(second.createdAt), secondTime);
+    assert.equal((await disk()).userFixedAlerts.submissions.find(a => a.slot === 3).analysisId, undefined);
+  }
+  const secondDetail = await openDetail(second);
+  await waitFor(async () => (await receiptFor(second))?.shownAck, 'second shown ACK');
+  mock.faults.dropSelection = 'always';
+  await clock(secondTime + 1300);
+  await secondDetail.getByRole('button', { name: '탐색 계속하기' }).click();
+  await waitFor(async () => (await receiptFor(second))?.selectionDelivery?.phase === 'retry-wait', 'selection ACK lost');
+  assert.equal(second.selection.action, 'CONTINUE_BROWSING');
+  await secondDetail.close();
+
+  const finalTime = startedAt + 4 * FIXED_INTERVAL_MS + 2000;
+  await clock(finalTime);
+  await testHook('failCreate', true);
+  let uncertain = fixed ? undefined : setAnalysis(record, { windowIndex: 4, state: 'DRIFT', candidate: true });
+  await until(async () => {
+    uncertain ??= record.fixedSlots.get(4);
+    return uncertain && await phase(uncertain) === 'uncertain';
+  }, 'missing Chrome submission confirmation');
+  assert.equal(await nativeListed(uncertain), false);
+  if (fixed) {
+    await worker.evaluate(id => globalThis.notificationTest.click(id), nativeId(second));
+    await alarm();
+    assert.equal(await nativeListed(second), false);
+    assert.equal(record.fixedSlots.size, 3);
+  }
+  await testHook('failCreate', false);
+  await end();
+  const postCount = fixedRequests(record).length;
+  await Promise.all([alarm(), alarm()]);
+  assert.equal(fixedRequests(record).length, postCount);
+  const snapshot = await disk();
+  const submissions = fixed ? snapshot.userFixedAlerts.submissions : snapshot.userAnalysis.submissions;
+  const sessionReceipts = async () => (await outbox()).filter(r => r.sessionId === record.session.sessionId);
+  const sample = { mode, ...await endedAlertHistory(record.session.sessionId, ALICE), submissions, receipts: await sessionReceipts() };
+  assert.equal(compareAlerts([sample]).totals[mode].unconfirmedReceipts, 1);
+  assert.equal(compareAlerts([sample]).totals[mode].shownWithoutLocalChoice, 0);
+
+  await start('이전 작업에서 저장한 선택 영수증 복구하기');
+  const previous = (await receiptFor(second)).selection;
+  const feedbackId = second.selection.feedbackId;
+  delete mock.faults.dropSelection;
+  await clock((await receiptFor(second)).selectionDelivery.nextRetryAt + 1);
+  await until(async () => (await receiptFor(second))?.selectionAck, 'previous session choice recovered during a new goal');
+  for (const request of receiptRequests(second, 'responses')) assert.deepEqual(request.body, { ...previous, shownAt: second.shownAt });
+  assert.equal((await receiptFor(second)).feedbackId, feedbackId);
+  assert.equal(await nativeListed(second), false);
+  await end();
+  console.log(`PASS evaluation ${mode}: real Chrome submission, two detail choices, ACK loss, restart, no duplicates, verified END`);
+  return { beforeRecovery: sample, afterRecovery: { ...sample, receipts: await sessionReceipts() } };
+}
+
+async function verifyFixedPrivacy(fixedExtension) {
+  await launchNotificationTest('fixed-privacy', fixedExtension, 'FIXED_INTERVAL');
+  const time = Date.now();
+  const clock = async elapsed => {
+    mock.faults.now = time + elapsed;
+    await setWorkerTime(time + elapsed);
+  };
+  await clock(0);
+  await start('고정 주기 알림의 이전 회차와 개인정보 차단 확인하기');
+  const record = lastSession();
+  await clock(FIXED_INTERVAL_MS);
+  const first = await waitFor(async () => {
+    await alarm();
+    const a = record.fixedSlots.get(1);
+    return a && await nativeListed(a) && a;
+  }, 'unopened first-round notification');
+  const oldView = (await disk()).userFixedAlerts.submissions[0].viewId;
+  await clock(3 * FIXED_INTERVAL_MS);
+  const hold = holdResponse('holdFixed');
+  let late;
+  let staleDetail;
+  try {
+    await alarm();
+    const { slot } = await hold.received();
+    late = record.fixedSlots.get(slot);
+    assert.equal(slot, 3);
+    assert.deepEqual([...record.fixedSlots.keys()], [1, 3]);
+    staleDetail = await context.newPage();
+    await staleDetail.goto(`chrome-extension://${id}/${USER_POPUP}?alert=${oldView}`);
+    const pages = context.pages().length;
+    await worker.evaluate(id => globalThis.notificationTest.click(id), nativeId(first));
+    assert.equal((await sendFrom(staleDetail, { type: 'alert-view', viewId: oldView })).detail, undefined);
+    assert.equal(context.pages().length, pages);
+    await clock(4 * FIXED_INTERVAL_MS);
+  } finally { hold.release(); }
+  await staleDetail.getByText('현재 확인할 수 있는 알림이 없어요.').waitFor();
+  const fourth = await waitFor(async () => {
+    const a = record.fixedSlots.get(4);
+    return a && await nativeListed(a) && a;
+  }, 'a POST straddling the boundary wakes the new current slot');
+  assert.equal(await nativeListed(late), false);
+  assert.equal(await nativeListed(first), false);
+  assert.equal((await command({ type: 'login', token: BOB })).snapshot.access, 'account');
+  await waitFor(async () => !await nativeListed(fourth), 'owner switch clears active fixed alert');
+  const beforeLogin = fixedRequests(record).length;
+  await clock(5 * FIXED_INTERVAL_MS);
+  await alarm();
+  assert.equal(fixedRequests(record).length, beforeLogin);
+  const withdrawal = holdResponse('holdFixed');
+  try {
+    await login(ALICE, '작업 진행 중');
+    assert.equal((await withdrawal.received()).slot, 5);
+    assert.equal((await command({ type: 'withdraw' })).snapshot.access, 'withdrawn');
+  } finally { withdrawal.release(); }
+  const count = fixedRequests(record).length;
+  await clock(6 * FIXED_INTERVAL_MS);
+  await Promise.all([alarm(), alarm()]);
+  assert.equal(fixedRequests(record).length, count);
+  assert.deepEqual((await disk()).userFixedAlerts.submissions.map(a => a.slot), [1, 4]);
+  await waitFor(async () => !await nativeListed(first), 'old unopened notification removed');
+  assert.deepEqual(await outbox(), []);
+  console.log('PASS fixed privacy: expired views, boundary-crossing responses, account switch and concurrent withdrawal');
+  return { mode: 'FIXED_INTERVAL', session: record.session, excluded: 'PRIVACY_WITHDRAWN' };
+}
+
+async function verifyModeMismatch(fixedExtension) {
+  await launchNotificationTest('mismatch', fixedExtension, 'AI');
+  const time = Date.now();
+  mock.faults.startedAt = new Date(time).toISOString();
+  mock.faults.now = time;
+  await setWorkerTime(time);
+  await start('모드가 다른 서버에 연결한 합성 작업');
+  const record = lastSession();
+  setAnalysis(record, { windowIndex: 1, state: 'DRIFT', candidate: true });
+  await setWorkerTime(time + FIXED_INTERVAL_MS);
+  mock.faults.now += FIXED_INTERVAL_MS;
+  await waitFor(async () => {
+    await alarm();
+    return (await disk()).userFixedAlerts?.skipped;
+  }, 'incompatible server mode');
+  assert.equal(fixedRequests(record).length, 1);
+  assert.deepEqual(await worker.evaluate(() => chrome.notifications.getAll()), {});
+  assert.equal((await disk()).start.alertMode, 'FIXED_INTERVAL');
+  await end();
+  console.log('PASS mismatched modes: disabled fixed POST does not switch to AI');
+  return { mode: 'FIXED_INTERVAL', session: record.session, excluded: 'ALERT_MODE_MISMATCH' };
+}
+
+async function verifyComparison() {
+  assert.ok(process.env.USER_FIXED_EXTENSION, 'Set USER_FIXED_EXTENSION to the fixed synthetic build directory');
+  const fixedExtension = resolve(process.env.USER_FIXED_EXTENSION);
+  const ai = await verifyEvaluationMode('AI', extension);
+  const fixed = await verifyEvaluationMode('FIXED_INTERVAL', fixedExtension);
+  const excluded = [await verifyModeMismatch(fixedExtension), await verifyFixedPrivacy(fixedExtension)];
+  const before = [ai.beforeRecovery, fixed.beforeRecovery, ...excluded];
+  const after = [ai.afterRecovery, fixed.afterRecovery, ...excluded];
+  const results = compareAlerts(after);
+  assert.deepEqual(compareAlerts([...after, ...structuredClone(after)]), results);
+  for (const stats of Object.values(results.totals)) {
+    assert.equal(stats.sessions, 1);
+    assert.equal(stats.backendCandidates, 3);
+    assert.equal(stats.chromeSubmitted, 2);
+    assert.equal(stats.submissionUncertain, 1);
+    assert.equal(stats.detailShown, 2);
+    assert.equal(stats.serverShown, 2);
+    assert.equal(stats.serverChoices, 2);
+    assert.equal(stats.shownAck, 2);
+    assert.equal(stats.choiceAck, 2);
+    assert.equal(stats.returnToGoalRate, 0.5);
+    assert.equal(stats.continueBrowsingRate, 0.5);
+    assert.equal(stats.conflictRecords, 0);
+  }
+  assert.deepEqual(results.records.map(row => row.reason), ['ALERT_MODE_MISMATCH', 'PRIVACY_WITHDRAWN']);
+  const report = { chrome: version, clock: 'synthetic', beforeRecovery: compareAlerts(before), afterRecovery: results };
+  if (evidence) await writeFile(join(evidence, 'comparison.json'), JSON.stringify(report, null, 2) + '\n');
+  console.log(JSON.stringify(report));
 }
 
 async function verifyOutboxRecovery() {
@@ -1262,7 +1563,8 @@ async function verifyUserFlow() {
   console.log(JSON.stringify({ result: 'PASS', chrome: version, scenarios: 18, firstSessionVisits: first.visits.size, posts, patches }));
 }
 try {
-  if (process.argv.includes('--recovery-only')) await verifySubmissionRecovery();
+  if (process.argv.includes('--evaluation')) await verifyComparison();
+  else if (process.argv.includes('--recovery-only')) await verifySubmissionRecovery();
   else if (process.argv.includes('--outbox-only')) await verifyOutboxRecovery();
   else if (process.env.USER_LEGACY_EXTENSION) await verifyArchiveUpgrade(process.env.USER_LEGACY_EXTENSION);
   else await verifyUserFlow();

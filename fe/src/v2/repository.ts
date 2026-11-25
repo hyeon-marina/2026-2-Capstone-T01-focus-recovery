@@ -10,7 +10,7 @@ import { matchesEndedSession } from '../api/session-end';
 import { validTime } from '../api/visit';
 import { validGoal, normalizeGoal } from '../shared/goal';
 import { isV2Session, UUID4, validPost, validSnapshot } from './contract';
-import { ALERT_SUBMISSION_PHASES, initialState, type V2State, type CompactReceipt } from './state';
+import { ALERT_SUBMISSION_PHASES, initialState, type V2State, type CompactReceipt, type UserAlertSubmission } from './state';
 import { validDecisionCursor } from './status';
 
 export function validateV2(s: V2State, api: string) {
@@ -26,13 +26,25 @@ export function validateV2(s: V2State, api: string) {
     || s.compactedThrough < 0 || s.compactedThrough >= s.nextSequence) fail();
   if (s.owner && (!UUID4.test(s.owner.participantId) || s.owner.consentId !== null && !UUID4.test(s.owner.consentId))) fail();
   const analysis = s.userAnalysis;
+  const validSubmission = (a: UserAlertSubmission) =>
+    !!a && [a.alertId, a.viewId].every(id => typeof id === 'string' && UUID4.test(id))
+    && (a.phase === undefined || ALERT_SUBMISSION_PHASES.includes(a.phase))
+    && (a.chromeSubmitted === undefined || a.chromeSubmitted === true && ['presented', 'dismissed'].includes(a.phase!));
   if (analysis !== undefined && (!analysis || !s.session || !validDecisionCursor(analysis.cursor)
     || !Number.isSafeInteger(analysis.observedAt) || analysis.observedAt <= 0 || !Array.isArray(analysis.submissions)
-    || analysis.submissions.some(a => !a || ![a.alertId, a.viewId, a.windowId, a.analysisId].every(id => typeof id === 'string' && UUID4.test(id))
-      || ![a.windowIndex, a.stateVersion].every(n => Number.isSafeInteger(n) && n > 0) || a.windowIndex > 2147483647
-      || a.phase !== undefined && !ALERT_SUBMISSION_PHASES.includes(a.phase))
+    || analysis.submissions.some(a => !validSubmission(a) || 'slot' in a
+      || ![a.windowId, a.analysisId].every(id => typeof id === 'string' && UUID4.test(id))
+      || ![a.windowIndex, a.stateVersion].every(n => Number.isSafeInteger(n) && n > 0) || a.windowIndex > 2147483647)
     || new Set(analysis.submissions.map(a => a.alertId)).size !== analysis.submissions.length
     || new Set(analysis.submissions.map(a => a.viewId)).size !== analysis.submissions.length)) fail();
+  const fixed = s.userFixedAlerts;
+  if (fixed !== undefined && (!fixed || !s.session || s.start?.alertMode !== 'FIXED_INTERVAL'
+    || !Number.isSafeInteger(fixed.slot) || fixed.slot < 1 || fixed.skipped !== undefined && fixed.skipped !== true
+    || !Array.isArray(fixed.submissions) || fixed.submissions.some(a => !validSubmission(a) || a.phase === undefined
+      || !Number.isSafeInteger(a.slot) || a.slot < 1 || a.slot > fixed.slot
+      || ['windowId', 'windowIndex', 'stateVersion', 'analysisId'].some(key => key in a))
+    || ['alertId', 'viewId', 'slot'].some(key =>
+      new Set(fixed.submissions.map(a => a[key as keyof typeof a])).size !== fixed.submissions.length))) fail();
   if (s.withdrawal && (!s.owner || !UUID4.test(s.withdrawal.requestId) || !['pending','sending','acknowledged'].includes(s.withdrawal.phase)
     || !Number.isSafeInteger(s.withdrawal.attempts) || s.withdrawal.attempts < 0
     || s.withdrawal.phase === 'acknowledged' && !validWithdrawal(s.withdrawal.ack, s.withdrawal.requestId))) fail();
@@ -41,6 +53,7 @@ export function validateV2(s: V2State, api: string) {
   if (s.start?.previousSessionId !== undefined && (!UUID4.test(s.start.previousSessionId) || s.start.plannedSessionId
     || s.session?.sessionId === s.start.previousSessionId)) fail();
   if (s.start && (!UUID4.test(s.start.idempotencyKey) || s.start.collectionSpecVersion !== '2.0'
+    || s.start.alertMode !== undefined && !['AI', 'FIXED_INTERVAL'].includes(s.start.alertMode)
     || !validGoal(s.start.goalText) || normalizeGoal(s.start.goalText) !== s.start.goalText)) fail();
   if (s.lifecycle !== 'IDLE' && !s.start || ['ACTIVE', 'END_PENDING', 'ENDED'].includes(s.lifecycle)
     && (!isV2Session(s.session) || s.session?.goalText !== s.start?.goalText || s.session.status !== 'ACTIVE')) fail();
@@ -163,6 +176,7 @@ export class V2Repository {
       const newSession = previous?.lifecycle === 'ENDED' && saved.lifecycle === 'START_PENDING' && !previous.withdrawal && (!previous.quarantine || previous.quarantineClose?.phase === 'acknowledged');
       // CAS also guards immutable originals and irreversible sequence/lifecycle progress.
       if (previous && !newSession && (previous.owner && canonical(saved.owner) !== canonical(previous.owner)
+        || previous.start && saved.start?.alertMode !== previous.start.alertMode
         || previous.withdrawal && (!saved.withdrawal || previous.withdrawal.requestId !== saved.withdrawal.requestId
           || previous.withdrawal.ack && canonical(previous.withdrawal.ack) !== canonical(saved.withdrawal.ack))
         || saved.nextSequence < previous.nextSequence

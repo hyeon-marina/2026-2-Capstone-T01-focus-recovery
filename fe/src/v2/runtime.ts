@@ -17,7 +17,8 @@ import { endSession, getSession, matchesSession } from '../api/session-end';
 import { isV2Session } from './contract';
 import { V2Collector, canCompact, type Observation } from './collector';
 import { V2Repository, drained } from './repository';
-import { initialState, type V2State, type Stamp, type CompactReceipt, type UserAlertSubmission } from './state';
+import { initialState, type V2State, type Stamp, type CompactReceipt,
+  type AlertMode, type AiAlertSubmission, type FixedAlertSubmission, type UserAlertSubmission } from './state';
 
 export interface V2Transport {
   access: () => Promise<CollectionAccess>;
@@ -107,7 +108,7 @@ export class V2Runtime {
     this.ending = new SessionEndDelivery(mutate, () => this.canSend(), () => drained(this.committed),
       () => [...this.state.posts.entries, ...this.state.behaviors.entries].some(e => e.code === 'SESSION_ENDED'), (s, b) => protect(() => transport.end(s, b)), s => protect(() => transport.query(s)), freeGoalSession);
   }
-  suspendAccess() { this.accessEpoch++; this.access = undefined; this.accessError = 'AUTHENTICATION_REQUIRED';
+  suspendAccess(reason = 'AUTHENTICATION_REQUIRED') { this.accessEpoch++; this.access = undefined; this.accessError = reason;
     this.pauseAuthorization();
   }
   beginUserPrivacyChange() {
@@ -128,15 +129,21 @@ export class V2Runtime {
       && !!this.committed.owner && this.access.participantId === this.committed.owner.participantId
       && this.access.consentId === this.committed.owner.consentId && this.access.consentValid && this.access.collectionEnabled && !this.access.withdrawn;
   }
-  async verifyAccess(forStart = false, ownershipOnly = false) {
-    if (this.userPrivacyPending && !ownershipOnly) throw new AccessError('authentication');
+  private beginAccessCheck() {
     const epoch = this.accessEpoch, credential = accessGeneration(), check = ++this.accessChecks;
     const current = () => epoch === this.accessEpoch && credential === accessGeneration()
       && (!this.freeGoalSession || check >= this.settledAccessCheck);
+    const settle = () => { this.settledAccessCheck = check; };
+    return { epoch, credential, current, settle };
+  }
+  async verifyAccess(forStart = false, ownershipOnly = false) {
+    if (this.userPrivacyPending && !ownershipOnly) throw new AccessError('authentication');
+    const { epoch, credential, current, settle } = this.beginAccessCheck();
     try {
       const access = await this.transport.access();
       if (!current()) throw new AccessError('account');
-      this.settledAccessCheck = check;
+      settle();
+      this.receiptIdentity = undefined;
       if (!Number.isFinite(Date.parse(access.expiresAt)) || Date.parse(access.expiresAt) <= Date.now()) throw new AccessError('authentication');
       this.verifiedIdentity = { participantId: access.participantId, expiresAt: access.expiresAt, credentialEpoch: credential };
       if (this.receiptStore) this.receiptIdentity = { access, epoch, credential };
@@ -152,7 +159,9 @@ export class V2Runtime {
       return access;
     } catch (e) {
       if (this.freeGoalSession && !current()) throw e;
-      this.settledAccessCheck = check;
+      settle();
+      // Ownership of the active session and authorization for the account's own receipts are independent.
+      if (!(e instanceof AccessError && e.kind === 'account')) this.receiptIdentity = undefined;
       this.pauseAuthorization();
       this.access = undefined; this.accessError = e instanceof AccessError ? e.kind : 'network';
       throw e;
@@ -212,7 +221,7 @@ export class V2Runtime {
         this.posts.restore(s.posts, s.session?.sessionId); this.behaviors.restore(s.behaviors, s.posts.entries);
         this.ending.restore(s.end);
         for (const e of s.retractions ?? []) if (e.phase === 'sending') e.phase = 'pending';
-        for (const a of s.userAnalysis?.submissions ?? []) {
+        for (const a of [...s.userAnalysis?.submissions ?? [], ...s.userFixedAlerts?.submissions ?? []]) {
           if (a.phase === undefined || a.phase === 'submitting') a.phase = 'uncertain';
         }
         if (s.quarantine) this.queueRetractions();
@@ -256,14 +265,14 @@ export class V2Runtime {
     }
     if (this.canSend()) { this.posts.kick(); this.behaviors.kick(); this.ending.kick(); }
   }
-  async start(goalText: string, plannedSessionId?: string) {
+  async start(goalText: string, plannedSessionId?: string, alertMode?: AlertMode) {
     if (this.starting) throw new Error('V2_START_IN_FLIGHT');
     this.starting = true;
     try {
-      await this.startOnce(goalText, plannedSessionId);
+      await this.startOnce(goalText, plannedSessionId, alertMode);
     } finally { this.starting = false; }
   }
-  private async startOnce(goalText: string, plannedSessionId?: string) {
+  private async startOnce(goalText: string, plannedSessionId?: string, alertMode?: AlertMode) {
     if (!['IDLE', 'START_PENDING', 'ENDED'].includes(this.committed.lifecycle) || this.committed.withdrawal || this.committed.quarantine && this.committed.quarantineClose?.phase !== 'acknowledged' || this.stopping && this.committed.lifecycle !== 'ENDED') throw new Error('V2_START_BLOCKED');
     const access = await this.verifyAccess(true);
     const previousSessionId = this.committed.lifecycle === 'ENDED' ? this.committed.session?.sessionId : undefined;
@@ -280,6 +289,7 @@ export class V2Runtime {
       }
       this.state.owner ??= { participantId: access.participantId, consentId: access.consentId };
       this.state.start ??= { ...(plannedSessionId ? { plannedSessionId } : {}),
+        ...(this.freeGoalSession && alertMode ? { alertMode } : {}),
         ...(this.freeGoalSession && previousSessionId ? { previousSessionId } : {}), goalText, idempotencyKey: crypto.randomUUID(), collectionSpecVersion: '2.0', apiBaseUrl: API_BASE_URL };
       this.state.lifecycle = 'START_PENDING';
       return true;
@@ -489,7 +499,7 @@ export class V2Runtime {
     this.compactedIds.push(...receipts.map(r => r.visitId));
   }
   async checkpointAnalysis(cursor: DecisionCursor, candidate: V2Alert | null, allowed: () => boolean) {
-    const retired = (a: UserAlertSubmission) => a.phase === 'reserved' && (candidate?.alertType !== 'AI'
+    const retired = (a: AiAlertSubmission) => a.phase === 'reserved' && (candidate?.alertType !== 'AI'
       || candidate.alertId !== a.alertId || !matchesDecision(a, cursor.current));
     if (JSON.stringify(this.committed.userAnalysis?.cursor) === JSON.stringify(cursor)
       && !this.committed.userAnalysis?.submissions.some(retired)) return;
@@ -504,10 +514,29 @@ export class V2Runtime {
       for (const a of this.state.userAnalysis.submissions) if (retired(a)) a.phase = 'retired';
     });
   }
-  claimAlert(submission: Omit<UserAlertSubmission, 'phase'>, allowed: () => boolean) {
+  checkpointFixedSlot(slot: number, allowed: () => boolean, skip = false) {
     return this.mutate(() => {
+      if (!allowed() || this.state.start?.alertMode !== 'FIXED_INTERVAL') return false;
+      const previous = this.state.userFixedAlerts;
+      if (previous && slot < previous.slot) return false;
+      const submissions = previous?.submissions ?? [];
+      this.state.userFixedAlerts = { slot, submissions, ...(skip || previous?.slot === slot && previous.skipped ? { skipped: true } : {}) };
+      for (const a of submissions) if (a.slot < slot && a.phase === 'reserved') a.phase = 'retired';
+      return true;
+    });
+  }
+  claimAlert(submission: AiAlertSubmission | FixedAlertSubmission, allowed: () => boolean) {
+    return this.mutate(() => {
+      if (!allowed()) return false;
+      if ('slot' in submission) {
+        const fixed = this.state.userFixedAlerts;
+        if (this.state.start?.alertMode !== 'FIXED_INTERVAL' || fixed?.slot !== submission.slot || fixed.skipped
+          || fixed.submissions.some(a => a.alertId === submission.alertId || a.slot === submission.slot)) return false;
+        fixed.submissions.push({ ...submission, phase: 'reserved' });
+        return true;
+      }
       const analysis = this.state.userAnalysis;
-      if (!allowed() || !analysis || !matchesDecision(submission, analysis.cursor.current)
+      if (this.state.start?.alertMode === 'FIXED_INTERVAL' || !analysis || !matchesDecision(submission, analysis.cursor.current)
         || analysis.submissions.some(a => a.alertId === submission.alertId)) return false;
       analysis.submissions.push({ ...submission, phase: 'reserved' });
       return true;
@@ -518,19 +547,23 @@ export class V2Runtime {
     allowed: () => boolean,
   ) {
     return this.mutate(() => {
-      const current = this.state.userAnalysis?.submissions.find(a => a.viewId === submission.viewId);
+      const submissions = 'slot' in submission ? this.state.userFixedAlerts?.submissions : this.state.userAnalysis?.submissions;
+      const current = submissions?.find(a => a.viewId === submission.viewId);
       if (!allowed() || !current) return false;
       if (phase === 'dismissed') {
         if (current.phase === 'dismissed' || current.phase === 'reserved' || current.phase === 'retired') return false;
       } else if (current.phase !== submission.phase) return false;
       current.phase = phase;
+      if (phase === 'presented') current.chromeSubmitted = true;
       return true;
     });
   }
   retireAlertReservations(sessionId: string) {
     return this.mutate(() => {
       if (this.state.session?.sessionId !== sessionId) return;
-      for (const a of this.state.userAnalysis?.submissions ?? []) if (a.phase === 'reserved') a.phase = 'retired';
+      for (const a of [...this.state.userAnalysis?.submissions ?? [], ...this.state.userFixedAlerts?.submissions ?? []]) {
+        if (a.phase === 'reserved') a.phase = 'retired';
+      }
     });
   }
   private receiptScope(identity = this.receiptIdentity) {
@@ -557,19 +590,30 @@ export class V2Runtime {
       if (!entries.some(entry => [entry.shownDelivery, entry.selectionDelivery].some(state => receiptDue(state, now, manual, restoreAccess)))) return;
     } else if (!await store.hasReceipts() || !await hasCredential()) return;
     if (!current()) return;
+    const check = this.beginAccessCheck();
     let access: CollectionAccess;
     try { access = await this.transport.access(); }
     catch (error) {
-      if (current() && error instanceof AccessError && error.kind === 'authentication') {
-        this.receiptAccessDenied = true;
-        this.suspendAccess();
+      if (!current() || !check.current()) return;
+      check.settle();
+      this.receiptIdentity = undefined;
+      if (error instanceof AccessError && (error.kind === 'authentication' || error.kind === 'consent')) {
+        this.receiptAccessDenied = error.kind === 'authentication';
+        this.suspendAccess(error.kind);
       }
       return;
     }
-    if (!current()) return;
+    if (!current() || !check.current()) return;
+    check.settle();
     const identity = { access, epoch, credential };
     this.receiptIdentity = identity;
     const scope = this.receiptScope(identity);
+    const owner = this.committed.owner;
+    if (owner?.participantId === access.participantId && (!scope || this.authorized() && owner.consentId !== access.consentId)) {
+      if (access.withdrawn) this.serverWithdrawalSeen = true;
+      this.suspendAccess(Date.parse(access.expiresAt) > Date.now() ? 'consent' : 'authentication');
+      return;
+    }
     if (scope) return { scope, allowed: (sessionId?: string) => {
       const live = this.receiptScope();
       return current() && !!this.receiptScope(identity) && live?.participantId === scope.participantId && live.consentId === scope.consentId
@@ -626,7 +670,8 @@ export class V2Runtime {
           }
           if (existing) return existing;
           if (!shownAt || !validNotification({ alertId, shownAt, shownAck: false })) return;
-          return { ...source, apiOrigin: store.origin, alertId, shownAt, shownAck: false, shownDelivery: initialDelivery() };
+          return { ...source, apiOrigin: store.origin, alertId, alertType: this.state.start?.alertMode ?? 'AI',
+            shownAt, shownAck: false, shownDelivery: initialDelivery() };
         });
       } catch (error) { this.failed = true; throw error; }
       if (!saved) throw new Error('V2_ALERT_BLOCKED');

@@ -2,11 +2,14 @@ import { AccessError, accessGeneration } from '../src/api/auth-fetch';
 import { serialExecutor } from '../src/background/serial';
 import { normalizeGoal } from '../src/shared/goal';
 import { installV2Browser } from '../src/v2/browser';
+import type { AlertMode } from '../src/v2/state';
 import { installUserAnalysis } from './analysis';
 import { USER_DB, USER_POPUP } from './mock-config';
 import { alertUrl, isPrivacyCommand, parseAlertCommand, parseCommand, trustedPopup, type UserReply, type UserSnapshot } from './protocol';
 import { commandError, createMockTransport, hasMockPermission, login, logout, rememberLogout,
   saveSyntheticConsent, serverStatus, suspendUserHttp } from './transport';
+
+declare const __USER_ALERT_MODE__: AlertMode;
 
 installV2Browser({
   uiPath: USER_POPUP,
@@ -184,7 +187,7 @@ installV2Browser({
                   : command.type === 'retry-start' && s.lifecycle === 'START_PENDING' && own ? s.start?.goalText : undefined;
                 if (!goal || s.storageFailed || !await hasMockPermission()) throw new Error('V2_BLOCKED');
                 checkCommand();
-                try { await runtime.start(goal); }
+                try { await runtime.start(goal, undefined, __USER_ALERT_MODE__); }
                 catch (error) {
                   if (acceptedVersion === privacyVersion && commandError(error) === 'auth') runtime.suspendAccess();
                   throw error;

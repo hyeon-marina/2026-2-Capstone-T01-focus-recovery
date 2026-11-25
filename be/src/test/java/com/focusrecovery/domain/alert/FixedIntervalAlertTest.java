@@ -63,7 +63,7 @@ import com.jayway.jsonpath.JsonPath;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@TestPropertySource(properties = "focus-recovery.alert.mode=FIXED_INTERVAL")
+@TestPropertySource(properties = { "focus-recovery.alert.mode=FIXED_INTERVAL", "focus-recovery.v2.storage.enabled=true" })
 class FixedIntervalAlertTest {
 
 	private static final String GOAL = "고정 주기 테스트 목표";
@@ -161,6 +161,30 @@ class FixedIntervalAlertTest {
 			.andExpect(jsonPath("$.alert.alertType").value("FIXED_INTERVAL"))
 			.andExpect(jsonPath("$.alert.windowIndex").value(nullValue()));
 		assertThat(notificationRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void v2_세션의_POST와_분석_상태_조회는_각각의_DTO를_유지한다() throws Exception {
+		WorkSession v2 = WorkSession.start(GOAL, null, "2.0");
+		v2.assignOwner(com.focusrecovery.support.SyntheticIdentities.ALICE, com.focusrecovery.support.SyntheticIdentities.CONSENT);
+		UUID id = workSessionRepository.save(v2).getSessionId();
+		now.set(v2.getStartedAt().plus(INTERVAL).plusSeconds(7));
+
+		String alert = alertId(request(id).andExpect(status().isCreated())
+			.andExpect(jsonPath("$.analysisId").value(nullValue()))
+			.andExpect(jsonPath("$.windowIndex").value(nullValue()))
+			.andExpect(jsonPath("$.windowId").doesNotHaveJsonPath())
+			.andExpect(jsonPath("$.stateVersion").doesNotHaveJsonPath())
+			.andExpect(jsonPath("$.scheduledAt").doesNotHaveJsonPath()));
+		mockMvc.perform(get("/api/sessions/{sessionId}/analysis-status", id))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.apiContractVersion").value(2))
+			.andExpect(jsonPath("$.currentDecision").value(nullValue()))
+			.andExpect(jsonPath("$.alert.alertId").value(alert))
+			.andExpect(jsonPath("$.alert.windowId").value(nullValue()))
+			.andExpect(jsonPath("$.alert.stateVersion").value(nullValue()))
+			.andExpect(jsonPath("$.alert.scheduledAt").doesNotHaveJsonPath());
+		assertThat(scheduledAt(alert)).isEqualTo(v2.getStartedAt().plus(INTERVAL));
 	}
 
 	// 예정 시각은 startedAt + 10분 × n으로 고정된다. 첫 알림이 12분에 표시돼도 다음 회차는 22분이 아니라 20분이다

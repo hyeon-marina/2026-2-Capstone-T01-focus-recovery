@@ -4,7 +4,8 @@ import { isWorkSession, UUID } from './session';
 import { validBehavior } from './behavior';
 import type { EndWorkSessionRequest, WorkSessionResponse } from './types';
 
-const codes = ['PRIVACY_RETRACTED', 'V2_STORAGE_DISABLED', 'INVALID_REQUEST', 'SESSION_NOT_FOUND', 'VISIT_NOT_FOUND', 'BEHAVIOR_VERSION_CONFLICT', 'BEHAVIOR_COUNTER_DECREASED'];
+const codes = ['PRIVACY_RETRACTED', 'V2_STORAGE_DISABLED', 'COLLECTION_VERSION_MISMATCH', 'CONSENT_REQUIRED',
+  'COLLECTION_POLICY_BLOCKED', 'INVALID_REQUEST', 'SESSION_NOT_FOUND', 'VISIT_NOT_FOUND', 'BEHAVIOR_VERSION_CONFLICT', 'BEHAVIOR_COUNTER_DECREASED'];
 export class SessionEndError extends ApiError {
   constructor(kind: ApiError['kind'], message: string, public retryable: boolean, status?: number, public code?: string) {
     super(kind, message, status);
@@ -24,7 +25,7 @@ export function matchesSession(value: unknown, session: WorkSessionResponse): va
 export function matchesEndedSession(value: unknown, session: WorkSessionResponse): value is WorkSessionResponse & { status: 'ENDED'; endedAt: string } {
   return matchesSession(value, session) && value.status === 'ENDED';
 }
-async function requestSession(session: WorkSessionResponse, body?: EndWorkSessionRequest): Promise<WorkSessionResponse> {
+async function requestSession(session: WorkSessionResponse, body?: EndWorkSessionRequest, allowed?: () => boolean): Promise<WorkSessionResponse> {
   if (!isWorkSession(session, session.collectionSpecVersion ?? '1.0') || session.status !== 'ACTIVE' || !UUID.test(session.sessionId)
     || body !== undefined && !validEndRequest(body)) throw new SessionEndError('response', '종료 대상 또는 고정 요청 정보 확인이 필요합니다.', false);
   // Copy before any asynchronous work so callers cannot change an in-flight request.
@@ -40,7 +41,7 @@ async function requestSession(session: WorkSessionResponse, body?: EndWorkSessio
       const response = await authenticatedFetch(`${API_BASE_URL}/api/sessions/${encodeURIComponent(expected.sessionId)}${body === undefined ? '' : '/end'}`, {
         method: body === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json' }, body: snapshot,
         signal: controller.signal, credentials: 'omit', redirect: 'error', cache: 'no-store',
-      });
+      }, allowed);
       if (response.ok && response.status !== 200) throw new SessionEndError('response', '서버 종료 확인 응답의 HTTP 상태가 올바르지 않습니다.', false);
       if (response.status !== 200) {
         let code: string | undefined;
@@ -63,4 +64,4 @@ async function requestSession(session: WorkSessionResponse, body?: EndWorkSessio
   } finally { clearTimeout(timer!); }
 }
 export const endSession = (session: WorkSessionResponse, request: EndWorkSessionRequest) => requestSession(session, request);
-export const getSession = (session: WorkSessionResponse) => requestSession(session);
+export const getSession = (session: WorkSessionResponse, allowed?: () => boolean) => requestSession(session, undefined, allowed);

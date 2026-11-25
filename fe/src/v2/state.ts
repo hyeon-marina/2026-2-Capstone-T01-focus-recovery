@@ -18,7 +18,7 @@ export interface V2State {
   lifecycle: 'IDLE' | 'START_PENDING' | 'ACTIVE' | 'END_PENDING' | 'ENDED';
   owner?: { participantId: string; consentId: string | null };
   withdrawal?: { requestId: string; phase: 'pending' | 'sending' | 'acknowledged'; attempts: number; ack?: import('./access').WithdrawalReceipt };
-  start?: { plannedSessionId?: string; previousSessionId?: string; idempotencyKey: string; goalText: string; collectionSpecVersion: '2.0'; apiBaseUrl: string };
+  start?: { plannedSessionId?: string; previousSessionId?: string; idempotencyKey: string; goalText: string; collectionSpecVersion: '2.0'; apiBaseUrl: string; alertMode?: AlertMode };
   session?: V2Session;
   foreground: number | null; lastTab: number | null; lastVisit?: string;
   candidates: Candidate[]; tabKeys: Record<number, string>; discardedCandidates: number; tabs: Record<number, string>;
@@ -27,8 +27,9 @@ export interface V2State {
   userAnalysis?: {
     cursor: import('./status').DecisionCursor;
     observedAt: number;
-    submissions: UserAlertSubmission[];
+    submissions: AiAlertSubmission[];
   };
+  userFixedAlerts?: { slot: number; skipped?: true; submissions: FixedAlertSubmission[] };
   compactedThrough: number; compactedCount: number;
   retractions?: import('./retractions').RetractionEntry[];
   quarantineConfirmedFor?: string;
@@ -36,15 +37,21 @@ export interface V2State {
   quarantine?: { reason: 'SENSITIVE_CONTENT' | 'CONSENT_WITHDRAWN' | 'PRIVACY_RETRACTED'; observedAt: string; visitIds: string[]; status: 'RETRACTION_REQUIRED' };
 }
 export const ALERT_SUBMISSION_PHASES = ['reserved', 'submitting', 'presented', 'uncertain', 'dismissed', 'retired'] as const;
-export interface UserAlertSubmission {
+export type AlertMode = 'AI' | 'FIXED_INTERVAL';
+interface AlertSubmission {
   alertId: string;
   viewId: string;
+  phase?: typeof ALERT_SUBMISSION_PHASES[number];
+  chromeSubmitted?: true;
+}
+export interface AiAlertSubmission extends AlertSubmission {
   windowId: string;
   windowIndex: number;
   stateVersion: number;
   analysisId: string;
-  phase?: typeof ALERT_SUBMISSION_PHASES[number];
 }
+export interface FixedAlertSubmission extends AlertSubmission { slot: number }
+export type UserAlertSubmission = AiAlertSubmission | FixedAlertSubmission;
 export function initialState(apiBaseUrl: string): V2State {
   return { format: 2, collectionSpecVersion: '2.0', revision: 0, nextSequence: 1, lifecycle: 'IDLE',
     foreground: null, lastTab: null, candidates: [], tabs: {}, tabKeys: {}, discardedCandidates: 0, compactedThrough: 0, compactedCount: 0, notifications: [],

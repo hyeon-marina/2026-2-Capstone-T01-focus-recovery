@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { catalog, FIXTURE_ORIGIN, fixtureId } from '../synthetic/catalog.ts';
-import { MOCK_ORIGIN } from '../user/mock-config.ts';
+import { FIXED_INTERVAL_MS, MOCK_ORIGIN, syntheticAlertMode } from '../user/mock-config.ts';
 import { normalizeGoal, validGoal } from '../src/shared/goal.ts';
 
 export const ALICE = 'synthetic-user-133-alice-for-local-tests-0123456789';
@@ -24,7 +24,7 @@ export function setAnalysis(record, { windowIndex = 1, state = 'PENDING', versio
   record.windows.set(windowIndex, window);
   const completed = ['NORMAL', 'TRANSITION', 'DRIFT'].includes(state);
   const key = window.windowId + ':' + version;
-  const now = new Date().toISOString();
+  const now = new Date(record.now()).toISOString();
   let decision = completed ? record.decisions.get(key) : undefined;
   if (!decision) {
     decision = {
@@ -34,6 +34,7 @@ export function setAnalysis(record, { windowIndex = 1, state = 'PENDING', versio
     };
     if (completed) record.decisions.set(key, decision);
   }
+  candidate &&= record.mode === 'AI';
   let alert = candidate && decision.finalState === 'DRIFT'
     ? [...record.alerts.values()].find(a => a.windowId === window.windowId && a.stateVersion === version && !a.invalidatedAt) : undefined;
   if (!alert && candidate && decision.finalState === 'DRIFT') {
@@ -43,22 +44,28 @@ export function setAnalysis(record, { windowIndex = 1, state = 'PENDING', versio
     };
     record.alerts.set(alert.alertId, alert);
   }
-  for (const a of record.alerts.values()) if (a !== alert && !a.shownAt) a.invalidatedAt ??= now;
+  for (const a of record.alerts.values()) if (a.alertType === 'AI' && a !== alert && !a.shownAt) a.invalidatedAt ??= now;
   record.currentDecision = decision;
   if (completed) record.lastSuccessfulState = decision;
   return alert;
 }
 
-function alertResponse({ alertId, sessionId, alertType, analysisId, windowId, windowIndex, stateVersion, goalText, message, createdAt, shownAt }) {
-  return { alertId, sessionId, alertType, analysisId, windowId, windowIndex, stateVersion, goalText, message, createdAt, shownAt };
+function alertResponse({ alertId, sessionId, alertType, analysisId, windowId, windowIndex, stateVersion, goalText, message, createdAt, shownAt }, v2 = false) {
+  return { alertId, sessionId, alertType, analysisId, windowIndex, goalText, message, createdAt, shownAt,
+    ...(v2 || windowId !== null ? { windowId } : {}), ...(v2 || stateVersion !== null ? { stateVersion } : {}) };
 }
+
+const latestFixedSlot = record => Math.floor((record.now() - Date.parse(record.session.startedAt)) / FIXED_INTERVAL_MS);
+const currentFixed = record => record.fixedSlots.get(latestFixedSlot(record));
 
 function analysisStatus(record) {
   const d = record.currentDecision;
-  const candidate = record.session.status === 'ACTIVE' && d?.finalState === 'DRIFT'
-    ? [...record.alerts.values()].find(a => !a.shownAt && !a.invalidatedAt && a.windowId === d.windowId && a.stateVersion === d.stateVersion) : undefined;
+  const candidate = record.mode === 'FIXED_INTERVAL' ? currentFixed(record)
+    : d?.finalState === 'DRIFT'
+      ? [...record.alerts.values()].find(a => !a.shownAt && !a.invalidatedAt && a.windowId === d.windowId && a.stateVersion === d.stateVersion) : undefined;
   return { apiContractVersion: 2, sessionId: record.session.sessionId, sessionStatus: record.session.status,
-    currentDecision: d, lastSuccessfulState: record.lastSuccessfulState, alert: candidate ? alertResponse(candidate) : null,
+    currentDecision: d, lastSuccessfulState: record.lastSuccessfulState,
+    alert: record.session.status === 'ACTIVE' && candidate && !candidate.shownAt ? alertResponse(candidate, true) : null,
     latestAnalysis: null, latestCompletedAnalysis: null };
 }
 
@@ -84,13 +91,15 @@ function close(server) {
   });
 }
 
-export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
+export async function startMock({ automaticAnalysis = false, onReceipt, alertMode } = {}) {
+  const mode = syntheticAlertMode(alertMode);
   const accounts = new Map([ALICE, BOB].map(token => [`Bearer ${token}`, {
     participantId: randomUUID(), expiresAt: '2099-01-01T00:00:00.000Z', enabled: true, consentId: null, withdrawn: false,
   }]));
   const sessions = new Map(), starts = new Map(), requests = [];
   let accessReads = 0;
   const faults = {};
+  const now = () => faults.now ?? Date.now();
   const fixture = createServer((req, res) => {
     const id = fixtureId(FIXTURE_ORIGIN + req.url);
     if (!id || req.url !== `/__focus_synthetic__/${id}`) return res.writeHead(404).end();
@@ -105,7 +114,7 @@ export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
     const account = accounts.get(req.headers.authorization);
     const { method } = req;
     const { pathname: url, searchParams: query } = new URL(req.url, MOCK_ORIGIN);
-    if (!account || Date.parse(account.expiresAt) <= Date.now()) return fail(401);
+    if (!account || Date.parse(account.expiresAt) <= now()) return fail(401);
     let body;
     try { body = await json(req); } catch { return fail(400); }
     const owner = account.participantId;
@@ -159,9 +168,9 @@ export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
       if (record && record.session.goalText !== body.goalText) return fail(422);
       if (!record) {
         if ([...sessions.values()].some(s => s.owner === owner && s.session.status === 'ACTIVE')) return fail(409);
-        const session = { ...body, sessionId: randomUUID(), startedAt: faults.startedAt ?? new Date().toISOString(), endedAt: null, status: 'ACTIVE' };
+        const session = { ...body, sessionId: randomUUID(), startedAt: faults.startedAt ?? new Date(now()).toISOString(), endedAt: null, status: 'ACTIVE' };
         record = { owner, consentId: account.consentId, session, visits: new Map(), retractions: new Map(), quarantined: false,
-          windows: new Map(), decisions: new Map(), alerts: new Map(), currentDecision: null, lastSuccessfulState: null };
+          windows: new Map(), decisions: new Map(), alerts: new Map(), fixedSlots: new Map(), currentDecision: null, lastSuccessfulState: null, mode, now };
         sessions.set(session.sessionId, record);
         starts.set(scopedKey, record);
       }
@@ -187,7 +196,7 @@ export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
       return send(previous ? 200 : 202, { retractionId: body.retractionId, visitId: body.visitId, status: 'QUARANTINED', invalidatedWindowIds: [] });
     }
     if (method === 'POST' && suffix === '/visit-retractions/close' && record.quarantined && !account.withdrawn) {
-      session.status = 'ENDED'; session.endedAt ??= new Date().toISOString();
+      session.status = 'ENDED'; session.endedAt ??= new Date(now()).toISOString();
       return send(200, { sessionId: session.sessionId, status: 'ENDED', privacyStatus: 'QUARANTINED' });
     }
     if (account.withdrawn || record.quarantined) return fail(409, 'PRIVACY_RETRACTED');
@@ -198,6 +207,24 @@ export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
       if (faults.offlineAnalysis) return fail(503);
       if (faults.dropAnalysis) { faults.dropAnalysis = false; return req.socket.destroy(); }
       return send(200, faults.analysisResponse ? faults.analysisResponse(payload) : payload);
+    }
+    if (method === 'POST' && suffix === '/alerts/fixed-interval') {
+      if (mode !== 'FIXED_INTERVAL' || faults.disableFixed) return fail(409, 'FIXED_INTERVAL_DISABLED');
+      if (session.status !== 'ACTIVE') return fail(409, 'SESSION_ENDED');
+      const slot = latestFixedSlot(record);
+      const existing = record.fixedSlots.get(slot);
+      if (slot < 1 || existing?.shownAt) return fail(409, 'ALERT_INTERVAL_NOT_REACHED');
+      const alert = existing ?? {
+        alertId: randomUUID(), sessionId: session.sessionId, alertType: mode, analysisId: null, windowIndex: null,
+        windowId: null, stateVersion: null, goalText: session.goalText, message: '작업 목표를 다시 확인해 보세요.',
+        createdAt: new Date(now()).toISOString(), shownAt: null,
+      };
+      record.fixedSlots.set(slot, alert);
+      record.alerts.set(alert.alertId, alert);
+      if (faults.holdFixed) await faults.holdFixed({ slot, alert });
+      if (faults.dropFixed) { faults.dropFixed = false; return req.socket.destroy(); }
+      const response = alertResponse(alert);
+      return send(existing ? 200 : 201, faults.fixedResponse ? faults.fixedResponse(response) : response);
     }
     if (method === 'GET' && suffix === '/alerts') {
       const page = Number(query.get('page') ?? 0), size = Number(query.get('size') ?? 20);
@@ -225,10 +252,10 @@ export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
       if (!account.enabled || record.consentId !== account.consentId) return fail(403);
       const shownAt = body?.shownAt, selectedAt = body?.selectedAt;
       if (!millis(shownAt) || Object.keys(body).length !== (selecting ? 3 : 1)
-        || selecting && (!millis(selectedAt) || selectedAt < shownAt || Date.parse(selectedAt) > Date.now() + 5000
+        || selecting && (!millis(selectedAt) || selectedAt < shownAt || Date.parse(selectedAt) > now() + 5000
           || !['RETURN_TO_GOAL', 'CONTINUE_BROWSING'].includes(body.action))) return fail(400);
       if (alert.shownAt && alert.shownAt !== shownAt) return fail(409, 'ALERT_SHOWN_AT_CONFLICT');
-      if (!alert.shownAt && (Date.parse(shownAt) < Date.parse(alert.createdAt) - 5000 || Date.parse(shownAt) > Date.now() + 5000
+      if (!alert.shownAt && (Date.parse(shownAt) < Date.parse(alert.createdAt) - 5000 || Date.parse(shownAt) > now() + 5000
         || alert.invalidatedAt && shownAt >= alert.invalidatedAt || session.endedAt && shownAt > session.endedAt)) return fail(409, 'ALERT_NOT_DISPLAYABLE');
       const existing = alert.selection;
       if (selecting && existing && (existing.action !== body.action || existing.selectedAt !== selectedAt)) return fail(409, 'RESPONSE_ALREADY_RECORDED');
@@ -252,7 +279,7 @@ export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
     }
     if (method === 'POST' && suffix === '/end') {
       if (!body || Object.keys(body).length) return fail(400);
-      session.status = 'ENDED'; session.endedAt ??= new Date().toISOString();
+      session.status = 'ENDED'; session.endedAt ??= new Date(now()).toISOString();
       if (faults.holdEnd) await faults.holdEnd();
       if (faults.dropEnd) return req.socket.destroy();
       return send(200, session);
@@ -304,6 +331,7 @@ export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const mock = await startMock({
     automaticAnalysis: true,
+    alertMode: process.env.USER_ALERT_MODE,
     onReceipt: ({ method, kind, httpStatus, action }) =>
       console.log(`${method} /${kind} ${httpStatus}${action ? ' ' + action : ''}`),
   });
