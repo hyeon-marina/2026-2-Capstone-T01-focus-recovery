@@ -52,10 +52,10 @@ function validStatus(value: unknown, sessionId: string | undefined): value is V2
       && (history.windowIndex < d.windowIndex && history.windowId !== d.windowId
         || history.windowIndex === d.windowIndex && history.windowId === d.windowId
         && (d.decisionStatus !== 'COMPLETED' || sameDecision(d, history))))
-    && (a === null || !!a && uuid(a.alertId) && a.sessionId === sessionId && typeof a.goalText === 'string'
+    && (a === null || !!a && s.sessionStatus === 'ACTIVE' && uuid(a.alertId) && a.sessionId === sessionId && typeof a.goalText === 'string'
       && typeof a.message === 'string' && validTime(a.createdAt) && a.shownAt === null
       && (a.alertType === 'AI' && uuid(a.windowId) && uuid(a.analysisId) && positive(a.stateVersion)
-        && (a.windowIndex === undefined || validWindowIndex(a.windowIndex))
+        && (a.windowIndex === undefined || validWindowIndex(a.windowIndex)) && matchesDecision(a, d)
         || a.alertType === 'FIXED_INTERVAL' && a.windowId === null && a.analysisId === null && a.stateVersion === null
         && (a.windowIndex === undefined || a.windowIndex === null)));
 }
@@ -126,7 +126,7 @@ export class V2StatusClient {
     const local = this.state();
     if (id !== this.request || scope !== this.scope() || local.session?.sessionId !== sessionId
       || local.lifecycle !== 'ACTIVE' || local.alertsSuppressed || local.quarantine) return null;
-    if (!validStatus(value, sessionId)) throw new Error('V2_STATUS_INVALID');
+    if (!validStatus(value, sessionId) || value.alert && value.alert.goalText !== session.goalText) throw new Error('V2_STATUS_INVALID');
     if (value.sessionStatus === 'ENDED') return { value, cursor: undefined, alert: null };
     const cursor = advance(value, this.latest?.sessionId === sessionId ? this.latest.cursor ?? persisted : persisted);
     if (cursor === false) return null;

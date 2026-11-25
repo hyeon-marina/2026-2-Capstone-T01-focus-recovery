@@ -182,6 +182,9 @@ export class V2Runtime {
         this.posts.restore(s.posts, s.session?.sessionId); this.behaviors.restore(s.behaviors, s.posts.entries);
         this.ending.restore(s.end);
         for (const e of s.retractions ?? []) if (e.phase === 'sending') e.phase = 'pending';
+        for (const a of s.userAnalysis?.submissions ?? []) {
+          if (a.phase === undefined || a.phase === 'submitting') a.phase = 'uncertain';
+        }
         if (s.quarantine) this.queueRetractions();
       });
       await this.verifyAccess(false, true).catch(() => {});
@@ -454,8 +457,11 @@ export class V2Runtime {
     }, receipts);
     this.compactedIds.push(...receipts.map(r => r.visitId));
   }
-  async checkpointAnalysis(cursor: DecisionCursor, allowed: () => boolean) {
-    if (JSON.stringify(this.committed.userAnalysis?.cursor) === JSON.stringify(cursor)) return;
+  async checkpointAnalysis(cursor: DecisionCursor, candidate: V2Alert | null, allowed: () => boolean) {
+    const retired = (a: UserAlertSubmission) => a.phase === 'reserved' && (candidate?.alertType !== 'AI'
+      || candidate.alertId !== a.alertId || !matchesDecision(a, cursor.current));
+    if (JSON.stringify(this.committed.userAnalysis?.cursor) === JSON.stringify(cursor)
+      && !this.committed.userAnalysis?.submissions.some(retired)) return;
     await this.mutate(() => {
       if (!allowed()) return;
       const previous = this.state.userAnalysis;
@@ -464,15 +470,36 @@ export class V2Runtime {
       this.state.userAnalysis = {
         cursor, observedAt: samePhase ? previous.observedAt : Date.now(), submissions: previous?.submissions ?? [],
       };
+      for (const a of this.state.userAnalysis.submissions) if (retired(a)) a.phase = 'retired';
     });
   }
-  claimAlert(submission: UserAlertSubmission, allowed: () => boolean) {
+  claimAlert(submission: Omit<UserAlertSubmission, 'phase'>, allowed: () => boolean) {
     return this.mutate(() => {
       const analysis = this.state.userAnalysis;
       if (!allowed() || !analysis || !matchesDecision(submission, analysis.cursor.current)
         || analysis.submissions.some(a => a.alertId === submission.alertId)) return false;
-      analysis.submissions.push(submission);
+      analysis.submissions.push({ ...submission, phase: 'reserved' });
       return true;
+    });
+  }
+  updateAlertSubmission(
+    submission: UserAlertSubmission, phase: Exclude<UserAlertSubmission['phase'], undefined | 'reserved' | 'retired'>,
+    allowed: () => boolean,
+  ) {
+    return this.mutate(() => {
+      const current = this.state.userAnalysis?.submissions.find(a => a.viewId === submission.viewId);
+      if (!allowed() || !current) return false;
+      if (phase === 'dismissed') {
+        if (current.phase === 'dismissed' || current.phase === 'reserved' || current.phase === 'retired') return false;
+      } else if (current.phase !== submission.phase) return false;
+      current.phase = phase;
+      return true;
+    });
+  }
+  retireAlertReservations(sessionId: string) {
+    return this.mutate(() => {
+      if (this.state.session?.sessionId !== sessionId) return;
+      for (const a of this.state.userAnalysis?.submissions ?? []) if (a.phase === 'reserved') a.phase = 'retired';
     });
   }
   async recordShown(alert: Pick<V2Alert, 'sessionId' | 'alertId'>, shownAt: string, allowed?: () => boolean) {

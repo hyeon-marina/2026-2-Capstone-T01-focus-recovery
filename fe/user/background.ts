@@ -117,7 +117,7 @@ installV2Browser({
           privacyVersion++;
           const resumeRuntime = runtime.beginUserPrivacyChange();
           const resumeHttp = suspendUserHttp();
-          alerts.clear();
+          void alerts.clear(true);
           const savedLogout = type === 'logout' ? rememberLogout().catch(() => {}) : undefined;
           // Order credential writes and privacy operations independently of normal session HTTP.
           const operation = accountQueue(async (): Promise<UserReply> => {
@@ -155,7 +155,7 @@ installV2Browser({
                 await accountQueue(async () => {
                   checkCommand();
                   runtime.suspendAccess();
-                  alerts.clear();
+                  await alerts.clear(true);
                   await login(command.token);
                 });
                 checkCommand();
@@ -194,7 +194,7 @@ installV2Browser({
                 if (!runtime.accessSnapshot().ownerVerified || current.lifecycle !== 'ACTIVE'
                   || current.session?.sessionId !== handle.sessionId || current.withdrawal) throw new Error('V2_BLOCKED');
                 const stopped = runtime.stop(received);
-                alerts.clear();
+                void alerts.clear(true);
                 await stopped;
                 break;
               }

@@ -35,6 +35,7 @@ export interface V2State {
   quarantineClose?: { sessionId: string; phase: 'pending' | 'acknowledged' };
   quarantine?: { reason: 'SENSITIVE_CONTENT' | 'CONSENT_WITHDRAWN' | 'PRIVACY_RETRACTED'; observedAt: string; visitIds: string[]; status: 'RETRACTION_REQUIRED' };
 }
+export const ALERT_SUBMISSION_PHASES = ['reserved', 'submitting', 'presented', 'uncertain', 'dismissed', 'retired'] as const;
 export interface UserAlertSubmission {
   alertId: string;
   viewId: string;
@@ -42,6 +43,7 @@ export interface UserAlertSubmission {
   windowIndex: number;
   stateVersion: number;
   analysisId: string;
+  phase?: typeof ALERT_SUBMISSION_PHASES[number];
 }
 export function initialState(apiBaseUrl: string): V2State {
   return { format: 2, collectionSpecVersion: '2.0', revision: 0, nextSequence: 1, lifecycle: 'IDLE',

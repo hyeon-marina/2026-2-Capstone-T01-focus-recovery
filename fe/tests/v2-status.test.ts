@@ -57,9 +57,21 @@ it('continues from a durable cursor after restart and accepts only matching IDs 
   expect(await restarted.status(cursor)).toBeNull();
   response.currentDecision!.windowId = response.alert!.windowId = windowId;
   response.alert!.windowIndex = 2;
-  expect((await restarted.status(cursor))!.alert).toBeNull();
+  await expect(restarted.status(cursor)).rejects.toThrow('V2_STATUS_INVALID');
   response.alert!.windowIndex = 1;
   expect(await restarted.candidate()).toEqual(response.alert);
+});
+it('rejects a malformed candidate and an incorrect goal before either can advance the cursor', async () => {
+  let response = status();
+  const client = new V2StatusClient(activeState, async () => response);
+  response.currentDecision!.windowIndex = 99;
+  response.alert!.windowIndex = 98;
+  await expect(client.status()).rejects.toThrow('V2_STATUS_INVALID');
+  response.alert!.windowIndex = 99;
+  response.alert!.goalText = 'Unrelated synthetic goal';
+  await expect(client.status()).rejects.toThrow('V2_STATUS_INVALID');
+  response = status();
+  expect(await client.candidate()).toEqual(response.alert);
 });
 it('cannot replay a completed version after the same window becomes pending or invalidated', async () => {
   const completed = status();

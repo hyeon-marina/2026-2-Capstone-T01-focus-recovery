@@ -9,7 +9,7 @@ import { matchesEndedSession } from '../api/session-end';
 import { validTime } from '../api/visit';
 import { validGoal, normalizeGoal } from '../shared/goal';
 import { isV2Session, UUID4, validPost, validSnapshot } from './contract';
-import { initialState, type V2State, type CompactReceipt } from './state';
+import { ALERT_SUBMISSION_PHASES, initialState, type V2State, type CompactReceipt } from './state';
 import { validDecisionCursor } from './status';
 
 export function validateV2(s: V2State, api: string) {
@@ -28,7 +28,8 @@ export function validateV2(s: V2State, api: string) {
   if (analysis !== undefined && (!analysis || !s.session || !validDecisionCursor(analysis.cursor)
     || !Number.isSafeInteger(analysis.observedAt) || analysis.observedAt <= 0 || !Array.isArray(analysis.submissions)
     || analysis.submissions.some(a => !a || ![a.alertId, a.viewId, a.windowId, a.analysisId].every(id => typeof id === 'string' && UUID4.test(id))
-      || ![a.windowIndex, a.stateVersion].every(n => Number.isSafeInteger(n) && n > 0) || a.windowIndex > 2147483647)
+      || ![a.windowIndex, a.stateVersion].every(n => Number.isSafeInteger(n) && n > 0) || a.windowIndex > 2147483647
+      || a.phase !== undefined && !ALERT_SUBMISSION_PHASES.includes(a.phase))
     || new Set(analysis.submissions.map(a => a.alertId)).size !== analysis.submissions.length
     || new Set(analysis.submissions.map(a => a.viewId)).size !== analysis.submissions.length)) fail();
   if (s.withdrawal && (!s.owner || !UUID4.test(s.withdrawal.requestId) || !['pending','sending','acknowledged'].includes(s.withdrawal.phase)

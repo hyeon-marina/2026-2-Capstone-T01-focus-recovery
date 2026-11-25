@@ -3,6 +3,7 @@ import { serialExecutor } from '../src/background/serial';
 import { matchesDecision, readV2Status, V2StatusClient, type V2Status } from '../src/v2/status';
 import { notificationPending } from '../src/v2/notifications';
 import type { V2Runtime } from '../src/v2/runtime';
+import type { UserAlertSubmission } from '../src/v2/state';
 import { alertUrl, parseAlertKey, type AlertCommand, type AlertDetail, type UserSnapshot } from './protocol';
 import { hasMockPermission } from './transport';
 
@@ -21,6 +22,8 @@ function notificationCall<T>(call: (callback: (value: T) => void) => void) {
 const notificationPermission = () => notificationCall<`${chrome.notifications.PermissionLevel}`>(
   callback => chrome.notifications.getPermissionLevel(callback));
 const clearNotification = (id: string) => notificationCall<boolean>(callback => chrome.notifications.clear(id, callback));
+const getNotifications = () => notificationCall<Record<string, true>>(callback => chrome.notifications.getAll(callback));
+const mayHaveReachedChrome = (a: UserAlertSubmission) => !['reserved', 'retired', 'dismissed'].includes(a.phase ?? '');
 
 export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
   const platform = serialExecutor();
@@ -33,68 +36,90 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
   let latest: { scope: string; status?: V2Status; error?: 'delayed' | 'unavailable' } | undefined;
   let lastCheck = 0;
   let flight: { scope: string; done: Promise<void> } | undefined;
+  let pendingChromeId: string | undefined;
 
   const client = new V2StatusClient(() => runtime.snapshot(), sessionId => {
     const current = scope();
     return readV2Status(sessionId, () => !!current && scope() === current);
   }, scope);
 
-  async function clearNotifications(keep?: string) {
-    const notifications = await notificationCall<Record<string, true>>(callback => chrome.notifications.getAll(callback));
-    await Promise.all(Object.keys(notifications).filter(id => id.startsWith(PREFIX) && id !== keep)
+  async function clearNotifications(keep?: string, notifications?: Record<string, true>) {
+    await Promise.all(Object.keys(notifications ?? await getNotifications()).filter(id => id.startsWith(PREFIX) && id !== keep)
       .map(clearNotification));
   }
-  function clear() {
+  function clear(retire = false) {
     epoch++;
     latest = undefined;
     lastCheck = 0;
+    const sessionId = runtime.snapshot().session?.sessionId;
+    if (pendingChromeId) void clearNotification(pendingChromeId).catch(() => {});
     void platform(() => clearNotifications()).catch(() => {});
+    if (retire && sessionId) return runtime.retireAlertReservations(sessionId).catch(() => {});
+  }
+
+  async function submit(alert: NonNullable<V2Status['alert']>, windowIndex: number, allowed: () => boolean) {
+    if (!allowed() || await notificationPermission() !== 'granted' || !await hasMockPermission() || !allowed()) return;
+    const id = PREFIX + alert.alertId;
+    const listed = await getNotifications();
+    await clearNotifications(id, listed);
+    if (!allowed()) return;
+    let submission = runtime.snapshot().userAnalysis?.submissions.find(a => a.alertId === alert.alertId);
+    if (submission && !matchesDecision(submission, latest?.status?.currentDecision ?? null)) return;
+    if (submission?.phase === 'dismissed' || submission?.phase === 'retired') return;
+    if (!submission) {
+      const candidate = {
+        alertId: alert.alertId, viewId: crypto.randomUUID(), windowId: alert.windowId!, windowIndex,
+        stateVersion: alert.stateVersion!, analysisId: alert.analysisId!,
+      };
+      if (!await runtime.claimAlert(candidate, allowed) || !allowed()) return;
+      submission = { ...candidate, phase: 'reserved' };
+    }
+    if (listed[id]) {
+      if (submission.phase !== 'presented') await runtime.updateAlertSubmission(submission, 'presented', allowed);
+      return;
+    }
+    if (submission.phase !== 'reserved' || !await hasMockPermission() || await notificationPermission() !== 'granted' || !allowed()) return;
+    // A persisted handoff without Chrome evidence remains ambiguous after a crash.
+    if (!await runtime.updateAlertSubmission(submission, 'submitting', allowed) || !allowed()) return;
+    let confirmed = false;
+    pendingChromeId = id;
+    try {
+      confirmed = await notificationCall<string>(callback => chrome.notifications.create(id, {
+        type: 'basic', iconUrl: chrome.runtime.getURL('alert-icon.png'),
+        title: 'Focus Recovery', message: '지금 탐색을 점검하고 최초 작업 목표를 확인해 보세요.',
+      }, callback)) === id;
+    } catch { /* The next valid poll can reconcile positive Chrome evidence. */ }
+    finally { pendingChromeId = undefined; }
+    if (allowed()) await runtime.updateAlertSubmission({ ...submission, phase: 'submitting' }, confirmed ? 'presented' : 'uncertain', allowed);
+    else await clearNotification(id);
   }
 
   async function read(current: string) {
     const allowed = () => scope() === current;
     try {
-      if (!await hasMockPermission() || !allowed()) return;
+      if (!await hasMockPermission()) { if (allowed()) void clear(true); return; }
+      if (!allowed()) return;
       const result = await client.status(runtime.snapshot().userAnalysis?.cursor);
-      if (!allowed() || !await hasMockPermission() || !allowed()) return;
+      if (!allowed()) return;
+      if (!await hasMockPermission()) { if (allowed()) void clear(true); return; }
+      if (!allowed()) return;
       if (result?.value.sessionStatus === 'ENDED') {
         runtime.suspendAccess();
-        clear();
+        void clear(true);
         return;
       }
-      if (result?.cursor) await runtime.checkpointAnalysis(result.cursor, allowed);
+      if (result?.cursor) await runtime.checkpointAnalysis(result.cursor, result.alert, allowed);
       if (!allowed()) return;
       latest = { scope: current, status: result?.value, ...(result ? {} : { error: 'unavailable' }) };
       const alert = result?.alert;
       if (alert?.alertType !== 'AI' || !result?.cursor) return;
       const { windowIndex } = result.cursor.current;
-      await platform(async () => {
-        const permitted = await notificationPermission() === 'granted';
-        if (!allowed() || !permitted || !await hasMockPermission() || !allowed()) return;
-        const id = PREFIX + alert.alertId;
-        await clearNotifications(id);
-        if (!allowed()) return;
-        const s = runtime.snapshot();
-        const prior = s.userAnalysis?.submissions.find(a => a.alertId === alert.alertId);
-        if (prior) return;
-        const submission = {
-          alertId: alert.alertId, viewId: crypto.randomUUID(), windowId: alert.windowId!, windowIndex,
-          stateVersion: alert.stateVersion!, analysisId: alert.analysisId!,
-        };
-        // Reserve the ID durably before crossing the Chrome API boundary.
-        if (!await runtime.claimAlert(submission, allowed) || !allowed()
-          || !await hasMockPermission() || await notificationPermission() !== 'granted' || !allowed()) return;
-        await notificationCall<string>(callback => chrome.notifications.create(id, {
-          type: 'basic', iconUrl: chrome.runtime.getURL('alert-icon.png'),
-          title: 'Focus Recovery', message: '지금 탐색을 점검하고 최초 작업 목표를 확인해 보세요.',
-        }, callback));
-        if (!allowed()) await clearNotification(id);
-      }).catch(() => {}); // A submission error can have an ambiguous outcome. Keep its reservation.
+      await platform(() => submit(alert, windowIndex, allowed)).catch(() => {});
     } catch (error) {
       if (!allowed()) return;
       if (error instanceof AccessError && ['authentication', 'consent'].includes(error.kind)) {
         runtime.suspendAccess();
-        clear();
+        void clear(true);
       } else latest = { scope: current, error: error instanceof AccessError && error.kind === 'network' ? 'delayed' : 'unavailable' };
     } finally {
       await platform(async () => {
@@ -148,7 +173,7 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     if (!current || latest?.scope !== current || value?.sessionStatus !== 'ACTIVE') return;
     const local = runtime.snapshot();
     const submission = local.userAnalysis?.submissions.find(a => a.alertId === alertId);
-    if (!submission || !local.session || !matchesDecision(submission, value.currentDecision)) return;
+    if (!submission || !mayHaveReachedChrome(submission) || !local.session || !matchesDecision(submission, value.currentDecision)) return;
     const receipt = local.notifications.find(r => r.alertId === alertId);
     const alert = value.alert;
     // The status endpoint omits a candidate after the server has recorded shownAt.
@@ -163,7 +188,7 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     // Keep submitted notifications until a verified decision or access change supersedes them.
     if (latest?.error) {
       const { userAnalysis, notifications } = runtime.snapshot();
-      return userAnalysis?.submissions.find(a => matchesDecision(a, userAnalysis.cursor.current)
+      return userAnalysis?.submissions.find(a => mayHaveReachedChrome(a) && matchesDecision(a, userAnalysis.cursor.current)
         && !notifications.some(r => r.alertId === a.alertId))?.alertId;
     }
   }
@@ -226,11 +251,22 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     }
   });
   chrome.permissions.onRemoved.addListener(permission => {
-    if (permission.origins?.includes('http://127.0.0.1/*')) clear();
+    if (permission.origins?.includes('http://127.0.0.1/*')) void clear(true);
   });
   chrome.notifications.onPermissionLevelChanged.addListener(level => {
     if (level === 'denied') void platform(() => clearNotifications()).catch(() => {});
     else wake(true);
+  });
+  chrome.notifications.onClosed.addListener((id, byUser) => {
+    if (!byUser || !id.startsWith(PREFIX)) return;
+    const received = epoch;
+    void ready.then(async () => {
+      const current = scope();
+      const submission = runtime.snapshot().userAnalysis?.submissions.find(a => PREFIX + a.alertId === id);
+      if (current && received === epoch && submission && mayHaveReachedChrome(submission)) {
+        await runtime.updateAlertSubmission(submission, 'dismissed', () => scope() === current);
+      }
+    }).catch(() => {});
   });
   chrome.notifications.onClicked.addListener(id => {
     const alertId = id.startsWith(PREFIX) ? parseAlertKey(id.slice(PREFIX.length)) : undefined;
