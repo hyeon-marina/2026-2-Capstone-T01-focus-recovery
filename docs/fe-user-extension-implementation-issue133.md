@@ -4,6 +4,8 @@
 
 사용자가 최초 목표를 입력해 합성 v2 작업을 시작하고, 허용된 페이지를 탐색한 뒤 전송과 종료 확인까지 마칠 수 있다. Chrome은 별도 사용자용 Manifest와 Worker를 로드한다. 기존 수집용 실행 경로, 서버 Gate 및 P1~P6 정책은 기존 설정을 사용한다.
 
+후속 사용자 기능은 [Background 분석 조회와 Chrome 알림](fe-user-extension-analysis-notifications.md)에 정리했다.
+
 ## 빌드, 설치 및 실행
 
 저장소의 `fe`에서 Node.js 22.12 이상으로 실행한다.

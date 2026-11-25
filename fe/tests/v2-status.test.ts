@@ -31,3 +31,71 @@ it('discards out-of-order HTTP and old window versions', async () => {
   const client = new V2StatusClient(activeState, () => ++calls === 1 ? new Promise(r => { first = r; }) : Promise.resolve(status()));
   const pending = client.candidate(); expect(await client.candidate()).not.toBeNull(); first(status()); expect(await pending).toBeNull();
 });
+it('checks the session before advancing freshness and accepts a new session at window 1', async () => {
+  const local = activeState();
+  let response = status();
+  response.currentDecision!.windowIndex = 99;
+  const client = new V2StatusClient(() => local, async () => response);
+  expect(await client.candidate()).toEqual(response.alert);
+  local.session!.sessionId = '10000000-0000-4000-8000-000000000099';
+  await expect(client.candidate()).rejects.toThrow('V2_STATUS_INVALID');
+  response = status();
+  response.sessionId = local.session!.sessionId;
+  response.alert!.sessionId = response.sessionId;
+  expect(await client.candidate()).toEqual(response.alert);
+});
+it('continues from a durable cursor after restart and accepts only matching IDs and newer versions', async () => {
+  const local = activeState();
+  let response = status();
+  response.currentDecision!.stateVersion = response.alert!.stateVersion = 3;
+  const { cursor } = (await new V2StatusClient(() => local, async () => response).status())!;
+  const restarted = new V2StatusClient(() => local, async () => response);
+  response = status();
+  expect(await restarted.status(cursor)).toBeNull();
+  response.currentDecision!.stateVersion = response.alert!.stateVersion = 4;
+  response.currentDecision!.windowId = response.alert!.windowId = crypto.randomUUID();
+  expect(await restarted.status(cursor)).toBeNull();
+  response.currentDecision!.windowId = response.alert!.windowId = windowId;
+  response.alert!.windowIndex = 2;
+  await expect(restarted.status(cursor)).rejects.toThrow('V2_STATUS_INVALID');
+  response.alert!.windowIndex = 1;
+  expect(await restarted.candidate()).toEqual(response.alert);
+});
+it('rejects a malformed candidate and an incorrect goal before either can advance the cursor', async () => {
+  let response = status();
+  const client = new V2StatusClient(activeState, async () => response);
+  response.currentDecision!.windowIndex = 99;
+  response.alert!.windowIndex = 98;
+  await expect(client.status()).rejects.toThrow('V2_STATUS_INVALID');
+  response.alert!.windowIndex = 99;
+  response.alert!.goalText = 'Unrelated synthetic goal';
+  await expect(client.status()).rejects.toThrow('V2_STATUS_INVALID');
+  response = status();
+  expect(await client.candidate()).toEqual(response.alert);
+});
+it('cannot replay a completed version after the same window becomes pending or invalidated', async () => {
+  const completed = status();
+  let response = completed;
+  const client = new V2StatusClient(activeState, async () => response);
+  expect(await client.candidate()).not.toBeNull();
+  response = { ...completed, alert: null, lastSuccessfulState: completed.currentDecision,
+    currentDecision: { ...completed.currentDecision!, decisionStatus: 'PENDING', stateVersion: null, finalState: null, judgedAt: null } };
+  expect((await client.status())?.value.currentDecision?.decisionStatus).toBe('PENDING');
+  response = completed;
+  expect(await client.status()).toBeNull();
+  response = { ...response, alert: null, lastSuccessfulState: null, currentDecision: {
+    ...completed.currentDecision!, decisionStatus: 'INVALIDATED', analysisId: null,
+    stateVersion: null, finalState: null, judgedAt: null, errorCode: 'PRIVACY_RETRACTED',
+  } };
+  expect((await client.status())?.value.currentDecision?.decisionStatus).toBe('INVALIDATED');
+  response = completed;
+  expect(await client.status()).toBeNull();
+});
+it('discards a response crossing an access epoch even after the same session returns', async () => {
+  let resolve!: (value: V2Status) => void, epoch = 1;
+  const client = new V2StatusClient(activeState, () => new Promise(r => { resolve = r; }), () => epoch);
+  const pending = client.status();
+  epoch++;
+  resolve(status());
+  expect(await pending).toBeNull();
+});

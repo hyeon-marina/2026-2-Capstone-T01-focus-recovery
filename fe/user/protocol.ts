@@ -1,7 +1,10 @@
 import { validGoal } from '../src/shared/goal';
 import type { V2State } from '../src/v2/state';
+import type { Decision } from '../src/v2/status';
+import { UUID4 } from '../src/v2/contract';
+import { USER_POPUP } from './mock-config';
 
-const simple = ['status', 'access', 'agree', 'retry-start', 'reconnect', 'retry', 'logout', 'withdraw'] as const;
+const simple = ['status', 'analysis-refresh', 'access', 'agree', 'retry-start', 'reconnect', 'retry', 'logout', 'withdraw'] as const;
 export type UserCommand =
   | { type: typeof simple[number] }
   | { type: 'login'; token: string }
@@ -32,12 +35,39 @@ export function trustedPopup(sender: chrome.runtime.MessageSender, id: string, u
     && (sender.documentLifecycle === undefined || sender.documentLifecycle === 'active');
 }
 
+export function parseAlertKey(value: unknown) {
+  return typeof value === 'string' && UUID4.test(value) ? value : undefined;
+}
+export const alertUrl = (viewId: string) => chrome.runtime.getURL(USER_POPUP) + '?alert=' + viewId;
+const detailCommands = ['alert-open', 'alert-view', 'alert-shown'] as const;
+const actions = ['RETURN_TO_GOAL', 'CONTINUE_BROWSING'] as const;
+export type AlertAction = typeof actions[number];
+export type AlertCommand = { type: typeof detailCommands[number]; viewId: string }
+  | { type: 'alert-select'; viewId: string; action: AlertAction };
+export interface AlertDetail {
+  goal: string;
+  shown: boolean;
+  action?: AlertAction;
+  acknowledged?: boolean;
+}
+export function parseAlertCommand(value: unknown): AlertCommand | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+  const data = value as Record<string, unknown>;
+  const viewId = parseAlertKey(data.viewId);
+  if (!viewId) return;
+  const type = detailCommands.find(command => command === data.type);
+  const size = Object.keys(data).length;
+  if (type && size === 2) return { type, viewId };
+  const action = actions.find(value => value === data.action);
+  if (data.type === 'alert-select' && action && size === 3) return { type: data.type, viewId, action };
+}
+
 const accessStates = ['auth', 'consent', 'ready', 'denied', 'account', 'withdrawn'] as const;
 const connectionStates = ['unverified', 'verified', 'stale', 'unreachable', 'auth-required', 'denied'] as const;
 export type ServerConnection = typeof connectionStates[number];
 const errors = ['invalid', 'auth', 'consent', 'account', 'network', 'response', 'blocked'] as const;
 export type UserError = typeof errors[number];
-export type AnalysisStatus = 'unconnected' | 'empty' | 'pending' | 'delayed' | 'failed' | 'completed';
+export type AnalysisStatus = 'unconnected' | 'empty' | 'pending' | 'delayed' | 'failed' | 'invalidated' | 'unavailable' | 'completed';
 export interface UserSnapshot {
   lifecycle: V2State['lifecycle'];
   access: typeof accessStates[number];
@@ -52,6 +82,8 @@ export interface UserSnapshot {
   privacyHold: boolean;
   withdrawalPending: boolean;
   analysis: AnalysisStatus;
+  finalState?: NonNullable<Decision['finalState']>;
+  receiptPending: boolean;
   goal?: string;
   startedAt?: string;
   sessionHandle?: string;
@@ -65,8 +97,9 @@ export function isUserSnapshot(value: unknown): value is UserSnapshot {
     && connectionStates.includes(s.connection)
     && (s.serverCheckedAt === undefined || Number.isSafeInteger(s.serverCheckedAt) && s.serverCheckedAt > 0)
     && (!['verified', 'stale'].includes(s.connection) || s.serverCheckedAt !== undefined)
-    && ['unconnected', 'empty', 'pending', 'delayed', 'failed', 'completed'].includes(s.analysis)
-    && [s.collecting, s.permission, s.storageFailed, s.reconnectRequired, s.deliveryIssue, s.privacyHold, s.withdrawalPending, s.privacyPending].every(v => typeof v === 'boolean')
+    && ['unconnected', 'empty', 'pending', 'delayed', 'failed', 'invalidated', 'unavailable', 'completed'].includes(s.analysis)
+    && (s.analysis === 'completed' ? ['NORMAL', 'TRANSITION', 'DRIFT'].includes(s.finalState!) : s.finalState === undefined)
+    && [s.collecting, s.permission, s.storageFailed, s.reconnectRequired, s.deliveryIssue, s.privacyHold, s.withdrawalPending, s.privacyPending, s.receiptPending].every(v => typeof v === 'boolean')
     && (s.goal === undefined || typeof s.goal === 'string' && validGoal(s.goal))
     && (s.startedAt === undefined || typeof s.startedAt === 'string' && Number.isFinite(Date.parse(s.startedAt)))
     && (s.lifecycle === 'IDLE' || !!s.goal)

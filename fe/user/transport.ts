@@ -13,7 +13,7 @@ let logoutRequested = false;
 let requestOrder = 0;
 let latestResult = 0;
 let checkedAt: number | undefined;
-let failure: { order: number; connection: ServerConnection } | undefined;
+let failure: { order: number; connection: ServerConnection; path: string } | undefined;
 
 export function resetServerVerification() {
   epoch++;
@@ -58,7 +58,8 @@ export function createMockTransport() {
         latestResult = order;
         const connection = status === null || status >= 500 ? 'unreachable'
           : status === 401 ? 'auth-required' : status === 403 ? 'denied' : undefined;
-        if (connection) failure = { order, connection };
+        if (connection) failure = { order, connection, path };
+        else if (status !== null && status < 300 && failure?.path === path && path.endsWith('/analysis-status')) failure = undefined;
       },
     };
   });

@@ -1,4 +1,4 @@
-import { authenticatedFetch } from '../api/auth-fetch';
+import { AccessError, accessGeneration, authenticatedFetch } from '../api/auth-fetch';
 import { API_BASE_URL } from '../api/client';
 import { validTime } from '../api/visit';
 import { UUID4 } from './contract';
@@ -11,51 +11,130 @@ export interface Decision {
 }
 export interface V2Alert {
   alertId: string; sessionId: string; alertType: 'AI' | 'FIXED_INTERVAL'; analysisId: string | null;
-  windowId: string | null; stateVersion: number | null; createdAt: string; shownAt: null;
+  windowId: string | null; windowIndex?: number | null; stateVersion: number | null; createdAt: string; shownAt: null;
   goalText: string; message: string;
 }
 export interface V2Status {
   apiContractVersion: 2; sessionId: string; sessionStatus: 'ACTIVE' | 'ENDED';
   currentDecision: Decision | null; lastSuccessfulState: Decision | null; alert: V2Alert | null;
 }
-function decision(d: Decision | null): boolean {
-  return d === null || !!d && UUID4.test(d.windowId) && Number.isInteger(d.windowIndex) && d.windowIndex > 0
-    && (d.analysisId === null || UUID4.test(d.analysisId))
+export type DecisionCursor = {
+  current: Decision;
+  completed: Decision | null;
+};
+
+const uuid = (value: unknown) => typeof value === 'string' && UUID4.test(value);
+const positive = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+const validWindowIndex = (value: unknown) => positive(value) && value <= 2147483647;
+function validDecision(d: Decision): boolean {
+  return !!d && typeof d === 'object' && uuid(d.windowId) && validWindowIndex(d.windowIndex)
+    && (d.analysisId === null || uuid(d.analysisId))
     && (d.decisionStatus === 'COMPLETED'
-      ? Number.isSafeInteger(d.stateVersion) && d.stateVersion! > 0 && UUID4.test(d.analysisId!)
+      ? positive(d.stateVersion) && uuid(d.analysisId)
         && ['NORMAL', 'TRANSITION', 'DRIFT'].includes(d.finalState!) && validTime(d.judgedAt) && d.errorCode === null
       : ['PENDING', 'FAILED', 'INVALIDATED'].includes(d.decisionStatus) && d.stateVersion === null && d.finalState === null
         && d.judgedAt === null && (d.decisionStatus === 'PENDING' ? d.errorCode === null : typeof d.errorCode === 'string' && /^[A-Z_]{1,100}$/.test(d.errorCode)));
 }
-export function displayableAlert(value: unknown, local: V2State & { alertsSuppressed?: boolean }): V2Alert | null {
-  if (!value || typeof value !== 'object' || local.lifecycle !== 'ACTIVE' || local.quarantine || local.alertsSuppressed) return null;
-  const s = value as V2Status, a = s.alert, d = s.currentDecision;
-  if (s.apiContractVersion !== 2 || s.sessionId !== local.session?.sessionId || s.sessionStatus !== 'ACTIVE'
-    || !decision(d) || !decision(s.lastSuccessfulState) || !a || !UUID4.test(a.alertId)
-    || a.sessionId !== s.sessionId || a.goalText !== local.session.goalText || typeof a.message !== 'string'
-    || !validTime(a.createdAt) || a.shownAt !== null || local.notifications.some(r => r.alertId === a.alertId)) return null;
-  if (a.alertType === 'FIXED_INTERVAL') return a.analysisId === null && a.windowId === null && a.stateVersion === null ? a : null;
-  return a.alertType === 'AI' && d?.decisionStatus === 'COMPLETED' && d.finalState === 'DRIFT'
-    && a.windowId === d.windowId && a.stateVersion === d.stateVersion && a.analysisId === d.analysisId ? a : null;
+function sameDecision(a: Decision, b: Decision) {
+  return a.windowId === b.windowId && a.windowIndex === b.windowIndex && a.stateVersion === b.stateVersion
+    && a.analysisId === b.analysisId && a.finalState === b.finalState && a.judgedAt === b.judgedAt;
+}
+function decisionFields({ windowId, windowIndex, stateVersion, analysisId, decisionStatus, finalState, judgedAt, errorCode }: Decision): Decision {
+  return { windowId, windowIndex, stateVersion, analysisId, decisionStatus, finalState, judgedAt, errorCode };
+}
+function validStatus(value: unknown, sessionId: string | undefined): value is V2Status {
+  if (!value || typeof value !== 'object') return false;
+  const s = value as V2Status, d = s.currentDecision, history = s.lastSuccessfulState, a = s.alert;
+  return s.apiContractVersion === 2 && uuid(s.sessionId) && s.sessionId === sessionId
+    && ['ACTIVE', 'ENDED'].includes(s.sessionStatus)
+    && (d === null || validDecision(d))
+    && (history === null || !!d && validDecision(history) && history.decisionStatus === 'COMPLETED'
+      && (history.windowIndex < d.windowIndex && history.windowId !== d.windowId
+        || history.windowIndex === d.windowIndex && history.windowId === d.windowId
+        && (d.decisionStatus !== 'COMPLETED' || sameDecision(d, history))))
+    && (a === null || !!a && s.sessionStatus === 'ACTIVE' && uuid(a.alertId) && a.sessionId === sessionId && typeof a.goalText === 'string'
+      && typeof a.message === 'string' && validTime(a.createdAt) && a.shownAt === null
+      && (a.alertType === 'AI' && uuid(a.windowId) && uuid(a.analysisId) && positive(a.stateVersion)
+        && (a.windowIndex === undefined || validWindowIndex(a.windowIndex)) && matchesDecision(a, d)
+        || a.alertType === 'FIXED_INTERVAL' && a.windowId === null && a.analysisId === null && a.stateVersion === null
+        && (a.windowIndex === undefined || a.windowIndex === null)));
+}
+export function matchesDecision(a: Pick<V2Alert, 'windowId' | 'windowIndex' | 'stateVersion' | 'analysisId'>, d: Decision | null) {
+  return d?.decisionStatus === 'COMPLETED' && d.finalState === 'DRIFT'
+    && a.windowId === d.windowId && (a.windowIndex === undefined || a.windowIndex === d.windowIndex)
+    && a.stateVersion === d.stateVersion && a.analysisId === d.analysisId;
+}
+type LocalState = V2State & { alertsSuppressed?: boolean };
+export function displayableAlert(value: unknown, local: LocalState): V2Alert | null {
+  if (!validStatus(value, local.session?.sessionId) || local.lifecycle !== 'ACTIVE' || local.quarantine || local.alertsSuppressed) return null;
+  const a = value.alert;
+  if (value.sessionStatus !== 'ACTIVE' || !a || a.goalText !== local.session?.goalText || local.notifications.some(r => r.alertId === a.alertId)) return null;
+  return a.alertType === 'FIXED_INTERVAL' || matchesDecision(a, value.currentDecision) ? a : null;
+}
+
+export function validDecisionCursor(value: DecisionCursor) {
+  return !!value && validDecision(value.current) && (value.completed === null || validDecision(value.completed)
+    && value.completed.decisionStatus === 'COMPLETED' && value.completed.windowId === value.current.windowId
+    && value.completed.windowIndex === value.current.windowIndex
+    && (value.current.decisionStatus !== 'COMPLETED' || sameDecision(value.current, value.completed)))
+    && (value.current.decisionStatus !== 'COMPLETED' || value.completed !== null);
+}
+
+function advance(status: V2Status, previous?: DecisionCursor): DecisionCursor | undefined | false {
+  const d = status.currentDecision;
+  if (!d) return previous ? false : undefined;
+  const old = previous?.current;
+  if (old && (d.windowIndex < old.windowIndex || (d.windowIndex === old.windowIndex) !== (d.windowId === old.windowId))) return false;
+  const sameWindow = old?.windowId === d.windowId;
+  if (sameWindow && (old.decisionStatus === 'INVALIDATED' && d.decisionStatus !== 'INVALIDATED'
+    || old.analysisId !== null && d.analysisId !== old.analysisId
+    && !(d.decisionStatus === 'INVALIDATED' && d.analysisId === null))) return false;
+
+  const history = status.lastSuccessfulState;
+  const completed = sameWindow ? previous?.completed : null;
+  const next = d.decisionStatus === 'COMPLETED' ? d : history?.windowId === d.windowId ? history : null;
+  if (completed && next) {
+    if (next.stateVersion! < completed.stateVersion!
+      || next.stateVersion === completed.stateVersion && !sameDecision(next, completed)) return false;
+  }
+  if (sameWindow && completed && d.decisionStatus === 'COMPLETED'
+    && old.decisionStatus !== 'COMPLETED' && d.stateVersion === completed.stateVersion) return false;
+  return { current: decisionFields(d), completed: next ? decisionFields(next) : completed ?? null };
+}
+
+export async function readV2Status(sessionId: string, allowed?: () => boolean): Promise<unknown> {
+  const r = await authenticatedFetch(`${API_BASE_URL}/api/sessions/${sessionId}/analysis-status`, { signal: AbortSignal.timeout(10_000) }, allowed);
+  if (r.status === 401) throw new AccessError('authentication', r.status);
+  if (r.status === 403) throw new AccessError('consent', r.status);
+  if (r.status === 409 && (await r.json().catch(() => null))?.code === 'PRIVACY_RETRACTED') throw new AccessError('consent', r.status);
+  if (r.status >= 500) throw new AccessError('network', r.status);
+  if (!r.ok) throw new Error('V2_STATUS_UNAVAILABLE');
+  return r.json();
 }
 export class V2StatusClient {
   private request = 0;
-  private windowIndex = 0;
-  private version = 0;
-  constructor(private state: () => V2State, private read = async (sessionId: string): Promise<unknown> => {
-    const r = await authenticatedFetch(`${API_BASE_URL}/api/sessions/${sessionId}/analysis-status`, { credentials: 'omit', redirect: 'error', cache: 'no-store' });
-    if (!r.ok) throw new Error('V2_STATUS_UNAVAILABLE');
-    return r.json();
-  }) {}
+  private latest?: { sessionId: string; cursor?: DecisionCursor };
+  constructor(private state: () => LocalState, private read = readV2Status, private scope: () => unknown = accessGeneration) {}
+
+  async status(persisted?: DecisionCursor) {
+    const id = ++this.request;
+    const { session, lifecycle, quarantine, alertsSuppressed } = this.state();
+    const scope = this.scope();
+    if (!session || lifecycle !== 'ACTIVE' || quarantine || alertsSuppressed) return null;
+    const sessionId = session.sessionId;
+    const value = await this.read(sessionId);
+    const local = this.state();
+    if (id !== this.request || scope !== this.scope() || local.session?.sessionId !== sessionId
+      || local.lifecycle !== 'ACTIVE' || local.alertsSuppressed || local.quarantine) return null;
+    if (!validStatus(value, sessionId) || value.alert && value.alert.goalText !== session.goalText) throw new Error('V2_STATUS_INVALID');
+    if (value.sessionStatus === 'ENDED') return { value, cursor: undefined, alert: null };
+    const cursor = advance(value, this.latest?.sessionId === sessionId ? this.latest.cursor ?? persisted : persisted);
+    if (cursor === false) return null;
+    this.latest = { sessionId, cursor };
+    return { value, cursor, alert: displayableAlert(value, local) };
+  }
+
   async candidate() {
-    const id = ++this.request, sessionId = this.state().session?.sessionId;
-    if ((this.state() as V2State & { alertsSuppressed?: boolean }).alertsSuppressed || !sessionId || this.state().lifecycle !== 'ACTIVE' || this.state().quarantine) return null;
-    const status = await this.read(sessionId) as V2Status;
-    if (id !== this.request || this.state().session?.sessionId !== sessionId) return null;
-    const d = status.currentDecision;
-    if (!decision(d) || d && (d.windowIndex < this.windowIndex || d.windowIndex === this.windowIndex && d.stateVersion !== null && d.stateVersion < this.version)) return null;
-    if (d && d.windowIndex > this.windowIndex) { this.windowIndex = d.windowIndex; this.version = 0; }
-    if (d?.stateVersion) this.version = Math.max(this.version, d.stateVersion);
-    return displayableAlert(status, this.state());
+    return (await this.status())?.alert ?? null;
   }
 }

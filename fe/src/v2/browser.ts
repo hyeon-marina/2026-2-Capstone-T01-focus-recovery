@@ -176,7 +176,8 @@ async function focus(t: Stamp, switched = false) {
 const onUserMessage = user?.setup(runtime, ready, () => serial(captureAllowedTabs), stamp);
 chrome.runtime.onMessage.addListener((m, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return;
-  if (user && sender.url === chrome.runtime.getURL(options.uiPath)) return onUserMessage?.(m, sender, reply);
+  const ui = chrome.runtime.getURL(options.uiPath);
+  if (user && (sender.url === ui || sender.url?.startsWith(ui + '?alert='))) return onUserMessage?.(m, sender, reply);
   if (user && (!sender.url || !permits(sender.url) || !['v2-context', 'v2-leave', 'v2-observation'].includes(m?.type))) {
     reply({ collecting: false }); return;
   }

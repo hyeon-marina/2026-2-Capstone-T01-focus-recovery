@@ -18,7 +18,7 @@ export async function setCredential(token?: string) {
   else await chrome.storage.session.remove(TOKEN_KEY);
 }
 export function accessGeneration() { return generation; }
-export async function authenticatedFetch(url: string, init?: RequestInit) {
+export async function authenticatedFetch(url: string, init?: RequestInit, allowed?: () => boolean) {
   const target = new URL(url), expected = new URL(API_BASE_URL);
   if (target.origin !== expected.origin || !target.pathname.startsWith('/api/') || target.username || target.password) throw new AccessError('authentication');
   const started = generation;
@@ -32,6 +32,7 @@ export async function authenticatedFetch(url: string, init?: RequestInit) {
   if (typeof token === 'string' && target.protocol !== 'https:' && !['localhost','127.0.0.1'].includes(target.hostname)) throw new AccessError('authentication');
   if (typeof token === 'string') headers.set('Authorization', `Bearer ${token}`);
   scope?.check(); // The credential read can yield to a newer privacy intent.
+  if (allowed && !allowed()) throw new AccessError('account');
   try {
     const response = await fetch(url, { ...init, ...(token ? { headers } : {}), credentials: 'omit', redirect: 'error', cache: 'no-store' });
     if (started !== generation) throw new AccessError('account');

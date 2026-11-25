@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises';
+import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
-import { ALICE, BOB, startMock } from './user-mock.mjs';
+import { ALICE, BOB, setAnalysis, startMock } from './user-mock.mjs';
 import { FIXTURE_ORIGIN } from '../synthetic/catalog.ts';
 import { MOCK_ORIGIN, USER_DB, USER_POPUP } from '../user/mock-config.ts';
 
@@ -11,7 +11,7 @@ const extension = resolve('dist-user');
 const manifest = JSON.parse(await readFile(join(extension, 'manifest.json'), 'utf8'));
 assert.equal(manifest.manifest_version, 3);
 assert.match(manifest.name, /합성 테스트/);
-assert.deepEqual(manifest.permissions, ['storage', 'alarms', 'webNavigation']);
+assert.deepEqual(manifest.permissions, ['storage', 'alarms', 'webNavigation', 'notifications']);
 assert.deepEqual(manifest.host_permissions, ['http://127.0.0.1/*']);
 assert.deepEqual(manifest.content_scripts, [{ matches: ['http://127.0.0.1/__focus_synthetic__/*'], js: ['content.js'], run_at: 'document_idle' }]);
 assert.equal(manifest.action.default_popup, USER_POPUP);
@@ -22,7 +22,7 @@ for (const file of [manifest.background.service_worker, USER_POPUP, 'content.js'
   assert.ok(!contents.includes(ALICE) && !contents.includes(BOB));
 }
 
-const mock = await startMock();
+let mock = await startMock();
 const temp = await mkdtemp(join(tmpdir(), 'focus-user-133-'));
 const evidence = process.env.USER_TEST_EVIDENCE ? resolve(process.env.USER_TEST_EVIDENCE) : undefined;
 if (evidence) await mkdir(evidence, { recursive: true });
@@ -30,10 +30,10 @@ const viewport = { width: 380, height: 560 };
 let context, worker, id, popup, page, version;
 const fixture = letter => `${FIXTURE_ORIGIN}/__focus_synthetic__/${letter}`;
 
-async function launch(profile = 'profile') {
+async function launch(profile = 'profile', directory = extension) {
   context = await chromium.launchPersistentContext(join(temp, profile), {
     channel: 'chromium', executablePath: process.env.CHROMIUM_PATH, headless: !process.env.HEADED, viewport,
-    args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
+    args: [`--disable-extensions-except=${directory}`, `--load-extension=${directory}`],
   });
   worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker');
   const extensionId = new URL(worker.url()).hostname;
@@ -76,12 +76,14 @@ async function restartWorker() {
   await cdp.send('ServiceWorker.stopAllWorkers');
   await cdp.detach();
 }
-function holdResponse(key) {
+function holdResponse(key, accepts = () => true) {
   let hit, unblock;
+  let active = false;
   const received = new Promise(resolve => { hit = resolve; });
   const held = new Promise(resolve => { unblock = resolve; });
-  mock.faults[key] = () => { hit(); return held; };
+  mock.faults[key] = (...args) => { if (accepts(...args)) { active = true; hit(); return held; } };
   return {
+    get active() { return active; },
     async received() {
       let timer;
       try {
@@ -98,19 +100,20 @@ async function secondPopup() {
   await view.goto(`chrome-extension://${id}/${USER_POPUP}`);
   return view;
 }
-async function disk() {
-  return popup.evaluate(async name => {
+async function saved(key = 'current', store = 'v2') {
+  return popup.evaluate(async ({ name, key, store }) => {
     const db = await new Promise((resolve, reject) => {
       const request = indexedDB.open(name);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
     return new Promise(resolve => {
-      const tx = db.transaction('v2'), request = tx.objectStore('v2').get('current');
+      const tx = db.transaction(store), request = tx.objectStore(store).get(key);
       tx.oncomplete = () => { db.close(); resolve(request.result); };
     });
-  }, USER_DB);
+  }, { name: USER_DB, key, store });
 }
+const disk = () => saved();
 async function end() {
   await button('작업 종료').click();
   await heading('작업 종료 완료');
@@ -124,10 +127,498 @@ async function start(goal) {
 }
 const startRequests = () => mock.requests.filter(r => r.url === '/api/sessions');
 const writes = () => mock.requests.filter(r => /\/visits/.test(r.url));
+
+async function launchNotificationTest(profile) {
+  await context?.close(); context = undefined;
+  await mock.close();
+  mock = await startMock();
+  const instrumented = join(temp, profile + '-extension');
+  await cp(extension, instrumented, { recursive: true });
+  const background = join(instrumented, manifest.background.service_worker);
+  // Headless Chrome cannot click an OS banner. Capture the registered listener in this temporary copy.
+  await writeFile(background, `
+    const bridge = globalThis.notificationTest = { submitted: [], attempts: [] };
+    const api = chrome.notifications;
+    const create = api.create.bind(api);
+    api.create = (id, options, callback) => {
+      bridge.attempts.push(id);
+      if (bridge.pause === 'before-result') { bridge.paused = true; return; }
+      if (bridge.failCreate) {
+        create(id, { ...options, iconUrl: 'missing-synthetic-test-icon.png' }, result => {
+          bridge.createError = Boolean(chrome.runtime.lastError);
+          callback(result);
+        });
+        return;
+      }
+      create(id, options, result => {
+        if (!chrome.runtime.lastError) bridge.submitted.push({ id, options });
+        if (bridge.pause === 'withheld-callback') {
+          bridge.paused = true;
+          bridge.release = () => callback(result);
+          return;
+        }
+        callback(result);
+      });
+    };
+    const getPermission = api.getPermissionLevel.bind(api);
+    api.getPermissionLevel = callback => {
+      if (bridge.denied) {
+        bridge.deniedChecks = (bridge.deniedChecks ?? 0) + 1;
+        callback('denied');
+        return;
+      }
+      if (bridge.pause !== 'after-reserve') { getPermission(callback); return; }
+      const open = indexedDB.open(${JSON.stringify(USER_DB)});
+      open.onsuccess = () => {
+        const db = open.result;
+        const tx = db.transaction('v2');
+        const read = tx.objectStore('v2').get('current');
+        tx.oncomplete = () => {
+          db.close();
+          const reserved = read.result?.userAnalysis?.submissions.find(a => a.alertId === bridge.target);
+          if (reserved) {
+            bridge.paused = true;
+            bridge.release = () => bridge.denied ? callback('denied') : getPermission(callback);
+          } else getPermission(callback);
+        };
+      };
+    };
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(record, key) {
+      const request = put.call(this, record, key);
+      if (bridge.pause === 'presented-write' && this.name === 'v2' && key === 'current'
+        && record.userAnalysis?.submissions.some(a => a.alertId === bridge.target && a.phase === 'presented')) {
+        bridge.paused = true;
+        const waitForStop = () => { this.get('current').onsuccess = waitForStop; };
+        waitForStop();
+      }
+      return request;
+    };
+    for (const [event, key] of [[api.onClicked, 'click'], [api.onPermissionLevelChanged, 'permission'],
+      [api.onClosed, 'closed'],
+      [chrome.alarms.onAlarm, 'alarm']]) {
+      const add = event.addListener.bind(event);
+      event.addListener = listener => {
+        const previous = bridge[key];
+        bridge[key] = (...args) => { previous?.(...args); listener(...args); };
+        add((...args) => {
+          const [value] = args;
+          if (key === 'alarm' && value.name === 'user-analysis') bridge.alarmFired = true;
+          listener(...args);
+        });
+      };
+    }
+  ` + await readFile(background, 'utf8'));
+  id = undefined;
+  await launch(profile, instrumented);
+  await openPopup();
+  await login();
+  await popup.getByRole('checkbox').check();
+  await button('합성 동의 저장').click();
+}
+
+async function verifySubmissionRecovery() {
+  await launchNotificationTest('recovery');
+  await start('합성 알림 제출과 Worker 복구 확인하기');
+  let record = [...mock.sessions.values()].at(-1);
+  const alarm = () => worker.evaluate(() => globalThis.notificationTest.alarm({ name: 'user-analysis' }));
+  const listed = () => popup.evaluate(() => chrome.notifications.getAll());
+  const attempts = () => worker.evaluate(() => globalThis.notificationTest.attempts);
+  const phase = async alert => (await disk()).userAnalysis?.submissions.find(a => a.alertId === alert.alertId)?.phase;
+  async function until(check, reason) {
+    await waitFor(async () => {
+      if (await check()) return true;
+      await alarm();
+      return false;
+    }, reason);
+  }
+  async function restart() {
+    await restartWorker();
+    await waitFor(async () => (await state())?.collecting, 'owned session restored');
+    worker = context.serviceWorkers().find(w => new URL(w.url()).hostname === id) ?? worker;
+  }
+  let index = 0;
+  async function pauseCandidate(pause) {
+    const alert = setAnalysis(record, { windowIndex: ++index, state: 'DRIFT', candidate: true });
+    await worker.evaluate(({ pause, target }) => Object.assign(globalThis.notificationTest, { pause, target, paused: false }),
+      { pause, target: alert.alertId });
+    await until(() => worker.evaluate(() => globalThis.notificationTest.paused), pause);
+    return alert;
+  }
+  const nativeId = alert => 'focus-drift:' + alert.alertId;
+  const release = () => worker.evaluate(() => {
+    const harness = globalThis.notificationTest;
+    harness.pause = undefined;
+    harness.release?.();
+  });
+  const active = async alert => Boolean((await listed())[nativeId(alert)]);
+  const reserved = await pauseCandidate('after-reserve');
+  assert.equal(await phase(reserved), 'reserved');
+  assert.equal(await active(reserved), false);
+  await restart();
+  await until(async () => await phase(reserved) === 'presented', 'reservation recovered');
+  assert.deepEqual(await attempts(), [nativeId(reserved)]);
+  assert.equal(await active(reserved), true);
+  assert.deepEqual((await disk()).notifications, []);
+  console.log('PASS recovery A: reservation completed once');
+
+  const missing = await pauseCandidate('before-result');
+  assert.equal(await phase(missing), 'submitting');
+  assert.equal(await active(missing), false);
+  await restart();
+  await until(async () => await phase(missing) === 'uncertain' && (await state()).finalState === 'DRIFT', 'ambiguous handoff retained');
+  assert.deepEqual(await attempts(), []);
+  const callback = await pauseCandidate('withheld-callback');
+  assert.equal(await phase(callback), 'submitting');
+  assert.equal(await active(callback), true);
+  await restart();
+  await until(async () => await phase(callback) === 'presented', 'Chrome evidence reconciles withheld callback');
+  assert.deepEqual(await attempts(), []);
+  console.log('PASS recovery B: pending API reconciled when present and suppressed when ambiguous');
+
+  const committing = await pauseCandidate('presented-write');
+  assert.equal(await active(committing), true);
+  assert.equal((await worker.evaluate(() => globalThis.notificationTest.submitted)).at(-1)?.id, nativeId(committing));
+  await restart();
+  await until(async () => await phase(committing) === 'presented', 'successful Chrome request survived interrupted commit');
+  assert.deepEqual(await attempts(), []);
+  console.log('PASS recovery C: successful callback before commit reconciled without another create');
+
+  await popup.evaluate(id => chrome.notifications.clear(id), nativeId(committing));
+  await worker.evaluate(id => globalThis.notificationTest.closed(id, true), nativeId(committing));
+  await waitFor(async () => await phase(committing) === 'dismissed', 'dismissal committed');
+  await restart();
+  await until(async () => (await state()).finalState === 'DRIFT', 'dismissed candidate seen again');
+  assert.equal(await active(committing), false);
+  assert.deepEqual(await attempts(), []);
+  console.log('PASS recovery D: a dismissed native notification is never recreated');
+
+  for (const invalidatedBy of ['normal', 'new-window', 'pending']) {
+    const alert = await pauseCandidate('after-reserve');
+    if (invalidatedBy === 'new-window') ++index;
+    setAnalysis(record, { windowIndex: index, state: invalidatedBy === 'pending' ? 'PENDING' : 'NORMAL', version: 2 });
+    await restart();
+    await until(async () => await phase(alert) === 'retired', invalidatedBy);
+    assert.equal(await active(alert), false);
+    assert.deepEqual(await attempts(), []);
+  }
+  const logout = await pauseCandidate('after-reserve');
+  assert.equal((await command({ type: 'logout' })).snapshot.access, 'auth');
+  await release();
+  await login(ALICE, '작업 진행 중');
+  await until(async () => await phase(logout) === 'retired', 'logout invalidated earlier reservation');
+  assert.equal(await active(logout), false);
+  const accountChange = await pauseCandidate('withheld-callback');
+  const changed = await command({ type: 'login', token: BOB });
+  assert.equal(changed.snapshot.access, 'account');
+  assert.equal(changed.snapshot.goal, undefined);
+  await waitFor(async () => !await active(accountChange), 'account switch clears prior native notification');
+  await release();
+  assert.deepEqual((await disk()).notifications, []);
+  await login(ALICE, '작업 진행 중');
+  const expiry = await pauseCandidate('after-reserve');
+  const account = mock.accounts.get('Bearer ' + ALICE);
+  account.expiresAt = '2000-01-01T00:00:00.000Z';
+  await restartWorker();
+  await waitFor(async () => (await state())?.access === 'auth', 'expired credential requires authentication');
+  assert.equal(await active(expiry), false);
+  account.expiresAt = '2099-01-01T00:00:00.000Z';
+  await login(ALICE, '작업 진행 중');
+  worker = context.serviceWorkers().find(w => new URL(w.url()).hostname === id) ?? worker;
+  await until(async () => await phase(expiry) === 'retired', 'expired reservation retired on reauthentication');
+  const ended = await pauseCandidate('after-reserve');
+  await end();
+  await release();
+  assert.equal(await active(ended), false);
+  await start('새 세션은 첫 번째 Window부터 확인하기');
+  record = [...mock.sessions.values()].at(-1);
+  index = 0;
+  assert.deepEqual((await disk()).notifications, []);
+  assert.ok(!(await disk()).userAnalysis?.submissions.some(a => a.alertId === ended.alertId));
+  console.log('PASS recovery E: invalidated decisions, expiry, logout, account switch, END and new session');
+
+  const concurrent = await pauseCandidate('withheld-callback');
+  const calls = mock.requests.filter(r => r.url.endsWith('/analysis-status')).length;
+  const view = await secondPopup();
+  await view.goto(fixture('a'));
+  await Promise.all([alarm(), alarm(), command({ type: 'analysis-refresh' })]);
+  assert.equal(mock.requests.filter(r => r.url.endsWith('/analysis-status')).length, calls);
+  assert.equal((await attempts()).filter(id => id === nativeId(concurrent)).length, 1);
+  await view.close();
+  await release();
+  await until(async () => await phase(concurrent) === 'presented', 'shared create complete');
+  const opened = context.waitForEvent('page');
+  await worker.evaluate(id => globalThis.notificationTest.click(id), nativeId(concurrent));
+  const detail = await opened;
+  await detail.getByText(record.session.goalText, { exact: true }).waitFor();
+  await waitFor(() => concurrent.shownAt, 'first detail shown receipt');
+  const otherDetail = await context.newPage();
+  await otherDetail.goto(detail.url());
+  await otherDetail.getByText(record.session.goalText, { exact: true }).waitFor();
+  const viewId = new URL(detail.url()).searchParams.get('alert');
+  await Promise.all([
+    sendFrom(detail, { type: 'alert-select', viewId, action: 'RETURN_TO_GOAL' }),
+    sendFrom(otherDetail, { type: 'alert-select', viewId, action: 'CONTINUE_BROWSING' }),
+  ]);
+  await waitFor(() => concurrent.selection, 'one selection from two views');
+  await waitFor(async () => (await disk()).notifications.some(r => r.alertId === concurrent.alertId && r.selectionAck), 'selection ACK');
+  assert.equal((await disk()).notifications.filter(r => r.alertId === concurrent.alertId).length, 1);
+  assert.equal((await disk()).notifications.find(r => r.alertId === concurrent.alertId).selection.action, concurrent.selection.action);
+  await detail.close(); await otherDetail.close();
+  console.log('PASS recovery F: coalesced alarm/navigation/Popup and two detail views');
+
+  const permission = await pauseCandidate('after-reserve');
+  await worker.evaluate(() => {
+    const harness = globalThis.notificationTest;
+    harness.denied = true;
+    harness.pause = undefined;
+    harness.release();
+  });
+  assert.equal(await phase(permission), 'reserved');
+  assert.equal(await active(permission), false);
+  await worker.evaluate(() => {
+    const harness = globalThis.notificationTest;
+    harness.denied = false;
+    harness.permission('granted');
+  });
+  await until(async () => await phase(permission) === 'presented', 'valid reservation recovered on permission restoration');
+  await worker.evaluate(() => {
+    const harness = globalThis.notificationTest;
+    harness.denied = true;
+    harness.permission('denied');
+  });
+  await waitFor(async () => !await active(permission), 'permission revocation cleared native notification');
+  const tabCount = context.pages().length;
+  const deniedChecks = await worker.evaluate(() => globalThis.notificationTest.deniedChecks ?? 0);
+  await worker.evaluate(id => globalThis.notificationTest.click(id), nativeId(permission));
+  await waitFor(() => worker.evaluate(count => (globalThis.notificationTest.deniedChecks ?? 0) >= count + 3, deniedChecks),
+    'denial rechecked when handling the stale click');
+  assert.equal(context.pages().length, tabCount);
+  const denied = setAnalysis(record, { windowIndex: ++index, state: 'DRIFT', candidate: true });
+  await until(async () => (await disk()).userAnalysis.cursor.current.windowIndex === index, 'decision polled with permission denied');
+  assert.equal(await active(denied), false);
+  setAnalysis(record, { windowIndex: index, state: 'NORMAL', version: 2 });
+  await worker.evaluate(() => {
+    const harness = globalThis.notificationTest;
+    harness.denied = false;
+    harness.permission('granted');
+  });
+  await until(async () => (await state()).finalState === 'NORMAL', 'permission restoration uses fresh decision');
+  assert.equal(await active(denied), false);
+  await worker.evaluate(() => { globalThis.notificationTest.failCreate = true; });
+  const failed = setAnalysis(record, { windowIndex: ++index, state: 'DRIFT', candidate: true });
+  await until(async () => await phase(failed) === 'uncertain', 'failed create preserved as uncertain');
+  assert.equal(await worker.evaluate(() => globalThis.notificationTest.createError), true);
+  await restart();
+  await until(async () => (await state()).finalState === 'DRIFT', 'failed create observed after restart');
+  assert.equal(await active(failed), false);
+  assert.deepEqual(await attempts(), []);
+  const withdrawal = await pauseCandidate('after-reserve');
+  assert.equal((await command({ type: 'withdraw' })).snapshot.access, 'withdrawn');
+  await release();
+  await waitFor(async () => await phase(withdrawal) === 'retired', 'withdrawal retired reservation');
+  assert.equal(await active(withdrawal), false);
+  console.log('PASS recovery G: permission, ambiguous API error and withdrawal during reservation');
+}
+
+async function verifyAnalysisAndAlerts() {
+  await launchNotificationTest('alerts');
+  await start('합성 Chrome 알림에서 최초 작업 목표 확인하기');
+  const [first] = mock.sessions.values();
+  const submitted = () => worker.evaluate(() => globalThis.notificationTest.submitted);
+  const listed = () => worker.evaluate(() => chrome.notifications.getAll());
+  const requests = () => mock.requests.filter(r => r.url.endsWith('/analysis-status'));
+  const alarm = () => worker.evaluate(() => globalThis.notificationTest.alarm({ name: 'user-analysis' }));
+  const holdAnalysis = async (label, accepts) => {
+    const held = holdResponse('holdAnalysis', accepts);
+    try {
+      await waitFor(async () => {
+        if (held.active) return true;
+        await alarm();
+        return false;
+      }, label);
+      return held;
+    } catch (error) {
+      held.release();
+      throw error;
+    }
+  };
+  const refresh = async (analysis, finalState) => {
+    await waitFor(async () => {
+      const s = await state();
+      if (s.analysis === analysis && s.finalState === finalState) return true;
+      await alarm();
+      return false;
+    }, `analysis ${analysis} ${finalState ?? ''}`);
+  };
+  await refresh('empty');
+  for (const [state, analysis, windowIndex] of [
+    ['NORMAL', 'completed', 1], ['TRANSITION', 'completed', 2], ['PENDING', 'pending', 3],
+    ['FAILED', 'failed', 3], ['INVALIDATED', 'invalidated', 3], ['DRIFT', 'completed', 4],
+  ]) {
+    setAnalysis(first, { windowIndex, state });
+    await refresh(analysis, analysis === 'completed' ? state : undefined);
+    assert.equal((await submitted()).length, 0);
+  }
+  mock.faults.offlineAnalysis = true;
+  await refresh('delayed');
+  assert.equal((await state()).connection, 'unreachable');
+  delete mock.faults.offlineAnalysis;
+  mock.faults.analysisResponse = payload => ({ ...payload, sessionId: 'wrong' });
+  await refresh('unavailable');
+  delete mock.faults.analysisResponse;
+  await refresh('completed', 'DRIFT');
+
+  const oldVersion = first.currentDecision;
+  setAnalysis(first, { windowIndex: 4, version: 2, state: 'DRIFT' });
+  await waitFor(async () => {
+    if ((await disk()).userAnalysis?.cursor.current.stateVersion === 2) return true;
+    await alarm();
+    return false;
+  }, 'updated version committed for the same window');
+  mock.faults.analysisResponse = payload => ({ ...payload, currentDecision: oldVersion, lastSuccessfulState: oldVersion });
+  await refresh('unavailable');
+  delete mock.faults.analysisResponse;
+  await refresh('completed', 'DRIFT');
+
+  const older = [...first.decisions.values()].find(d => d.windowIndex === 1);
+  mock.faults.analysisResponse = payload => ({ ...payload, currentDecision: older, lastSuccessfulState: older });
+  await restartWorker();
+  await waitFor(async () => (await state()).analysis === 'unavailable', 'older window rejected after Worker restart');
+  worker = context.serviceWorkers().find(value => new URL(value.url()).hostname === id) ?? worker;
+  delete mock.faults.analysisResponse;
+  await refresh('completed', 'DRIFT');
+
+  const candidate = setAnalysis(first, { windowIndex: 4, version: 2, state: 'DRIFT', candidate: true });
+  await worker.evaluate(() => { globalThis.notificationTest.denied = true; });
+  const deniedRead = requests().length;
+  await alarm();
+  await waitFor(() => requests().length > deniedRead, 'status still read while notifications denied');
+  assert.deepEqual(await listed(), {});
+  assert.equal((await submitted()).length, 0);
+  await worker.evaluate(() => { globalThis.notificationTest.denied = false; });
+  await popup.close();
+  page = await context.newPage();
+  await context.route('https://alerts-outside.invalid/**', route => route.fulfill({ body: 'Synthetic outside page' }));
+  await page.goto('https://alerts-outside.invalid/page'); await page.bringToFront();
+  await worker.evaluate(() => chrome.alarms.create('user-analysis', { when: Date.now() + 200 }));
+  await waitFor(() => worker.evaluate(() => globalThis.notificationTest.alarmFired), 'actual Chrome alarm event', 40000);
+  await waitFor(async () => (await submitted()).length === 1, 'real Chrome notification with popup closed');
+  const [{ id: notificationId, options }] = await submitted();
+  assert.equal(notificationId, 'focus-drift:' + candidate.alertId);
+  assert.ok((await listed())[notificationId], 'Chrome has the submitted notification');
+  assert.ok(!JSON.stringify(options).includes(first.session.goalText) && !JSON.stringify(options).includes(first.session.sessionId));
+  assert.equal(candidate.shownAt, null);
+  const before = requests().length;
+  await alarm();
+  await waitFor(() => requests().length > before, 'repeated candidate polled');
+  assert.equal((await submitted()).length, 1);
+
+  await openPopup();
+  mock.faults.analysisResponse = payload => ({ ...payload, currentDecision: oldVersion, lastSuccessfulState: oldVersion, alert: null });
+  await refresh('unavailable');
+  assert.ok((await listed())[notificationId], 'an older result does not invalidate a submitted current alert');
+  delete mock.faults.analysisResponse;
+  await refresh('completed', 'DRIFT');
+  await restartWorker();
+  await waitFor(async () => (await state()).analysis === 'completed', 'analysis restored with worker restart');
+  worker = context.serviceWorkers().find(value => new URL(value.url()).hostname === id) ?? worker;
+  assert.deepEqual(await submitted(), []);
+  await popup.close();
+  const open = context.waitForEvent('page');
+  await worker.evaluate(value => globalThis.notificationTest.click(value), notificationId);
+  const detail = await open;
+  await detail.getByText(first.session.goalText, { exact: true }).waitFor();
+  await waitFor(() => candidate.shownAt, 'visible detail records shownAt');
+  assert.equal(page.url(), 'https://alerts-outside.invalid/page');
+  mock.faults.dropSelection = 'always';
+  await detail.getByRole('button', { name: '목표로 돌아가기' }).click();
+  await detail.getByText(/서버 확인을 기다리고 있어요/).waitFor();
+  await waitFor(() => candidate.selection, 'first response committed mock-side');
+  assert.equal(candidate.selection.action, 'RETURN_TO_GOAL');
+  const viewId = new URL(detail.url()).searchParams.get('alert');
+  const selection = { type: 'alert-select', viewId, action: 'CONTINUE_BROWSING' };
+  const duplicate = await sendFrom(detail, selection);
+  assert.equal(duplicate.detail, undefined);
+  const writes = mock.requests.filter(r => r.url.endsWith(candidate.alertId + '/responses'));
+  for (const { body } of writes) assert.deepEqual(body, {
+    action: 'RETURN_TO_GOAL', selectedAt: candidate.selection.selectedAt, shownAt: candidate.shownAt,
+  });
+
+  await openPopup();
+  assert.deepEqual(await command(selection), { error: 'invalid' });
+  const held = await holdAnalysis('session A analysis response held before END', status => status.sessionId === first.session.sessionId);
+  try {
+    await end();
+    await start('다음 세션의 첫 분석과 알림 확인하기');
+    const second = [...mock.sessions.values()].at(-1);
+    const other = setAnalysis(second, { state: 'DRIFT', candidate: true });
+    await refresh('completed', 'DRIFT');
+    await waitFor(async () => (await submitted()).some(a => a.id.endsWith(other.alertId)), 'new session window 1 submitted');
+    held.release();
+    await detail.getByText('현재 확인할 수 있는 알림이 없어요.').waitFor();
+    const archived = (await saved('session/' + first.session.sessionId)).notifications;
+    assert.equal(archived[0].selection.action, 'RETURN_TO_GOAL');
+    assert.equal(archived[0].selectionAck, undefined);
+    assert.deepEqual((await disk()).notifications, []);
+    delete mock.faults.dropSelection;
+
+    const click = context.waitForEvent('page');
+    mock.faults.dropShown = 'always';
+    await worker.evaluate(alertId => globalThis.notificationTest.click('focus-drift:' + alertId), other.alertId);
+    const secondDetail = await click;
+    await secondDetail.getByText(second.session.goalText, { exact: true }).waitFor();
+    await secondDetail.getByRole('button', { name: '탐색 계속하기' }).click();
+    await secondDetail.getByText(/서버에 기록했어요/).waitFor();
+    assert.equal(other.selection.action, 'CONTINUE_BROWSING');
+    const [receipt] = (await disk()).notifications;
+    assert.equal(receipt.shownAt, other.shownAt);
+    assert.ok(receipt.shownAck && receipt.selectionAck);
+    delete mock.faults.dropShown;
+    setAnalysis(second, { windowIndex: 1, state: 'INVALIDATED' });
+    await refresh('invalidated');
+    await secondDetail.getByText('현재 확인할 수 있는 알림이 없어요.').waitFor();
+    assert.deepEqual(await listed(), {});
+    await secondDetail.close();
+
+    const afterLogout = setAnalysis(second, { windowIndex: 2, state: 'DRIFT', candidate: true });
+    const late = await holdAnalysis('analysis response held before logout');
+    try {
+      const count = requests().length;
+      await Promise.all([alarm(), alarm(), command({ type: 'analysis-refresh' })]);
+      assert.equal(requests().length, count, 'one HTTP lookup while concurrent events are pending');
+      assert.equal((await command({ type: 'logout' })).snapshot.access, 'auth');
+      late.release();
+      await alarm();
+      assert.ok(!(await submitted()).some(a => a.id.endsWith(afterLogout.alertId)));
+    } finally { late.release(); }
+    await login(ALICE, '작업 진행 중');
+    await waitFor(async () => (await listed())['focus-drift:' + afterLogout.alertId], 'new authorization revalidates candidate');
+    const account = mock.accounts.get('Bearer ' + ALICE);
+    account.expiresAt = '2000-01-01T00:00:00.000Z';
+    await alarm();
+    await waitFor(async () => (await state()).access === 'auth' && !Object.keys(await listed()).length, 'expired authorization clears alert');
+    account.expiresAt = '2099-01-01T00:00:00.000Z';
+    await login(ALICE, '작업 진행 중');
+    const beforeWithdrawal = setAnalysis(second, { windowIndex: 3, state: 'DRIFT', candidate: true });
+    await alarm();
+    await waitFor(async () => (await listed())['focus-drift:' + beforeWithdrawal.alertId], 'pending native notification before withdrawal');
+    const afterWithdrawal = setAnalysis(second, { windowIndex: 4, state: 'DRIFT', candidate: true });
+    const lateWithdrawal = await holdAnalysis('analysis response held before withdrawal');
+    try {
+      assert.equal((await command({ type: 'withdraw' })).snapshot.access, 'withdrawn');
+      lateWithdrawal.release();
+      await waitFor(async () => !Object.keys(await listed()).length, 'withdrawal clears active notification');
+      assert.ok(!(await submitted()).some(a => a.id.endsWith(afterWithdrawal.alertId)));
+    } finally { lateWithdrawal.release(); }
+  } finally { held.release(); }
+  await detail.close();
+  console.log('PASS K: Chrome background submission, latest result, restart dedup, both choices, ACK loss and cross-session receipt isolation');
+}
 const lastSession = () => [...mock.sessions.values()].at(-1);
 const alice = mock.accounts.get('Bearer ' + ALICE);
 
-try {
+async function verifyUserFlow() {
   await launch();
   await openPopup();
   await heading('합성 계정으로 시작');
@@ -202,7 +693,7 @@ try {
   const checkedAt = (await state()).serverCheckedAt;
   await mock.offline();
   await popup.close(); await openPopup();
-  await popup.getByText('최근 서버 검증', { exact: true }).waitFor();
+  await waitFor(async () => (await state()).connection === 'unreachable', 'reopen refresh observes offline Mock');
   for (let i = 0; i < 4; i++) assert.equal((await state()).serverCheckedAt, checkedAt);
   assert.equal(mock.accessReads, serverReadCount, 'status never probes HTTP');
   assert.equal((await command({ type: 'access' })).error, 'network');
@@ -298,7 +789,9 @@ try {
   mock.faults.dropPatch = true;
   const beforeRetry = writes().length;
   await restartWorker();
-  await waitFor(async () => (await disk()).posts.entries[0]?.phase === 'acked', 'same Visit acknowledged after Worker restart');
+  await waitFor(async () => (await disk()).posts.entries.some(e => e.visitId === storedPost.visitId && e.phase === 'acked')
+    || (await saved(second.session.sessionId + '/' + storedPost.visitId, 'v2-receipts'))?.sequence === storedPost.sequence,
+  'same Visit acknowledged after Worker restart');
   assert.ok(writes().slice(beforeRetry).some(r => r.body.visitId === storedPost.visitId));
   assert.equal((await state()).sessionHandle, secondHandle);
   assert.equal((await sendFrom(oldView, staleStop)).error, 'blocked');
@@ -426,9 +919,12 @@ try {
     void target.send('Runtime.enable');
   });
   const { result } = await target.send('Runtime.evaluate', {
-    contextId: contentWorld, expression: 'chrome.runtime.sendMessage({ type: "withdraw" })', awaitPromise: true, returnByValue: true,
+    contextId: contentWorld, expression: `Promise.all([
+      chrome.runtime.sendMessage({ type: "withdraw" }),
+      chrome.runtime.sendMessage({ type: "alert-select", viewId: "50000000-0000-4000-8000-000000000001", action: "RETURN_TO_GOAL" })
+    ])`, awaitPromise: true, returnByValue: true,
   });
-  assert.deepEqual(result.value, { collecting: false });
+  assert.deepEqual(result.value, [{ collecting: false }, { collecting: false }]);
   assert.equal(alice.withdrawn, false);
   await target.detach();
   await popup.bringToFront();
@@ -518,8 +1014,15 @@ try {
   assert.equal((await disk()).session, undefined);
   assert.equal((await state()).collecting, false);
   console.log('PASS J: start response arriving after withdrawal cannot activate a session');
-  console.log(JSON.stringify({ result: 'PASS', chrome: version, scenarios: 10, firstSessionVisits: first.visits.size,
-    posts: writes().filter(r => r.method === 'POST').length, patches: writes().filter(r => r.method === 'PATCH').length }));
+  const posts = writes().filter(r => r.method === 'POST').length;
+  const patches = writes().filter(r => r.method === 'PATCH').length;
+  await verifyAnalysisAndAlerts();
+  await verifySubmissionRecovery();
+  console.log(JSON.stringify({ result: 'PASS', chrome: version, scenarios: 18, firstSessionVisits: first.visits.size, posts, patches }));
+}
+try {
+  if (process.argv.includes('--recovery-only')) await verifySubmissionRecovery();
+  else await verifyUserFlow();
 } finally {
   await context?.close();
   await mock.close();

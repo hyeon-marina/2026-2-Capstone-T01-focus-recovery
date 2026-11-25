@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { normalizeGoal, validGoal } from '../src/shared/goal';
 import { FIXTURE_ORIGIN } from '../synthetic/catalog';
 import { isPrivacyCommand, isUserSnapshot, type UserCommand, type UserError, type UserReply, type UserSnapshot } from './protocol';
+import { AlertPage } from './alert-page';
 import './style.css';
 
 const headings = {
@@ -22,8 +23,10 @@ const errors: Record<UserError, string> = {
   blocked: '지금은 요청을 처리할 수 없어요. 현재 작업 상태와 권한을 확인해 주세요.',
 };
 const analysis: Record<UserSnapshot['analysis'], string> = {
-  unconnected: '분석 미연결', empty: '분석 결과 없음', pending: '분석 대기', delayed: '분석 지연', failed: '분석 실패', completed: '분석 완료',
+  unconnected: '분석 미연결', empty: '분석 결과 없음', pending: '분석 대기', delayed: '분석 지연', failed: '분석 실패',
+  invalidated: '분석 무효화', unavailable: '분석 상태 확인 불가', completed: '분석 완료',
 };
+const decisions = { NORMAL: '정상 탐색', TRANSITION: '전환 탐색', DRIFT: '목표 이탈' };
 const connectionLabels: Record<UserSnapshot['connection'], string> = {
   unverified: '서버 검증 전', verified: '최근 서버 검증', stale: '서버 재확인 필요',
   unreachable: '서버 응답 실패', 'auth-required': '인증 확인 필요', denied: '서버 접근 거부',
@@ -59,6 +62,7 @@ function Popup() {
         if (!disposed && generation.current === current) { setOffline(true); setSnapshot(undefined); }
       } finally { polling = false; }
     };
+    void chrome.runtime.sendMessage({ type: 'analysis-refresh' }).catch(() => {});
     void poll();
     const timer = setInterval(() => void poll(), 500);
     return () => { disposed = true; clearInterval(timer); };
@@ -165,7 +169,7 @@ function Popup() {
         <dl>
           <div><dt>시작 시각</dt><dd>{timeFormat.format(new Date(s.startedAt!))}</dd></div>
           <div><dt>탐색 수집</dt><dd>{s.collecting ? '합성 페이지에서 가능' : '일시 중지'}</dd></div>
-          <div><dt>분석</dt><dd>{analysis[s.analysis]}</dd></div>
+          <div><dt>분석</dt><dd>{s.finalState ? decisions[s.finalState] : analysis[s.analysis]}</dd></div>
         </dl>
         {s.privacyHold && s.access !== 'withdrawn' && <p className="notice">개인정보 보호를 위해 수집과 전송을 멈췄어요. 종료를 선택해 격리된 작업을 정리해 주세요.</p>}
         {s.reconnectRequired && !s.privacyHold && <button disabled={!ready || !!busy} onClick={() => void request({ type: 'reconnect' })}>기존 작업 재연결</button>}
@@ -183,6 +187,8 @@ function Popup() {
       </>}
       {s?.lifecycle === 'ENDED' && !next && s.access === 'ready' && <>
         <p>서버에서 종료를 확인했어요. 새 목표로 작업을 시작할 수 있어요.</p>
+        {s.receiptPending && <button disabled={!ready || !!busy}
+          onClick={() => void request({ type: 'retry' })}>미확인 알림 기록 다시 보내기</button>}
         <button className="primary" disabled={!ready || !!busy} onClick={() => setNext(true)}>새 작업 준비</button>
       </>}
     </section>
@@ -206,4 +212,5 @@ function Popup() {
   </main>;
 }
 
-createRoot(document.getElementById('root')!).render(<Popup />);
+const viewId = new URLSearchParams(location.search).get('alert');
+createRoot(document.getElementById('root')!).render(viewId === null ? <Popup /> : <AlertPage viewId={viewId} />);

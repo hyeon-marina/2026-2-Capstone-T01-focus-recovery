@@ -7,15 +7,16 @@ import { VisitApiError } from '../src/api/visit';
 import { normalizeGoal, validGoal } from '../src/shared/goal';
 import { V2Repository } from '../src/v2/repository';
 import { V2Runtime, type V2Transport } from '../src/v2/runtime';
+import type { Decision, V2Alert } from '../src/v2/status';
 import { fixtureId, FIXTURE_ORIGIN } from '../synthetic/catalog';
 import { assertMockOrigin, MOCK_ORIGIN, USER_DB } from '../user/mock-config';
-import { isUserSnapshot, parseCommand, trustedPopup, type UserSnapshot } from '../user/protocol';
+import { isUserSnapshot, parseAlertCommand, parseCommand, trustedPopup, type UserSnapshot } from '../user/protocol';
 import { observation, session, syntheticAccess, time } from './v2-fixture';
 
 const ended = { ...session, status: 'ENDED' as const, endedAt: '2026-11-10T00:10:00.000Z' };
 const snapshot: UserSnapshot = { lifecycle: 'IDLE', access: 'ready', connection: 'verified', collecting: false,
   serverCheckedAt: 1, privacyPending: false, permission: true, storageFailed: false, reconnectRequired: false, deliveryIssue: false, privacyHold: false,
-  analysis: 'unconnected', withdrawalPending: false };
+  analysis: 'unconnected', withdrawalPending: false, receiptPending: false };
 
 beforeEach(() => { vi.stubGlobal('indexedDB', new IDBFactory()); vi.stubGlobal('IDBKeyRange', IDBKeyRange); });
 afterEach(() => vi.unstubAllGlobals());
@@ -74,6 +75,16 @@ describe('user message and build boundaries', () => {
     expect(isUserSnapshot({ ...snapshot, collecting: true })).toBe(false);
     expect(isUserSnapshot({ ...snapshot, lifecycle: 'ACTIVE' })).toBe(false);
     expect(isUserSnapshot({ ...snapshot, analysis: 'DRIFT' })).toBe(false);
+    expect(isUserSnapshot({ ...snapshot, analysis: 'failed', finalState: 'NORMAL' })).toBe(false);
+  });
+  it('accepts only a detail key and the two actions, with the Worker assigning receipt times', () => {
+    const viewId = crypto.randomUUID();
+    const select = { type: 'alert-select', viewId, action: 'RETURN_TO_GOAL' };
+    expect(parseAlertCommand(select)).toEqual(select);
+    expect(parseAlertCommand({ ...select, action: 'STOP' })).toBeUndefined();
+    expect(parseAlertCommand({ ...select, selectedAt: session.startedAt })).toBeUndefined();
+    expect(parseAlertCommand({ ...select, viewId: 'other' })).toBeUndefined();
+    expect(parseCommand(select)).toBeUndefined();
   });
   it('rejects foreign origins, non-catalog paths and catalog prototype names', () => {
     expect(() => assertMockOrigin(MOCK_ORIGIN)).not.toThrow();
@@ -86,6 +97,69 @@ describe('user message and build boundaries', () => {
 });
 
 describe('user Runtime lifecycle and recovery', () => {
+  it('restores legacy and interrupted handoffs as uncertain while preserving an unstarted reservation', async () => {
+    const { runtime, repo, transport } = setup();
+    await runtime.initialize();
+    await runtime.start(session.goalText);
+    const decision: Decision = {
+      windowId: crypto.randomUUID(), windowIndex: 1, analysisId: crypto.randomUUID(), stateVersion: 1,
+      decisionStatus: 'COMPLETED', finalState: 'DRIFT', judgedAt: session.startedAt, errorCode: null,
+    };
+    const checkpoint = runtime.snapshot();
+    checkpoint.userAnalysis = { cursor: { current: decision, completed: decision }, observedAt: Date.now(),
+      submissions: ([undefined, 'submitting', 'reserved'] as const).map(phase => ({
+        phase, viewId: crypto.randomUUID(), alertId: crypto.randomUUID(), windowId: decision.windowId,
+        windowIndex: 1, analysisId: decision.analysisId!, stateVersion: 1,
+      })) };
+    await repo.save(checkpoint, checkpoint.revision);
+    const restarted = new V2Runtime(repo, transport, false, true);
+    await restarted.initialize();
+    const restored = restarted.snapshot().userAnalysis!.submissions;
+    expect(restored.map(a => a.phase)).toEqual(['uncertain', 'uncertain', 'reserved']);
+    expect(restored.map(a => a.viewId)).toEqual(checkpoint.userAnalysis.submissions.map(a => a.viewId));
+    expect(restarted.snapshot().notifications).toEqual([]);
+  });
+  it('retires an unsubmitted reservation when the verified candidate disappears', async () => {
+    const { runtime } = setup();
+    await runtime.initialize();
+    await runtime.start(session.goalText);
+    const current: Decision = {
+      windowId: crypto.randomUUID(), windowIndex: 1, analysisId: crypto.randomUUID(), stateVersion: 1,
+      decisionStatus: 'COMPLETED', finalState: 'DRIFT', judgedAt: session.startedAt, errorCode: null,
+    };
+    const submission = { alertId: crypto.randomUUID(), viewId: crypto.randomUUID(), windowId: current.windowId,
+      windowIndex: 1, analysisId: current.analysisId!, stateVersion: 1 };
+    const alert: V2Alert = { ...submission, alertType: 'AI', createdAt: session.startedAt, shownAt: null,
+      sessionId: session.sessionId, goalText: session.goalText, message: 'Synthetic goal reminder' };
+    const scope = runtime.alertScope();
+    const allowed = () => runtime.alertScope() === scope;
+    const cursor = { current, completed: current };
+    await runtime.checkpointAnalysis(cursor, alert, allowed);
+    expect(await runtime.claimAlert(submission, allowed)).toBe(true);
+    await runtime.checkpointAnalysis(cursor, null, allowed);
+    expect(runtime.snapshot().userAnalysis!.submissions[0].phase).toBe('retired');
+    expect(await runtime.updateAlertSubmission({ ...submission, phase: 'reserved' }, 'submitting', allowed)).toBe(false);
+  });
+  it('keeps a delayed shown ACK out of a replacement session', async () => {
+    const { runtime, transport } = setup();
+    await runtime.initialize();
+    await runtime.start(session.goalText);
+    const shownAt = new Date().toISOString(), alertId = crypto.randomUUID();
+    let reply!: (value: Response) => void;
+    const fetch = vi.fn(() => new Promise<Response>(resolve => { reply = resolve; }));
+    vi.stubGlobal('fetch', fetch);
+    const scope = runtime.alertScope();
+    await runtime.recordShown({ sessionId: session.sessionId, alertId }, shownAt, () => runtime.alertScope() === scope);
+    await until(() => !!reply);
+    await runtime.stop(time(1000));
+    await until(() => runtime.snapshot().lifecycle === 'ENDED');
+    vi.mocked(transport.start).mockResolvedValueOnce({ ...session, sessionId: crypto.randomUUID(), goalText: 'New synthetic task' });
+    await runtime.start('New synthetic task');
+    reply(Response.json({ alertId, shownAt }));
+    await runtime.flushNotifications();
+    expect(runtime.snapshot().notifications).toEqual([]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   it.each([null, { ...session, collectionSpecVersion: '1.0' }, { ...session, goalText: 'Different goal' }])(
     'does not activate an invalid creation ACK %j', async answer => {
       const { runtime, transport } = setup();
