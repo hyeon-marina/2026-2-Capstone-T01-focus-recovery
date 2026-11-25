@@ -1,8 +1,8 @@
 import { AccessError, accessGeneration } from '../api/auth-fetch';
 import { readCollectionAccess, accessRequest, validWithdrawal, type CollectionAccess } from './access';
 import { sendRetraction, validRetractionAck, type RetractionRequest } from './retractions';
-import { sendNotification, type NotificationReceipt } from './notifications';
-import type { V2Alert } from './status';
+import { notificationPending, sendNotification, validNotification, type NotificationReceipt } from './notifications';
+import { matchesDecision, type DecisionCursor, type V2Alert } from './status';
 import { API_BASE_URL, postJson } from '../api/client';
 import { VisitDelivery } from '../background/visit-delivery';
 import { BehaviorDelivery } from '../background/behavior-delivery';
@@ -15,7 +15,7 @@ import { endSession, getSession, matchesSession } from '../api/session-end';
 import { isV2Session } from './contract';
 import { V2Collector, canCompact, type Observation } from './collector';
 import { V2Repository, drained } from './repository';
-import { initialState, type V2State, type Stamp, type CompactReceipt } from './state';
+import { initialState, type V2State, type Stamp, type CompactReceipt, type UserAlertSubmission } from './state';
 
 export interface V2Transport {
   access: () => Promise<CollectionAccess>;
@@ -49,6 +49,7 @@ export class V2Runtime {
   private starting = false;
   private reconnectRequired = false;
   private notificationRunning = false;
+  private notificationAgain = false;
   private retractionRunning = false;
   private compactedIds: string[] = [];
   private posts: VisitDelivery;
@@ -94,7 +95,10 @@ export class V2Runtime {
     return () => { this.userPrivacyPending--; };
   }
   private pauseAuthorization() {
-    if (this.freeGoalSession && this.committed.lifecycle === 'ACTIVE') this.reconnectRequired = true;
+    if (this.freeGoalSession && this.committed.lifecycle === 'ACTIVE') {
+      if (!this.reconnectRequired) this.accessEpoch++;
+      this.reconnectRequired = true;
+    }
     for (const c of this.state.candidates) { c.cursor = undefined; if (!this.resumeIncomplete) c.closed = true; }
     if (!this.resumeIncomplete) this.state.tabs = {};
     delete this.state.lastVisit;
@@ -152,6 +156,10 @@ export class V2Runtime {
   }
   get foregroundTab() { return this.committed.foreground; }
   collecting() { return this.authorized() && !this.needsReconnect() && !this.failed && !this.stopping && !this.held && !this.committed.quarantine && this.committed.lifecycle === 'ACTIVE'; }
+  alertScope() {
+    return this.collecting() && !this.committed.withdrawal && this.committed.session
+      ? `${this.committed.session.sessionId}:${this.accessEpoch}:${accessGeneration()}` : undefined;
+  }
   snapshot() { return { ...structuredClone(this.committed), accessError: this.accessError, authenticated: !!this.access, collectionAllowed: this.authorized(), storageFailed: this.failed, alertsSuppressed: !this.authorized() || this.failed || this.stopping || this.held || Boolean(this.committed.quarantine) }; }
   private canSend() { return this.authorized() && !this.needsReconnect() && !this.failed && !this.held && !this.committed.quarantine && !this.posts.blocked && !this.behaviors.blocked; }
   private install(s: V2State) {
@@ -446,47 +454,92 @@ export class V2Runtime {
     }, receipts);
     this.compactedIds.push(...receipts.map(r => r.visitId));
   }
-  async recordShown(alert: V2Alert, shownAt: string) {
-    await this.verifyAccess();
-    if (this.stopping || this.held || this.committed.lifecycle !== 'ACTIVE' || this.committed.quarantine
-      || alert.sessionId !== this.committed.session?.sessionId) throw new Error('V2_ALERT_BLOCKED');
+  async checkpointAnalysis(cursor: DecisionCursor, allowed: () => boolean) {
+    if (JSON.stringify(this.committed.userAnalysis?.cursor) === JSON.stringify(cursor)) return;
     await this.mutate(() => {
-      const previous = this.state.notifications.find(r => r.alertId === alert.alertId);
-      if (previous && previous.shownAt !== shownAt) throw new Error('V2_ALERT_SHOWN_CONFLICT');
-      if (!previous) this.state.notifications.push({ alertId: alert.alertId, shownAt, shownAck: false });
+      if (!allowed()) return;
+      const previous = this.state.userAnalysis;
+      const samePhase = previous?.cursor.current.windowId === cursor.current.windowId
+        && previous.cursor.current.decisionStatus === cursor.current.decisionStatus;
+      this.state.userAnalysis = {
+        cursor, observedAt: samePhase ? previous.observedAt : Date.now(), submissions: previous?.submissions ?? [],
+      };
     });
+  }
+  claimAlert(submission: UserAlertSubmission, allowed: () => boolean) {
+    return this.mutate(() => {
+      const analysis = this.state.userAnalysis;
+      if (!allowed() || !analysis || !matchesDecision(submission, analysis.cursor.current)
+        || analysis.submissions.some(a => a.alertId === submission.alertId)) return false;
+      analysis.submissions.push(submission);
+      return true;
+    });
+  }
+  async recordShown(alert: Pick<V2Alert, 'sessionId' | 'alertId'>, shownAt: string, allowed?: () => boolean) {
+    if (!allowed) await this.verifyAccess();
+    const saved = await this.mutate(() => {
+      if (this.stopping || this.held || this.state.lifecycle !== 'ACTIVE' || this.state.quarantine
+        || alert.sessionId !== this.state.session?.sessionId || (allowed ? !allowed() : !this.authorized())) return false;
+      const previous = this.state.notifications.find(r => r.alertId === alert.alertId);
+      if (!allowed && previous && previous.shownAt !== shownAt) return false;
+      if (!previous) this.state.notifications.push({ alertId: alert.alertId, shownAt, shownAck: false });
+      return true;
+    });
+    if (!saved) throw new Error('V2_ALERT_BLOCKED');
+    if (allowed) { void this.flushNotifications().catch(() => {}); return; }
     await this.flushNotifications();
   }
-  async selectAlert(alertId: string, selection: NonNullable<NotificationReceipt['selection']>) {
-    await this.verifyAccess();
-    if (this.held || this.committed.quarantine) throw new Error('V2_ALERT_BLOCKED');
-    await this.mutate(() => {
+  async selectAlert(alertId: string, selection: NonNullable<NotificationReceipt['selection']>, allowed?: () => boolean) {
+    if (!allowed) await this.verifyAccess();
+    const sessionId = this.committed.session?.sessionId;
+    const saved = await this.mutate(() => {
+      if (this.held || this.state.quarantine || this.state.session?.sessionId !== sessionId
+        || (allowed ? !allowed() : !this.authorized())) return false;
       const receipt = this.state.notifications.find(r => r.alertId === alertId);
-      if (!receipt) throw new Error('V2_ALERT_NOT_SHOWN');
-      if (receipt.selection && JSON.stringify(receipt.selection) !== JSON.stringify(selection)) throw new Error('V2_ALERT_SELECTION_CONFLICT');
+      if (!receipt || !validNotification({ ...receipt, selection })) return false;
+      if (receipt.selection) return !allowed && JSON.stringify(receipt.selection) === JSON.stringify(selection);
       receipt.selection = selection;
+      return true;
     });
+    if (!saved) throw new Error('V2_ALERT_BLOCKED');
+    if (allowed) { void this.flushNotifications().catch(() => {}); return; }
     await this.flushNotifications();
   }
   async flushNotifications() {
-    if (this.notificationRunning || this.failed || this.held || this.committed.quarantine || !this.committed.session) return;
+    if (this.notificationRunning) { if (this.freeGoalSession) this.notificationAgain = true; return; }
+    if (this.failed || this.held || this.committed.quarantine || !this.committed.session) return;
+    const { sessionId } = this.committed.session;
+    const epoch = this.accessEpoch, credential = accessGeneration();
+    const current = () => epoch === this.accessEpoch && credential === accessGeneration()
+      && this.committed.session?.sessionId === sessionId;
+    const allowed = () => current() && this.authorized() && !this.failed && !this.held && !this.committed.quarantine
+      && (!this.freeGoalSession || !this.needsReconnect());
     this.notificationRunning = true;
     try {
-      for (const saved of this.committed.notifications) {
-        if (this.held || this.committed.quarantine) break;
-        if (saved.selection ? saved.selectionAck : saved.shownAck) continue;
+      for (const { alertId } of this.committed.notifications.filter(notificationPending)) {
+        if (!allowed()) break;
         await this.verifyAccess();
-        const ack = await sendNotification(this.committed.session.sessionId, structuredClone(saved));
+        const saved = this.committed.notifications.find(r => r.alertId === alertId);
+        if (!allowed() || !saved || !notificationPending(saved)) continue;
+        const ack = await sendNotification(sessionId, structuredClone(saved), allowed);
         await this.mutate(() => {
-          const receipt = this.state.notifications.find(r => r.alertId === saved.alertId)!;
+          if (!allowed() || this.state.session?.sessionId !== sessionId) return;
+          const receipt = this.state.notifications.find(r => r.alertId === alertId);
+          if (!receipt || receipt.shownAt !== saved.shownAt) return;
           receipt.shownAck = true;
           if (ack === 'selection') receipt.selectionAck = true;
         });
       }
     } catch (e) {
-      if (e instanceof Error && e.message === 'PRIVACY_RETRACTED') await this.quarantine('PRIVACY_RETRACTED', Date.now());
+      if (current() && e instanceof Error && e.message === 'PRIVACY_RETRACTED') await this.quarantine('PRIVACY_RETRACTED', Date.now());
       // Failed HTTP/ACK remains durable with the original timestamps for explicit retry.
-    } finally { this.notificationRunning = false; }
+    } finally {
+      this.notificationRunning = false;
+      if (this.notificationAgain) {
+        this.notificationAgain = false;
+        void this.flushNotifications().catch(() => {});
+      }
+    }
   }
   async withdrawAll(wall = Date.now()) {
     this.suspendAccess();

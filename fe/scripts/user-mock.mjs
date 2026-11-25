@@ -17,6 +17,50 @@ const counters = ['activeDurationMs', 'tabSwitchCount', 'behaviorVersion'];
 const behavior = body => Object.fromEntries(counters.map(key => [key, body[key]]));
 const validBehavior = body => body && counters.every(key => Number.isSafeInteger(body[key]) && body[key] >= 0);
 const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const millis = value => typeof value === 'string' && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
+
+export function setAnalysis(record, { windowIndex = 1, state = 'PENDING', version = 1, candidate = false } = {}) {
+  const window = record.windows.get(windowIndex) ?? { windowId: randomUUID(), analysisId: randomUUID(), windowIndex };
+  record.windows.set(windowIndex, window);
+  const completed = ['NORMAL', 'TRANSITION', 'DRIFT'].includes(state);
+  const key = window.windowId + ':' + version;
+  const now = new Date().toISOString();
+  let decision = completed ? record.decisions.get(key) : undefined;
+  if (!decision) {
+    decision = {
+      ...window, decisionStatus: completed ? 'COMPLETED' : state, stateVersion: completed ? version : null,
+      finalState: completed ? state : null, judgedAt: completed ? now : null,
+      errorCode: state === 'FAILED' ? 'AI_UNAVAILABLE' : state === 'INVALIDATED' ? 'PRIVACY_RETRACTED' : null,
+    };
+    if (completed) record.decisions.set(key, decision);
+  }
+  let alert = candidate && decision.finalState === 'DRIFT'
+    ? [...record.alerts.values()].find(a => a.windowId === window.windowId && a.stateVersion === version && !a.invalidatedAt) : undefined;
+  if (!alert && candidate && decision.finalState === 'DRIFT') {
+    alert = {
+      ...window, alertType: 'AI', stateVersion: version, alertId: randomUUID(), sessionId: record.session.sessionId,
+      goalText: record.session.goalText, message: 'Synthetic drift', createdAt: now, shownAt: null,
+    };
+    record.alerts.set(alert.alertId, alert);
+  }
+  for (const a of record.alerts.values()) if (a !== alert && !a.shownAt) a.invalidatedAt ??= now;
+  record.currentDecision = decision;
+  if (completed) record.lastSuccessfulState = decision;
+  return alert;
+}
+
+function alertResponse({ alertId, sessionId, alertType, analysisId, windowId, windowIndex, stateVersion, goalText, message, createdAt, shownAt }) {
+  return { alertId, sessionId, alertType, analysisId, windowId, windowIndex, stateVersion, goalText, message, createdAt, shownAt };
+}
+
+function analysisStatus(record) {
+  const d = record.currentDecision;
+  const candidate = record.session.status === 'ACTIVE' && d?.finalState === 'DRIFT'
+    ? [...record.alerts.values()].find(a => !a.shownAt && !a.invalidatedAt && a.windowId === d.windowId && a.stateVersion === d.stateVersion) : undefined;
+  return { apiContractVersion: 2, sessionId: record.session.sessionId, sessionStatus: record.session.status,
+    currentDecision: d, lastSuccessfulState: record.lastSuccessfulState, alert: candidate ? alertResponse(candidate) : null,
+    latestAnalysis: null, latestCompletedAnalysis: null };
+}
 
 async function json(req) {
   let raw = '';
@@ -40,7 +84,7 @@ function close(server) {
   });
 }
 
-export async function startMock() {
+export async function startMock({ automaticAnalysis = false } = {}) {
   const accounts = new Map([ALICE, BOB].map(token => [`Bearer ${token}`, {
     participantId: randomUUID(), expiresAt: '2099-01-01T00:00:00.000Z', enabled: true, consentId: null, withdrawn: false,
   }]));
@@ -115,7 +159,8 @@ export async function startMock() {
       if (!record) {
         if ([...sessions.values()].some(s => s.owner === owner && s.session.status === 'ACTIVE')) return fail(409);
         const session = { ...body, sessionId: randomUUID(), startedAt: faults.startedAt ?? new Date().toISOString(), endedAt: null, status: 'ACTIVE' };
-        record = { owner, consentId: account.consentId, session, visits: new Map(), retractions: new Map(), quarantined: false };
+        record = { owner, consentId: account.consentId, session, visits: new Map(), retractions: new Map(), quarantined: false,
+          windows: new Map(), decisions: new Map(), alerts: new Map(), currentDecision: null, lastSuccessfulState: null };
         sessions.set(session.sessionId, record);
         starts.set(scopedKey, record);
       }
@@ -146,6 +191,38 @@ export async function startMock() {
     }
     if (account.withdrawn || record.quarantined) return fail(409, 'PRIVACY_RETRACTED');
     if (!account.enabled || record.consentId !== account.consentId) return fail(403);
+    if (method === 'GET' && suffix === '/analysis-status') {
+      const payload = analysisStatus(record);
+      if (faults.holdAnalysis) await faults.holdAnalysis(payload);
+      if (faults.offlineAnalysis) return fail(503);
+      if (faults.dropAnalysis) { faults.dropAnalysis = false; return req.socket.destroy(); }
+      return send(200, faults.analysisResponse ? faults.analysisResponse(payload) : payload);
+    }
+    const alertRoute = suffix && /^\/alerts\/([a-f0-9-]+)\/(shown|responses)$/.exec(suffix);
+    if (alertRoute && (alertRoute[2] === 'shown' && method === 'PATCH' || alertRoute[2] === 'responses' && method === 'POST')) {
+      const alert = record.alerts.get(alertRoute[1]);
+      if (!alert) return fail(404, 'ALERT_NOT_FOUND');
+      const selecting = method === 'POST';
+      const shownAt = body?.shownAt, selectedAt = body?.selectedAt;
+      if (!millis(shownAt) || Object.keys(body).length !== (selecting ? 3 : 1)
+        || selecting && (!millis(selectedAt) || selectedAt < shownAt || Date.parse(selectedAt) > Date.now() + 5000
+          || !['RETURN_TO_GOAL', 'CONTINUE_BROWSING'].includes(body.action))) return fail(400);
+      if (alert.shownAt && alert.shownAt !== shownAt) return fail(409, 'ALERT_SHOWN_AT_CONFLICT');
+      if (!alert.shownAt && (Date.parse(shownAt) < Date.parse(alert.createdAt) - 5000 || Date.parse(shownAt) > Date.now() + 5000
+        || alert.invalidatedAt && shownAt >= alert.invalidatedAt || session.endedAt && shownAt > session.endedAt)) return fail(409, 'ALERT_NOT_DISPLAYABLE');
+      const existing = alert.selection;
+      if (selecting && existing && (existing.action !== body.action || existing.selectedAt !== selectedAt)) return fail(409, 'RESPONSE_ALREADY_RECORDED');
+      alert.shownAt = shownAt;
+      if (selecting) alert.selection ??= { feedbackId: randomUUID(), alertId: alert.alertId, action: body.action, selectedAt };
+      const fault = selecting ? 'Selection' : 'Shown';
+      if (faults['hold' + fault]) await faults['hold' + fault]();
+      if (faults['drop' + fault]) {
+        if (faults['drop' + fault] !== 'always') faults['drop' + fault] = false;
+        return req.socket.destroy();
+      }
+      const ack = selecting ? alert.selection : alertResponse(alert);
+      return send(selecting && !existing ? 201 : 200, faults.notificationResponse ? faults.notificationResponse(ack) : ack);
+    }
     if (method === 'GET' && !suffix) {
       if (faults.holdQuery) await faults.holdQuery();
       if (faults.offlineQuery) return fail(503);
@@ -171,6 +248,8 @@ export async function startMock() {
       if (!previous && [...visits.values()].some(v => v.original.sequence >= body.sequence)) return fail(409, 'VISIT_SEQUENCE_OUT_OF_ORDER');
       const visit = previous ?? { original: body, behavior: behavior(body), updatedAt: null, applied: 0 };
       visits.set(body.visitId, visit);
+      const state = ['PENDING', 'NORMAL', 'TRANSITION', 'DRIFT'][visits.size - 1];
+      if (automaticAnalysis && !previous && state) setAnalysis(record, { windowIndex: visits.size, state, candidate: state === 'DRIFT' });
       if (faults.offlinePost) return fail(503);
       if (faults.dropPost) { faults.dropPost = false; return req.socket.destroy(); }
       return send(previous ? 200 : 201, { ...visit.original, ...visit.behavior, sessionId: session.sessionId, updatedAt: visit.updatedAt });
@@ -201,7 +280,7 @@ export async function startMock() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const mock = await startMock();
+  const mock = await startMock({ automaticAnalysis: true });
   console.log(`합성 API ${MOCK_ORIGIN}\n합성 문서 ${FIXTURE_ORIGIN}/__focus_synthetic__/a`);
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { void mock.close(); });
 }

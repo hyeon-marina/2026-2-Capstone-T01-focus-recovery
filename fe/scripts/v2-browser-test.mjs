@@ -81,7 +81,7 @@ const mock = createServer(async (req, res) => {
     await writeFile(join(evidence, 'patch-ack.json'), JSON.stringify(ack)); send(200, ack); return;
   }
   if (path[4] === 'analysis-status') {
-    const currentDecision = { windowId, windowIndex: 1, stateVersion: 1, analysisId, decisionStatus: 'COMPLETED', finalState: 'DRIFT', judgedAt: new Date().toISOString(), errorCode: null };
+    const currentDecision = { windowId, windowIndex: 1, stateVersion: 1, analysisId, decisionStatus: 'COMPLETED', finalState: 'DRIFT', judgedAt: session.startedAt, errorCode: null };
     send(200, { apiContractVersion: 2, sessionId: session.sessionId, sessionStatus: session.status, currentDecision, lastSuccessfulState: null,
       alert: shownAt || !allowAlert ? null : { alertId, sessionId: session.sessionId, windowId, stateVersion: 1, analysisId, alertType: 'AI', createdAt: session.startedAt, shownAt: null, goalText: session.goalText, message: 'Synthetic reminder' } }); return;
   }

@@ -9,13 +9,13 @@ import { V2Repository } from '../src/v2/repository';
 import { V2Runtime, type V2Transport } from '../src/v2/runtime';
 import { fixtureId, FIXTURE_ORIGIN } from '../synthetic/catalog';
 import { assertMockOrigin, MOCK_ORIGIN, USER_DB } from '../user/mock-config';
-import { isUserSnapshot, parseCommand, trustedPopup, type UserSnapshot } from '../user/protocol';
+import { isUserSnapshot, parseAlertCommand, parseCommand, trustedPopup, type UserSnapshot } from '../user/protocol';
 import { observation, session, syntheticAccess, time } from './v2-fixture';
 
 const ended = { ...session, status: 'ENDED' as const, endedAt: '2026-11-10T00:10:00.000Z' };
 const snapshot: UserSnapshot = { lifecycle: 'IDLE', access: 'ready', connection: 'verified', collecting: false,
   serverCheckedAt: 1, privacyPending: false, permission: true, storageFailed: false, reconnectRequired: false, deliveryIssue: false, privacyHold: false,
-  analysis: 'unconnected', withdrawalPending: false };
+  analysis: 'unconnected', withdrawalPending: false, receiptPending: false };
 
 beforeEach(() => { vi.stubGlobal('indexedDB', new IDBFactory()); vi.stubGlobal('IDBKeyRange', IDBKeyRange); });
 afterEach(() => vi.unstubAllGlobals());
@@ -74,6 +74,16 @@ describe('user message and build boundaries', () => {
     expect(isUserSnapshot({ ...snapshot, collecting: true })).toBe(false);
     expect(isUserSnapshot({ ...snapshot, lifecycle: 'ACTIVE' })).toBe(false);
     expect(isUserSnapshot({ ...snapshot, analysis: 'DRIFT' })).toBe(false);
+    expect(isUserSnapshot({ ...snapshot, analysis: 'failed', finalState: 'NORMAL' })).toBe(false);
+  });
+  it('accepts only a detail key and the two actions, with the Worker assigning receipt times', () => {
+    const viewId = crypto.randomUUID();
+    const select = { type: 'alert-select', viewId, action: 'RETURN_TO_GOAL' };
+    expect(parseAlertCommand(select)).toEqual(select);
+    expect(parseAlertCommand({ ...select, action: 'STOP' })).toBeUndefined();
+    expect(parseAlertCommand({ ...select, selectedAt: session.startedAt })).toBeUndefined();
+    expect(parseAlertCommand({ ...select, viewId: 'other' })).toBeUndefined();
+    expect(parseCommand(select)).toBeUndefined();
   });
   it('rejects foreign origins, non-catalog paths and catalog prototype names', () => {
     expect(() => assertMockOrigin(MOCK_ORIGIN)).not.toThrow();
