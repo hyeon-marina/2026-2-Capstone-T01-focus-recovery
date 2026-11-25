@@ -84,7 +84,7 @@ function close(server) {
   });
 }
 
-export async function startMock({ automaticAnalysis = false } = {}) {
+export async function startMock({ automaticAnalysis = false, onReceipt } = {}) {
   const accounts = new Map([ALICE, BOB].map(token => [`Bearer ${token}`, {
     participantId: randomUUID(), expiresAt: '2099-01-01T00:00:00.000Z', enabled: true, consentId: null, withdrawn: false,
   }]));
@@ -221,7 +221,9 @@ export async function startMock({ automaticAnalysis = false } = {}) {
         return req.socket.destroy();
       }
       const ack = selecting ? alert.selection : alertResponse(alert);
-      return send(selecting && !existing ? 201 : 200, faults.notificationResponse ? faults.notificationResponse(ack) : ack);
+      const httpStatus = selecting && !existing ? 201 : 200;
+      onReceipt?.({ method, kind: alertRoute[2], httpStatus, action: selecting ? body.action : undefined });
+      return send(httpStatus, faults.notificationResponse ? faults.notificationResponse(ack) : ack);
     }
     if (method === 'GET' && !suffix) {
       if (faults.holdQuery) await faults.holdQuery();
@@ -280,7 +282,11 @@ export async function startMock({ automaticAnalysis = false } = {}) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const mock = await startMock({ automaticAnalysis: true });
+  const mock = await startMock({
+    automaticAnalysis: true,
+    onReceipt: ({ method, kind, httpStatus, action }) =>
+      console.log(`${method} /${kind} ${httpStatus}${action ? ' ' + action : ''}`),
+  });
   console.log(`합성 API ${MOCK_ORIGIN}\n합성 문서 ${FIXTURE_ORIGIN}/__focus_synthetic__/a`);
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { void mock.close(); });
 }

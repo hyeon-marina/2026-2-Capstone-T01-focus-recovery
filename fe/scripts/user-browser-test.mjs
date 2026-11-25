@@ -128,8 +128,8 @@ async function start(goal) {
 const startRequests = () => mock.requests.filter(r => r.url === '/api/sessions');
 const writes = () => mock.requests.filter(r => /\/visits/.test(r.url));
 
-async function verifyAnalysisAndAlerts() {
-  await context.close(); context = undefined;
+async function launchNotificationTest() {
+  await context?.close(); context = undefined;
   await mock.close();
   mock = await startMock();
   const instrumented = join(temp, 'notifications-test');
@@ -137,24 +137,64 @@ async function verifyAnalysisAndAlerts() {
   const background = join(instrumented, manifest.background.service_worker);
   // Headless Chrome cannot click an OS banner. Capture the registered listener in this temporary copy.
   await writeFile(background, `
-    const bridge = globalThis.notificationTest = { submitted: [] };
+    const bridge = globalThis.notificationTest = { submitted: [], attempts: [] };
     const api = chrome.notifications;
     const create = api.create.bind(api);
-    api.create = (id, options, callback) => create(id, options, result => {
-      if (!chrome.runtime.lastError) bridge.submitted.push({ id, options });
-      callback(result);
-    });
+    api.create = (id, options, callback) => {
+      bridge.attempts.push(id);
+      if (bridge.pause === 'before-result') { bridge.paused = true; return; }
+      if (bridge.failCreate) { callback(undefined); return; }
+      create(id, options, result => {
+        if (!chrome.runtime.lastError) bridge.submitted.push({ id, options });
+        if (bridge.pause === 'withheld-callback') {
+          bridge.paused = true;
+          bridge.release = () => callback(result);
+          return;
+        }
+        callback(result);
+      });
+    };
     const getPermission = api.getPermissionLevel.bind(api);
-    api.getPermissionLevel = callback => bridge.denied ? callback('denied') : getPermission(callback);
+    api.getPermissionLevel = callback => {
+      if (bridge.denied) { callback('denied'); return; }
+      if (bridge.pause !== 'after-reserve') { getPermission(callback); return; }
+      const open = indexedDB.open(${JSON.stringify(USER_DB)});
+      open.onsuccess = () => {
+        const db = open.result;
+        const tx = db.transaction('v2');
+        const read = tx.objectStore('v2').get('current');
+        tx.oncomplete = () => {
+          db.close();
+          const reserved = read.result?.userAnalysis?.submissions.find(a => a.alertId === bridge.target);
+          if (reserved) {
+            bridge.paused = true;
+            bridge.release = () => bridge.denied ? callback('denied') : getPermission(callback);
+          } else getPermission(callback);
+        };
+      };
+    };
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(record, key) {
+      const request = put.call(this, record, key);
+      if (bridge.pause === 'presented-write' && this.name === 'v2' && key === 'current'
+        && record.userAnalysis?.submissions.some(a => a.alertId === bridge.target && a.phase === 'presented')) {
+        bridge.paused = true;
+        const waitForStop = () => { this.get('current').onsuccess = waitForStop; };
+        waitForStop();
+      }
+      return request;
+    };
     for (const [event, key] of [[api.onClicked, 'click'], [api.onPermissionLevelChanged, 'permission'],
+      [api.onClosed, 'closed'],
       [chrome.alarms.onAlarm, 'alarm']]) {
       const add = event.addListener.bind(event);
       event.addListener = listener => {
         const previous = bridge[key];
-        bridge[key] = value => { previous?.(value); listener(value); };
-        add(value => {
+        bridge[key] = (...args) => { previous?.(...args); listener(...args); };
+        add((...args) => {
+          const [value] = args;
           if (key === 'alarm' && value.name === 'user-analysis') bridge.alarmFired = true;
-          listener(value);
+          listener(...args);
         });
       };
     }
@@ -165,6 +205,206 @@ async function verifyAnalysisAndAlerts() {
   await login();
   await popup.getByRole('checkbox').check();
   await button('합성 동의 저장').click();
+}
+
+async function verifySubmissionRecovery() {
+  await launchNotificationTest();
+  await start('합성 알림 제출과 Worker 복구 확인하기');
+  let record = [...mock.sessions.values()].at(-1);
+  const alarm = () => worker.evaluate(() => globalThis.notificationTest.alarm({ name: 'user-analysis' }));
+  const listed = () => popup.evaluate(() => chrome.notifications.getAll());
+  const attempts = () => worker.evaluate(() => globalThis.notificationTest.attempts);
+  const phase = async alert => (await disk()).userAnalysis?.submissions.find(a => a.alertId === alert.alertId)?.phase;
+  async function until(check, reason) {
+    await waitFor(async () => {
+      if (await check()) return true;
+      await alarm();
+      return false;
+    }, reason);
+  }
+  async function restart() {
+    await restartWorker();
+    await waitFor(async () => (await state())?.collecting, 'owned session restored');
+    worker = context.serviceWorkers().find(w => new URL(w.url()).hostname === id) ?? worker;
+  }
+  let index = 0;
+  async function pauseCandidate(pause) {
+    const alert = setAnalysis(record, { windowIndex: ++index, state: 'DRIFT', candidate: true });
+    await worker.evaluate(({ pause, target }) => Object.assign(globalThis.notificationTest, { pause, target, paused: false }),
+      { pause, target: alert.alertId });
+    await until(() => worker.evaluate(() => globalThis.notificationTest.paused), pause);
+    return alert;
+  }
+  const nativeId = alert => 'focus-drift:' + alert.alertId;
+  const release = () => worker.evaluate(() => {
+    const harness = globalThis.notificationTest;
+    harness.pause = undefined;
+    harness.release?.();
+  });
+  const active = async alert => Boolean((await listed())[nativeId(alert)]);
+  const reserved = await pauseCandidate('after-reserve');
+  assert.equal(await phase(reserved), 'reserved');
+  assert.equal(await active(reserved), false);
+  await restart();
+  await until(async () => await phase(reserved) === 'presented', 'reservation recovered');
+  assert.deepEqual(await attempts(), [nativeId(reserved)]);
+  assert.equal(await active(reserved), true);
+  assert.deepEqual((await disk()).notifications, []);
+  console.log('PASS recovery A: reservation completed once');
+
+  const missing = await pauseCandidate('before-result');
+  assert.equal(await phase(missing), 'submitting');
+  assert.equal(await active(missing), false);
+  await restart();
+  await until(async () => await phase(missing) === 'uncertain' && (await state()).finalState === 'DRIFT', 'ambiguous handoff retained');
+  assert.deepEqual(await attempts(), []);
+  const callback = await pauseCandidate('withheld-callback');
+  assert.equal(await phase(callback), 'submitting');
+  assert.equal(await active(callback), true);
+  await restart();
+  await until(async () => await phase(callback) === 'presented', 'Chrome evidence reconciles withheld callback');
+  assert.deepEqual(await attempts(), []);
+  console.log('PASS recovery B: pending API reconciled when present and suppressed when ambiguous');
+
+  const committing = await pauseCandidate('presented-write');
+  assert.equal(await active(committing), true);
+  assert.equal((await worker.evaluate(() => globalThis.notificationTest.submitted)).at(-1)?.id, nativeId(committing));
+  await restart();
+  await until(async () => await phase(committing) === 'presented', 'successful Chrome request survived interrupted commit');
+  assert.deepEqual(await attempts(), []);
+  console.log('PASS recovery C: successful callback before commit reconciled without another create');
+
+  await popup.evaluate(id => chrome.notifications.clear(id), nativeId(committing));
+  await worker.evaluate(id => globalThis.notificationTest.closed(id, true), nativeId(committing));
+  await waitFor(async () => await phase(committing) === 'dismissed', 'dismissal committed');
+  await restart();
+  await until(async () => (await state()).finalState === 'DRIFT', 'dismissed candidate seen again');
+  assert.equal(await active(committing), false);
+  assert.deepEqual(await attempts(), []);
+  console.log('PASS recovery D: a dismissed native notification is never recreated');
+
+  for (const invalidatedBy of ['normal', 'new-window', 'pending']) {
+    const alert = await pauseCandidate('after-reserve');
+    if (invalidatedBy === 'new-window') ++index;
+    setAnalysis(record, { windowIndex: index, state: invalidatedBy === 'pending' ? 'PENDING' : 'NORMAL', version: 2 });
+    await restart();
+    await until(async () => await phase(alert) === 'retired', invalidatedBy);
+    assert.equal(await active(alert), false);
+    assert.deepEqual(await attempts(), []);
+  }
+  const logout = await pauseCandidate('after-reserve');
+  assert.equal((await command({ type: 'logout' })).snapshot.access, 'auth');
+  await release();
+  await login(ALICE, '작업 진행 중');
+  await until(async () => await phase(logout) === 'retired', 'logout invalidated earlier reservation');
+  assert.equal(await active(logout), false);
+  const accountChange = await pauseCandidate('withheld-callback');
+  const changed = await command({ type: 'login', token: BOB });
+  assert.equal(changed.snapshot.access, 'account');
+  assert.equal(changed.snapshot.goal, undefined);
+  await waitFor(async () => !await active(accountChange), 'account switch clears prior native notification');
+  await release();
+  assert.deepEqual((await disk()).notifications, []);
+  await login(ALICE, '작업 진행 중');
+  const expiry = await pauseCandidate('after-reserve');
+  const account = mock.accounts.get('Bearer ' + ALICE);
+  account.expiresAt = '2000-01-01T00:00:00.000Z';
+  await restartWorker();
+  await waitFor(async () => (await state())?.access === 'auth', 'expired credential requires authentication');
+  assert.equal(await active(expiry), false);
+  account.expiresAt = '2099-01-01T00:00:00.000Z';
+  await login(ALICE, '작업 진행 중');
+  worker = context.serviceWorkers().find(w => new URL(w.url()).hostname === id) ?? worker;
+  await until(async () => await phase(expiry) === 'retired', 'expired reservation retired on reauthentication');
+  const ended = await pauseCandidate('after-reserve');
+  await end();
+  await release();
+  assert.equal(await active(ended), false);
+  await start('새 세션은 첫 번째 Window부터 확인하기');
+  record = [...mock.sessions.values()].at(-1);
+  index = 0;
+  assert.deepEqual((await disk()).notifications, []);
+  assert.ok(!(await disk()).userAnalysis?.submissions.some(a => a.alertId === ended.alertId));
+  console.log('PASS recovery E: invalidated decisions, expiry, logout, account switch, END and new session');
+
+  const concurrent = await pauseCandidate('withheld-callback');
+  const calls = mock.requests.filter(r => r.url.endsWith('/analysis-status')).length;
+  const view = await secondPopup();
+  await view.goto(fixture('a'));
+  await Promise.all([alarm(), alarm(), command({ type: 'analysis-refresh' })]);
+  assert.equal(mock.requests.filter(r => r.url.endsWith('/analysis-status')).length, calls);
+  assert.equal((await attempts()).filter(id => id === nativeId(concurrent)).length, 1);
+  await view.close();
+  await release();
+  await until(async () => await phase(concurrent) === 'presented', 'shared create complete');
+  const opened = context.waitForEvent('page');
+  await worker.evaluate(id => globalThis.notificationTest.click(id), nativeId(concurrent));
+  const detail = await opened;
+  await detail.getByText(record.session.goalText, { exact: true }).waitFor();
+  await waitFor(() => concurrent.shownAt, 'first detail shown receipt');
+  const otherDetail = await context.newPage();
+  await otherDetail.goto(detail.url());
+  await otherDetail.getByText(record.session.goalText, { exact: true }).waitFor();
+  const viewId = new URL(detail.url()).searchParams.get('alert');
+  await Promise.all([
+    sendFrom(detail, { type: 'alert-select', viewId, action: 'RETURN_TO_GOAL' }),
+    sendFrom(otherDetail, { type: 'alert-select', viewId, action: 'CONTINUE_BROWSING' }),
+  ]);
+  await waitFor(() => concurrent.selection, 'one selection from two views');
+  await waitFor(async () => (await disk()).notifications.some(r => r.alertId === concurrent.alertId && r.selectionAck), 'selection ACK');
+  assert.equal((await disk()).notifications.filter(r => r.alertId === concurrent.alertId).length, 1);
+  assert.equal((await disk()).notifications.find(r => r.alertId === concurrent.alertId).selection.action, concurrent.selection.action);
+  await detail.close(); await otherDetail.close();
+  console.log('PASS recovery F: coalesced alarm/navigation/Popup and two detail views');
+
+  const permission = await pauseCandidate('after-reserve');
+  await worker.evaluate(() => {
+    const harness = globalThis.notificationTest;
+    harness.denied = true;
+    harness.pause = undefined;
+    harness.release();
+  });
+  assert.equal(await phase(permission), 'reserved');
+  assert.equal(await active(permission), false);
+  await worker.evaluate(() => {
+    const harness = globalThis.notificationTest;
+    harness.denied = false;
+    harness.permission('granted');
+  });
+  await until(async () => await phase(permission) === 'presented', 'valid reservation recovered on permission restoration');
+  await worker.evaluate(() => {
+    const harness = globalThis.notificationTest;
+    harness.denied = true;
+    harness.permission('denied');
+  });
+  const denied = setAnalysis(record, { windowIndex: ++index, state: 'DRIFT', candidate: true });
+  await until(async () => (await disk()).userAnalysis.cursor.current.windowIndex === index, 'decision polled with permission denied');
+  assert.equal(await active(denied), false);
+  setAnalysis(record, { windowIndex: index, state: 'NORMAL', version: 2 });
+  await worker.evaluate(() => {
+    const harness = globalThis.notificationTest;
+    harness.denied = false;
+    harness.permission('granted');
+  });
+  await until(async () => (await state()).finalState === 'NORMAL', 'permission restoration uses fresh decision');
+  assert.equal(await active(denied), false);
+  await worker.evaluate(() => { globalThis.notificationTest.failCreate = true; });
+  const failed = setAnalysis(record, { windowIndex: ++index, state: 'DRIFT', candidate: true });
+  await until(async () => await phase(failed) === 'uncertain', 'failed create preserved as uncertain');
+  await restart();
+  await until(async () => (await state()).finalState === 'DRIFT', 'failed create observed after restart');
+  assert.equal(await active(failed), false);
+  assert.deepEqual(await attempts(), []);
+  const withdrawal = await pauseCandidate('after-reserve');
+  assert.equal((await command({ type: 'withdraw' })).snapshot.access, 'withdrawn');
+  await release();
+  await waitFor(async () => await phase(withdrawal) === 'retired', 'withdrawal retired reservation');
+  assert.equal(await active(withdrawal), false);
+  console.log('PASS recovery G: permission, ambiguous API error and withdrawal during reservation');
+}
+
+async function verifyAnalysisAndAlerts() {
+  await launchNotificationTest();
   await start('합성 Chrome 알림에서 최초 작업 목표 확인하기');
   const [first] = mock.sessions.values();
   const submitted = () => worker.evaluate(() => globalThis.notificationTest.submitted);
@@ -360,7 +600,7 @@ async function verifyAnalysisAndAlerts() {
 const lastSession = () => [...mock.sessions.values()].at(-1);
 const alice = mock.accounts.get('Bearer ' + ALICE);
 
-try {
+async function verifyUserFlow() {
   await launch();
   await openPopup();
   await heading('합성 계정으로 시작');
@@ -759,7 +999,12 @@ try {
   const posts = writes().filter(r => r.method === 'POST').length;
   const patches = writes().filter(r => r.method === 'PATCH').length;
   await verifyAnalysisAndAlerts();
-  console.log(JSON.stringify({ result: 'PASS', chrome: version, scenarios: 11, firstSessionVisits: first.visits.size, posts, patches }));
+  await verifySubmissionRecovery();
+  console.log(JSON.stringify({ result: 'PASS', chrome: version, scenarios: 18, firstSessionVisits: first.visits.size, posts, patches }));
+}
+try {
+  if (process.argv.includes('--recovery-only')) await verifySubmissionRecovery();
+  else await verifyUserFlow();
 } finally {
   await context?.close();
   await mock.close();
