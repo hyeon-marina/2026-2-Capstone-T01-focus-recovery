@@ -274,7 +274,7 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     const acceptedEpoch = epoch;
     void (async () => {
       await poll(true);
-      if (!await hasMockPermission() || epoch !== acceptedEpoch) return;
+      if (!await hasMockPermission() || await notificationPermission() !== 'granted' || epoch !== acceptedEpoch) return;
       const candidate = displayCandidate(alertId);
       if (candidate) await chrome.tabs.create({ url: alertUrl(candidate.viewId) });
     })().catch(() => {});

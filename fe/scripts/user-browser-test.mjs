@@ -128,11 +128,11 @@ async function start(goal) {
 const startRequests = () => mock.requests.filter(r => r.url === '/api/sessions');
 const writes = () => mock.requests.filter(r => /\/visits/.test(r.url));
 
-async function launchNotificationTest() {
+async function launchNotificationTest(profile) {
   await context?.close(); context = undefined;
   await mock.close();
   mock = await startMock();
-  const instrumented = join(temp, 'notifications-test');
+  const instrumented = join(temp, profile + '-extension');
   await cp(extension, instrumented, { recursive: true });
   const background = join(instrumented, manifest.background.service_worker);
   // Headless Chrome cannot click an OS banner. Capture the registered listener in this temporary copy.
@@ -143,7 +143,13 @@ async function launchNotificationTest() {
     api.create = (id, options, callback) => {
       bridge.attempts.push(id);
       if (bridge.pause === 'before-result') { bridge.paused = true; return; }
-      if (bridge.failCreate) { callback(undefined); return; }
+      if (bridge.failCreate) {
+        create(id, { ...options, iconUrl: 'missing-synthetic-test-icon.png' }, result => {
+          bridge.createError = Boolean(chrome.runtime.lastError);
+          callback(result);
+        });
+        return;
+      }
       create(id, options, result => {
         if (!chrome.runtime.lastError) bridge.submitted.push({ id, options });
         if (bridge.pause === 'withheld-callback') {
@@ -156,7 +162,11 @@ async function launchNotificationTest() {
     };
     const getPermission = api.getPermissionLevel.bind(api);
     api.getPermissionLevel = callback => {
-      if (bridge.denied) { callback('denied'); return; }
+      if (bridge.denied) {
+        bridge.deniedChecks = (bridge.deniedChecks ?? 0) + 1;
+        callback('denied');
+        return;
+      }
       if (bridge.pause !== 'after-reserve') { getPermission(callback); return; }
       const open = indexedDB.open(${JSON.stringify(USER_DB)});
       open.onsuccess = () => {
@@ -200,7 +210,7 @@ async function launchNotificationTest() {
     }
   ` + await readFile(background, 'utf8'));
   id = undefined;
-  await launch('alerts', instrumented);
+  await launch(profile, instrumented);
   await openPopup();
   await login();
   await popup.getByRole('checkbox').check();
@@ -208,7 +218,7 @@ async function launchNotificationTest() {
 }
 
 async function verifySubmissionRecovery() {
-  await launchNotificationTest();
+  await launchNotificationTest('recovery');
   await start('합성 알림 제출과 Worker 복구 확인하기');
   let record = [...mock.sessions.values()].at(-1);
   const alarm = () => worker.evaluate(() => globalThis.notificationTest.alarm({ name: 'user-analysis' }));
@@ -377,6 +387,13 @@ async function verifySubmissionRecovery() {
     harness.denied = true;
     harness.permission('denied');
   });
+  await waitFor(async () => !await active(permission), 'permission revocation cleared native notification');
+  const tabCount = context.pages().length;
+  const deniedChecks = await worker.evaluate(() => globalThis.notificationTest.deniedChecks ?? 0);
+  await worker.evaluate(id => globalThis.notificationTest.click(id), nativeId(permission));
+  await waitFor(() => worker.evaluate(count => (globalThis.notificationTest.deniedChecks ?? 0) >= count + 3, deniedChecks),
+    'denial rechecked when handling the stale click');
+  assert.equal(context.pages().length, tabCount);
   const denied = setAnalysis(record, { windowIndex: ++index, state: 'DRIFT', candidate: true });
   await until(async () => (await disk()).userAnalysis.cursor.current.windowIndex === index, 'decision polled with permission denied');
   assert.equal(await active(denied), false);
@@ -391,6 +408,7 @@ async function verifySubmissionRecovery() {
   await worker.evaluate(() => { globalThis.notificationTest.failCreate = true; });
   const failed = setAnalysis(record, { windowIndex: ++index, state: 'DRIFT', candidate: true });
   await until(async () => await phase(failed) === 'uncertain', 'failed create preserved as uncertain');
+  assert.equal(await worker.evaluate(() => globalThis.notificationTest.createError), true);
   await restart();
   await until(async () => (await state()).finalState === 'DRIFT', 'failed create observed after restart');
   assert.equal(await active(failed), false);
@@ -404,7 +422,7 @@ async function verifySubmissionRecovery() {
 }
 
 async function verifyAnalysisAndAlerts() {
-  await launchNotificationTest();
+  await launchNotificationTest('alerts');
   await start('합성 Chrome 알림에서 최초 작업 목표 확인하기');
   const [first] = mock.sessions.values();
   const submitted = () => worker.evaluate(() => globalThis.notificationTest.submitted);
