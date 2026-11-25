@@ -1,7 +1,6 @@
 import { AccessError } from '../src/api/auth-fetch';
 import { serialExecutor } from '../src/background/serial';
 import { matchesDecision, readV2Status, V2StatusClient, type V2Status } from '../src/v2/status';
-import { notificationPending } from '../src/v2/notifications';
 import type { V2Runtime } from '../src/v2/runtime';
 import type { UserAlertSubmission } from '../src/v2/state';
 import { alertUrl, parseAlertKey, type AlertCommand, type AlertDetail, type UserSnapshot } from './protocol';
@@ -174,7 +173,7 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     const local = runtime.snapshot();
     const submission = local.userAnalysis?.submissions.find(a => a.alertId === alertId);
     if (!submission || !mayHaveReachedChrome(submission) || !local.session || !matchesDecision(submission, value.currentDecision)) return;
-    const receipt = local.notifications.find(r => r.alertId === alertId);
+    const receipt = runtime.notificationDetail(alertId);
     const alert = value.alert;
     // The status endpoint omits a candidate after the server has recorded shownAt.
     if (alert ? alert.alertType !== 'AI' || alert.alertId !== alertId || alert.goalText !== local.session.goalText
@@ -202,7 +201,9 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
     return {
       goal: candidate.session.goalText,
       shown: !!receipt,
-      ...(receipt?.selection ? { action: receipt.selection.action, acknowledged: receipt.selectionAck === true } : {}),
+      ...(receipt ? { shownDelivery: receipt.shownDelivery.phase } : {}),
+      ...(receipt?.selection ? { action: receipt.selection.action, selectionDelivery: receipt.selectionDelivery?.phase,
+        acknowledged: receipt.selectionAck === true } : {}),
     };
   }
   async function command(request: AlertCommand) {
@@ -232,7 +233,7 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
       if (type === 'alert-select') {
         if (!candidate.receipt || candidate.receipt.selection) return;
         await runtime.selectAlert(alertId, { action: request.action,
-          selectedAt: new Date(Math.max(receivedAt, Date.parse(candidate.receipt.shownAt))).toISOString() }, allowed);
+          selectedAt: new Date(receivedAt).toISOString() }, allowed);
       }
       return detail(viewId);
     });
@@ -246,9 +247,10 @@ export function installUserAnalysis(runtime: V2Runtime, ready: Promise<void>) {
   chrome.alarms.onAlarm.addListener(alarm => {
     if (alarm.name !== ALARM) return;
     wake(true);
-    if (runtime.snapshot().notifications.some(notificationPending)) {
-      void runtime.flushNotifications().catch(() => {});
-    }
+    runtime.wakeNotifications();
+  });
+  chrome.permissions.onAdded.addListener(permission => {
+    if (permission.origins?.includes('http://127.0.0.1/*')) void ready.then(() => runtime.wakeNotifications(true)).catch(() => {});
   });
   chrome.permissions.onRemoved.addListener(permission => {
     if (permission.origins?.includes('http://127.0.0.1/*')) void clear(true);

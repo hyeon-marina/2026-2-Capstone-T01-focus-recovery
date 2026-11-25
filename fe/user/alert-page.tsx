@@ -10,6 +10,17 @@ async function message(command: AlertCommand): Promise<AlertDetail | undefined> 
       && typeof detail.acknowledged === 'boolean')) return detail;
 }
 
+function deliveryMessage(phase: AlertDetail['shownDelivery']) {
+  switch (phase) {
+    case 'acknowledged': return '서버에 기록했어요.';
+    case 'exhausted': return '기기에 저장했어요. 팝업에서 서버 저장 여부를 다시 확인할 수 있어요.';
+    case 'rejected': return '기기에 저장했어요. 서버에서 거절되거나 충돌했어요.';
+    case 'access-blocked': return '기기에 저장했어요. 연결 및 동의 상태를 확인해 주세요.';
+    case 'privacy-blocked': return '개인정보 보호를 위해 전송을 중지했어요.';
+    default: return '기기에 저장했어요. 서버 확인을 기다리고 있어요.';
+  }
+}
+
 export function AlertPage({ viewId }: { viewId: string }) {
   const [detail, setDetail] = useState<AlertDetail>();
   const [loading, setLoading] = useState(true);
@@ -86,8 +97,9 @@ export function AlertPage({ viewId }: { viewId: string }) {
         <p>최초 작업 목표</p>
         <p className="goal">{detail.goal}</p>
         {detail.action ? <p role="status">
-          {detail.action === 'RETURN_TO_GOAL' ? '목표로 돌아가기를' : '탐색 계속하기를'} 선택했어요. {detail.acknowledged ? '서버에 기록했어요.' : '서버 확인을 기다리고 있어요.'}
+          {detail.action === 'RETURN_TO_GOAL' ? '목표로 돌아가기를' : '탐색 계속하기를'} 선택했어요. {deliveryMessage(detail.selectionDelivery)}
         </p> : <>
+          {detail.shown && <p role="status">알림 표시 기록. {deliveryMessage(detail.shownDelivery)}</p>}
           <button className="primary" disabled={!detail.shown} onClick={() => void select('RETURN_TO_GOAL')}>목표로 돌아가기</button>
           <button disabled={!detail.shown} onClick={() => void select('CONTINUE_BROWSING')}>탐색 계속하기</button>
         </>}

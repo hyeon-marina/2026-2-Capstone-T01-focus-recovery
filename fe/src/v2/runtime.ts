@@ -1,7 +1,9 @@
-import { AccessError, accessGeneration } from '../api/auth-fetch';
+import { AccessError, accessGeneration, hasCredential } from '../api/auth-fetch';
 import { readCollectionAccess, accessRequest, validWithdrawal, type CollectionAccess } from './access';
 import { sendRetraction, validRetractionAck, type RetractionRequest } from './retractions';
 import { notificationPending, sendNotification, validNotification, type NotificationReceipt } from './notifications';
+import { NotificationDelivery, notificationScopeBlocked, receiptDue } from './notification-delivery';
+import { initialDelivery, type NotificationStore, type OutboxReceipt } from './notification-store';
 import { matchesDecision, type DecisionCursor, type V2Alert } from './status';
 import { API_BASE_URL, postJson } from '../api/client';
 import { VisitDelivery } from '../background/visit-delivery';
@@ -49,7 +51,11 @@ export class V2Runtime {
   private starting = false;
   private reconnectRequired = false;
   private notificationRunning = false;
-  private notificationAgain = false;
+  private readonly receiptStore?: NotificationStore;
+  private readonly receiptSender?: NotificationDelivery;
+  private receiptView = new Map<string, OutboxReceipt>();
+  private receiptIdentity?: { access: CollectionAccess; epoch: number; credential: number };
+  private receiptAccessDenied = false;
   private retractionRunning = false;
   private compactedIds: string[] = [];
   private posts: VisitDelivery;
@@ -57,6 +63,20 @@ export class V2Runtime {
   private ending: SessionEndDelivery;
   constructor(private repository: V2Repository, private transport: V2Transport, private resumeIncomplete = false, private freeGoalSession = false) {
     this.collector = new V2Collector(this.state, undefined, resumeIncomplete);
+    if (freeGoalSession) {
+      this.receiptStore = repository.enableNotificationOutbox();
+      this.receiptSender = new NotificationDelivery(this.receiptStore, options => this.authorizeReceipts(options),
+        entry => this.updateReceiptView(entry),
+        async (entry, delivery) => {
+          if (delivery.phase === 'access-blocked' && delivery.status === 401) {
+            this.receiptAccessDenied = true;
+            this.suspendAccess();
+          }
+          if (delivery.phase === 'privacy-blocked' && entry.sessionId === this.committed.session?.sessionId) {
+            await this.quarantine('PRIVACY_RETRACTED', Date.now());
+          }
+        });
+    }
     const protect = async <T>(send: () => Promise<T>) => {
       const epoch = this.accessEpoch, credential = accessGeneration();
       const current = () => epoch === this.accessEpoch && credential === accessGeneration();
@@ -119,6 +139,7 @@ export class V2Runtime {
       this.settledAccessCheck = check;
       if (!Number.isFinite(Date.parse(access.expiresAt)) || Date.parse(access.expiresAt) <= Date.now()) throw new AccessError('authentication');
       this.verifiedIdentity = { participantId: access.participantId, expiresAt: access.expiresAt, credentialEpoch: credential };
+      if (this.receiptStore) this.receiptIdentity = { access, epoch, credential };
       const owner = this.committed.owner;
       const newSession = forStart && this.committed.lifecycle === 'ENDED' && (this.committed.quarantine ? this.committed.quarantineClose?.phase === 'acknowledged' && owner?.participantId === access.participantId : drained(this.committed)) && !this.committed.withdrawal;
       if (owner && access.participantId !== owner.participantId && !newSession || !owner && this.committed.lifecycle !== 'IDLE' && !newSession) throw new AccessError('account');
@@ -160,7 +181,9 @@ export class V2Runtime {
     return this.collecting() && !this.committed.withdrawal && this.committed.session
       ? `${this.committed.session.sessionId}:${this.accessEpoch}:${accessGeneration()}` : undefined;
   }
-  snapshot() { return { ...structuredClone(this.committed), accessError: this.accessError, authenticated: !!this.access, collectionAllowed: this.authorized(), storageFailed: this.failed, alertsSuppressed: !this.authorized() || this.failed || this.stopping || this.held || Boolean(this.committed.quarantine) }; }
+  snapshot() { return { ...structuredClone(this.committed),
+    ...(this.receiptStore ? { notifications: [...this.receiptView.values()].map(({ alertId, shownAt, shownAck, selection, selectionAck }) =>
+      structuredClone({ alertId, shownAt, shownAck, selection, selectionAck })) } : {}), accessError: this.accessError, authenticated: !!this.access, collectionAllowed: this.authorized(), storageFailed: this.failed, alertsSuppressed: !this.authorized() || this.failed || this.stopping || this.held || Boolean(this.committed.quarantine) }; }
   private canSend() { return this.authorized() && !this.needsReconnect() && !this.failed && !this.held && !this.committed.quarantine && !this.posts.blocked && !this.behaviors.blocked; }
   private install(s: V2State) {
     this.state = s; this.collector = new V2Collector(s, undefined, this.resumeIncomplete);
@@ -170,6 +193,13 @@ export class V2Runtime {
     try {
       const s = await this.repository.load();
       this.compactedIds = s.session ? await this.repository.compactedVisitIds(s.session.sessionId) : [];
+      if (this.receiptStore) {
+        await this.receiptStore.migrate(this.repository.apiBaseUrl);
+        const source = this.receiptStore.source(s);
+        if (source) {
+          for (const entry of await this.receiptStore.list(source, source.sessionId)) this.receiptView.set(entry.alertId, entry);
+        }
+      }
       this.committed = structuredClone(s); this.install(s);
       this.reconnectRequired = this.freeGoalSession && s.lifecycle === 'ACTIVE';
       await this.mutate(() => {
@@ -208,6 +238,7 @@ export class V2Runtime {
       try {
         const result = operation(); this.sync();
         await this.repository.save(this.state, this.committed.revision, receipts);
+        if (this.committed.session?.sessionId !== this.state.session?.sessionId) this.receiptView.clear();
         this.committed = structuredClone(this.state);
         return result;
       } catch (error) {
@@ -502,8 +533,119 @@ export class V2Runtime {
       for (const a of this.state.userAnalysis?.submissions ?? []) if (a.phase === 'reserved') a.phase = 'retired';
     });
   }
+  private receiptScope(identity = this.receiptIdentity) {
+    if (!identity || !this.receiptStore || this.failed || this.userPrivacyPending || this.receiptAccessDenied
+      || identity.epoch !== this.accessEpoch || identity.credential !== accessGeneration()) return;
+    const { access } = identity;
+    if (!access.consentId || !access.consentValid || !access.collectionEnabled || access.withdrawn
+      || !(Date.parse(access.expiresAt) > Date.now())
+      || this.committed.withdrawal && this.committed.owner?.participantId === access.participantId) return;
+    return { participantId: access.participantId, consentId: access.consentId };
+  }
+
+  private async authorizeReceipts({ manual, restoreAccess }: { manual: boolean; restoreAccess: boolean }) {
+    const store = this.receiptStore!;
+    if (restoreAccess) this.receiptAccessDenied = false;
+    if (this.failed || this.userPrivacyPending || this.receiptAccessDenied) return;
+    const epoch = this.accessEpoch, credential = accessGeneration();
+    const current = () => !this.failed && !this.userPrivacyPending && epoch === this.accessEpoch && credential === accessGeneration();
+    const cached = this.receiptScope();
+    if (cached) {
+      const entries = await store.list(cached);
+      if (!restoreAccess && notificationScopeBlocked(entries)) return;
+      const now = Date.now();
+      if (!entries.some(entry => [entry.shownDelivery, entry.selectionDelivery].some(state => receiptDue(state, now, manual, restoreAccess)))) return;
+    } else if (!await store.hasReceipts() || !await hasCredential()) return;
+    if (!current()) return;
+    let access: CollectionAccess;
+    try { access = await this.transport.access(); }
+    catch (error) {
+      if (current() && error instanceof AccessError && error.kind === 'authentication') {
+        this.receiptAccessDenied = true;
+        this.suspendAccess();
+      }
+      return;
+    }
+    if (!current()) return;
+    const identity = { access, epoch, credential };
+    this.receiptIdentity = identity;
+    const scope = this.receiptScope(identity);
+    if (scope) return { scope, allowed: (sessionId?: string) => {
+      const live = this.receiptScope();
+      return current() && !!this.receiptScope(identity) && live?.participantId === scope.participantId && live.consentId === scope.consentId
+        && (sessionId === undefined || this.committed.session?.sessionId !== sessionId || !this.held && !this.committed.quarantine);
+    } };
+  }
+
+  private updateReceiptView(entry: OutboxReceipt) {
+    const source = this.receiptStore?.source(this.committed);
+    if (source?.sessionId === entry.sessionId && source.participantId === entry.participantId && source.consentId === entry.consentId) {
+      this.receiptView.set(entry.alertId, entry);
+    }
+  }
+  notificationDetail(alertId: string) { return this.receiptView.get(alertId); }
+
+  async notificationSummary() {
+    const scope = this.receiptScope();
+    const entries = scope ? await this.receiptStore!.list(scope).catch(() => {
+      this.failed = true;
+      return [];
+    }) : [];
+    const summary = { pending: 0, previousPending: 0, acknowledged: 0, retryWaiting: 0, exhausted: 0, rejected: 0, accessBlocked: 0 };
+    const current = this.receiptScope();
+    if (!current || current.participantId !== scope?.participantId || current.consentId !== scope.consentId) return summary;
+    const sessionId = this.committed.session?.sessionId;
+    for (const entry of entries) {
+      const phases = [entry.shownDelivery.phase, entry.selectionDelivery?.phase];
+      const pending = notificationPending(entry);
+      if (pending) summary.pending++;
+      if (pending && entry.sessionId !== sessionId) summary.previousPending++;
+      if (!pending) summary.acknowledged++;
+      if (phases.some(phase => phase === 'retry-wait' || phase === 'sending')) summary.retryWaiting++;
+      if (phases.includes('exhausted')) summary.exhausted++;
+      if (phases.includes('rejected')) summary.rejected++;
+      if (phases.includes('access-blocked')) summary.accessBlocked++;
+    }
+    return summary;
+  }
+
+  private async recordUserReceipt(alertId: string, sessionId: string | undefined, check: () => boolean,
+    shownAt?: string, selection?: NotificationReceipt['selection']) {
+    const store = this.receiptStore!;
+    await this.enqueue(async () => {
+      const source = store.source(this.committed);
+      const allowed = () => !this.failed && !this.stopping && !this.held && this.state.lifecycle === 'ACTIVE'
+        && !this.state.quarantine && !this.state.withdrawal && this.authorized() && check();
+      if (!source || source.sessionId !== sessionId || !allowed()) throw new Error('V2_ALERT_BLOCKED');
+      let saved;
+      try {
+        saved = await store.write(source, alertId, allowed, existing => {
+          if (selection) {
+            if (!existing || existing.selection || !validNotification({ ...existing, selection })) return;
+            return { ...existing, selection, selectionDelivery: initialDelivery() };
+          }
+          if (existing) return existing;
+          if (!shownAt || !validNotification({ alertId, shownAt, shownAck: false })) return;
+          return { ...source, apiOrigin: store.origin, alertId, shownAt, shownAck: false, shownDelivery: initialDelivery() };
+        });
+      } catch (error) { this.failed = true; throw error; }
+      if (!saved) throw new Error('V2_ALERT_BLOCKED');
+      this.updateReceiptView(saved);
+    });
+    this.wakeNotifications();
+  }
+  wakeNotifications(restoreAccess = false) { void this.runNotificationDelivery(restoreAccess).catch(() => {}); }
+  private async runNotificationDelivery(restoreAccess = false, manual = false) {
+    try { await this.receiptSender?.wake(restoreAccess, manual); }
+    catch (error) { this.failed = true; throw error; }
+  }
+  async retryNotifications() {
+    if (!this.receiptStore || this.failed || this.userPrivacyPending) throw new Error('V2_ALERT_BLOCKED');
+    await this.runNotificationDelivery(false, true);
+  }
   async recordShown(alert: Pick<V2Alert, 'sessionId' | 'alertId'>, shownAt: string, allowed?: () => boolean) {
     if (!allowed) await this.verifyAccess();
+    if (this.receiptStore) return this.recordUserReceipt(alert.alertId, alert.sessionId, allowed ?? (() => true), shownAt);
     const saved = await this.mutate(() => {
       if (this.stopping || this.held || this.state.lifecycle !== 'ACTIVE' || this.state.quarantine
         || alert.sessionId !== this.state.session?.sessionId || (allowed ? !allowed() : !this.authorized())) return false;
@@ -519,6 +661,7 @@ export class V2Runtime {
   async selectAlert(alertId: string, selection: NonNullable<NotificationReceipt['selection']>, allowed?: () => boolean) {
     if (!allowed) await this.verifyAccess();
     const sessionId = this.committed.session?.sessionId;
+    if (this.receiptStore) return this.recordUserReceipt(alertId, sessionId, allowed ?? (() => true), undefined, selection);
     const saved = await this.mutate(() => {
       if (this.held || this.state.quarantine || this.state.session?.sessionId !== sessionId
         || (allowed ? !allowed() : !this.authorized())) return false;
@@ -533,7 +676,8 @@ export class V2Runtime {
     await this.flushNotifications();
   }
   async flushNotifications() {
-    if (this.notificationRunning) { if (this.freeGoalSession) this.notificationAgain = true; return; }
+    if (this.receiptSender) return this.runNotificationDelivery();
+    if (this.notificationRunning) return;
     if (this.failed || this.held || this.committed.quarantine || !this.committed.session) return;
     const { sessionId } = this.committed.session;
     const epoch = this.accessEpoch, credential = accessGeneration();
@@ -562,10 +706,6 @@ export class V2Runtime {
       // Failed HTTP/ACK remains durable with the original timestamps for explicit retry.
     } finally {
       this.notificationRunning = false;
-      if (this.notificationAgain) {
-        this.notificationAgain = false;
-        void this.flushNotifications().catch(() => {});
-      }
     }
   }
   async withdrawAll(wall = Date.now()) {

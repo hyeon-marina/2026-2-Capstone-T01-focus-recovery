@@ -18,6 +18,10 @@ export async function setCredential(token?: string) {
   else await chrome.storage.session.remove(TOKEN_KEY);
 }
 export function accessGeneration() { return generation; }
+export async function hasCredential() {
+  const stored = await globalThis.chrome?.storage?.session?.get(TOKEN_KEY);
+  return typeof stored?.[TOKEN_KEY] === 'string';
+}
 export async function authenticatedFetch(url: string, init?: RequestInit, allowed?: () => boolean) {
   const target = new URL(url), expected = new URL(API_BASE_URL);
   if (target.origin !== expected.origin || !target.pathname.startsWith('/api/') || target.username || target.password) throw new AccessError('authentication');

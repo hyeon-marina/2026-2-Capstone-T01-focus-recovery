@@ -2,7 +2,6 @@ import { AccessError, accessGeneration } from '../src/api/auth-fetch';
 import { serialExecutor } from '../src/background/serial';
 import { normalizeGoal } from '../src/shared/goal';
 import { installV2Browser } from '../src/v2/browser';
-import { notificationPending } from '../src/v2/notifications';
 import { installUserAnalysis } from './analysis';
 import { USER_DB, USER_POPUP } from './mock-config';
 import { alertUrl, isPrivacyCommand, parseAlertCommand, parseCommand, trustedPopup, type UserReply, type UserSnapshot } from './protocol';
@@ -21,9 +20,10 @@ installV2Browser({
       let privacyVersion = 0;
       const hydrated = ready.catch(() => {});
       const restored = hydrated.then(() => commandQueue(async () => {
-        if (runtime.accessSnapshot().reconnectRequired && runtime.snapshot().collectionAllowed) await refresh();
+        if (runtime.accessSnapshot().reconnectRequired && runtime.snapshot().collectionAllowed) await refresh(false);
       })).catch(() => {});
       const alerts = installUserAnalysis(runtime, restored);
+      void restored.then(() => runtime.wakeNotifications());
       let stopHandle: { sessionId: string; value: Promise<string> } | undefined;
 
       function currentStopHandle() {
@@ -43,6 +43,7 @@ installV2Browser({
         const permitted = await hasMockPermission();
         const handle = currentStopHandle();
         const sessionHandle = await handle?.value;
+        const receipts = permitted ? await runtime.notificationSummary() : undefined;
         const s = runtime.snapshot();
         const access = runtime.accessSnapshot();
         const own = access.ownerVerified;
@@ -70,12 +71,13 @@ installV2Browser({
           deliveryIssue: own && [s.end, ...s.posts.entries, ...s.behaviors.entries].some(e =>
             e?.phase === 'failed' || e?.phase === 'retry-wait'),
           ...alerts.analysis(permitted),
-          receiptPending: own && s.notifications.some(notificationPending),
+          receiptPending: !access.privacyPending && (receipts?.pending ?? 0) > 0,
+          ...(!access.privacyPending && receipts ? { receipts } : {}),
           ...(own && s.start ? { goal: s.start.goalText, startedAt: s.session?.startedAt,
             ...(s.lifecycle === 'ACTIVE' ? { sessionHandle } : {}) } : {}),
         };
       }
-      async function refresh() {
+      async function refresh(restoreReceiptAccess = true) {
         try {
           await runtime.verifyAccess(false, true);
           const state = runtime.snapshot();
@@ -84,6 +86,7 @@ installV2Browser({
             await capture();
           }
         } finally {
+          runtime.wakeNotifications(restoreReceiptAccess);
           if (runtime.alertScope()) alerts.wake(true);
           else alerts.clear();
         }
@@ -154,9 +157,13 @@ installV2Browser({
               case 'login':
                 await accountQueue(async () => {
                   checkCommand();
-                  runtime.suspendAccess();
-                  await alerts.clear(true);
-                  await login(command.token);
+                  const resumeRuntime = runtime.beginUserPrivacyChange();
+                  const resumeHttp = suspendUserHttp();
+                  try {
+                    await alerts.clear(true);
+                    checkCommand();
+                    await login(command.token);
+                  } finally { resumeHttp(); resumeRuntime(); }
                 });
                 checkCommand();
                 await refresh();
@@ -184,6 +191,7 @@ installV2Browser({
                 }
                 await capture();
                 alerts.wake(true);
+                runtime.wakeNotifications();
                 break;
               }
               case 'stop': {
@@ -196,6 +204,7 @@ installV2Browser({
                 const stopped = runtime.stop(received);
                 void alerts.clear(true);
                 await stopped;
+                runtime.wakeNotifications();
                 break;
               }
               case 'reconnect':
@@ -204,13 +213,17 @@ installV2Browser({
                 await runtime.resumeUserSession();
                 await capture();
                 alerts.wake(true);
+                runtime.wakeNotifications();
+                break;
+              case 'retry-receipts':
+                await runtime.retryNotifications();
                 break;
               case 'retry':
                 if (!own) throw new Error('V2_BLOCKED');
                 if (s.lifecycle === 'ACTIVE' && runtime.accessSnapshot().reconnectRequired && !s.quarantine) await refresh();
                 checkCommand();
                 await runtime.retry();
-                await runtime.flushNotifications();
+                runtime.wakeNotifications();
                 break;
             }
             return { snapshot: await snapshot() };

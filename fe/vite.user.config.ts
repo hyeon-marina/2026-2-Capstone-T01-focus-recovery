@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
     plugins: [{ name: 'user-mock-manifest', generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'alert-icon.png', source: readFileSync(resolve(import.meta.dirname, 'user/alert-icon.png')) });
       this.emitFile({ type: 'asset', fileName: 'manifest.json', source: JSON.stringify({
-        manifest_version: 3, name: 'Focus Recovery · 사용자 합성 테스트', version: '0.1.0',
+        manifest_version: 3, name: 'Focus Recovery · 사용자 합성 테스트', version: '0.2.0',
         minimum_chrome_version: '106',
         permissions: ['storage', 'alarms', 'webNavigation', 'notifications'],
         host_permissions: ['http://127.0.0.1/*'],
