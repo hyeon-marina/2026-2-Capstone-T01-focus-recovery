@@ -222,7 +222,10 @@ export async function startMock({ automaticAnalysis = false, onReceipt, alertMod
       record.fixedSlots.set(slot, alert);
       record.alerts.set(alert.alertId, alert);
       if (faults.holdFixed) await faults.holdFixed({ slot, alert });
-      if (faults.dropFixed) { faults.dropFixed = false; return req.socket.destroy(); }
+      if (faults.dropFixed) {
+        if (faults.dropFixed !== 'always') faults.dropFixed = false;
+        return req.socket.destroy();
+      }
       const response = alertResponse(alert);
       return send(existing ? 200 : 201, faults.fixedResponse ? faults.fixedResponse(response) : response);
     }

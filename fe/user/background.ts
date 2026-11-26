@@ -83,6 +83,8 @@ installV2Browser({
             ...(s.lifecycle === 'ACTIVE' ? { sessionHandle } : {}) } : {}),
           ...(sessionDetails ? {
             alertMode: s.start?.alertMode ?? 'AI',
+            ...(s.lifecycle === 'ACTIVE' && s.start?.alertMode === 'FIXED_INTERVAL' && !s.withdrawal
+              ? { fixedAlertStatus: alerts.fixedStatus(s) } : {}),
             ...(s.lifecycle === 'ENDED' && s.end?.phase === 'acked' && s.end.ack?.endedAt
               ? { endedAt: s.end.ack.endedAt } : {}),
           } : {}),

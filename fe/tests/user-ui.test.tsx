@@ -104,9 +104,37 @@ describe('user snapshot presentation', () => {
     expect(text()).toContain(goal);
     expect(text()).toContain('00:02:03');
     expect(text()).toContain('고정 주기 알림');
+    expect(text()).toContain('알림 상태 확인 필요');
     expect(text()).not.toContain('분석 미연결');
     await click('작업 종료');
     expect(send).toHaveBeenCalledWith({ type: 'stop', sessionHandle: handle });
+  });
+
+  it.each([
+    ['waiting', '예정 회차 대기'], ['checking', '알림 확인 중'], ['confirmed', '현재 회차 후보 확인 완료'],
+    ['delayed', '알림 확인 지연'], ['disabled', '알림 사용 불가'], ['unavailable', '알림 사용 불가'],
+    ['unverified', '알림 상태 확인 필요'], ['skipped', '예정 회차 대기'], ['suspended', '알림 일시 중지'],
+    ['notification-denied', 'Chrome 알림 권한 꺼짐'],
+  ] as const)('shows the fixed alert status %s alongside the assigned mode', async (fixedAlertStatus, label) => {
+    snapshot = { ...active, alertMode: 'FIXED_INTERVAL', fixedAlertStatus };
+    await render();
+    expect(text()).toContain('고정 주기 알림');
+    expect(document.querySelector('.facts [role="status"]')?.textContent).toBe(label);
+    expect(text()).not.toContain('분석 미연결');
+    if (fixedAlertStatus === 'disabled' || fixedAlertStatus === 'skipped') expect(text()).toContain('다음 회차에 다시 확인해요.');
+  });
+
+  it('rejects fixed status outside a visible active fixed session', () => {
+    const fixed = { ...active, alertMode: 'FIXED_INTERVAL', fixedAlertStatus: 'confirmed' };
+    expect(isUserSnapshot(fixed)).toBe(true);
+    for (const value of [
+      { ...fixed, fixedAlertStatus: 'unknown' }, { ...fixed, alertMode: 'AI' },
+      { ...fixed, access: 'account' }, { ...fixed, permission: false, collecting: false },
+      { ...fixed, privacyPending: true, collecting: false }, { ...fixed, withdrawalPending: true, collecting: false },
+      { ...fixed, lifecycle: 'ENDED', sessionHandle: undefined, collecting: false },
+      { ...fixed, reconnectRequired: true, collecting: false },
+    ]) expect(isUserSnapshot(value)).toBe(false);
+    expect(isUserSnapshot({ ...fixed, reconnectRequired: true, collecting: false, fixedAlertStatus: 'suspended' })).toBe(true);
   });
 
   it.each([

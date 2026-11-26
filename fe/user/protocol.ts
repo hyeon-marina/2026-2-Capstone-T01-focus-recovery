@@ -73,6 +73,9 @@ export type ServerConnection = typeof connectionStates[number];
 const errors = ['invalid', 'auth', 'consent', 'account', 'network', 'response', 'blocked'] as const;
 export type UserError = typeof errors[number];
 export type AnalysisStatus = 'unconnected' | 'empty' | 'pending' | 'delayed' | 'failed' | 'invalidated' | 'unavailable' | 'completed';
+const fixedAlertStates = ['waiting', 'checking', 'confirmed', 'delayed', 'disabled', 'unavailable', 'unverified',
+  'skipped', 'suspended', 'notification-denied'] as const;
+export type FixedAlertStatus = typeof fixedAlertStates[number];
 export interface UserSnapshot {
   lifecycle: V2State['lifecycle'];
   access: typeof accessStates[number];
@@ -94,6 +97,7 @@ export interface UserSnapshot {
   startedAt?: string;
   endedAt?: string;
   alertMode?: AlertMode;
+  fixedAlertStatus?: FixedAlertStatus;
   sessionHandle?: string;
 }
 export type UserReply = { snapshot: UserSnapshot; error?: UserError } | { error: 'invalid' };
@@ -117,6 +121,9 @@ export function isUserSnapshot(value: unknown): value is UserSnapshot {
     && (s.goal === undefined || typeof s.goal === 'string' && validGoal(s.goal))
     && (s.startedAt === undefined || typeof s.startedAt === 'string' && Number.isFinite(Date.parse(s.startedAt)))
     && (s.alertMode === undefined || sessionVisible && !!s.startedAt && ['AI', 'FIXED_INTERVAL'].includes(s.alertMode))
+    && (s.fixedAlertStatus === undefined || sessionVisible && s.lifecycle === 'ACTIVE'
+      && s.alertMode === 'FIXED_INTERVAL' && fixedAlertStates.includes(s.fixedAlertStatus)
+      && (s.collecting && !s.reconnectRequired || s.fixedAlertStatus === 'suspended'))
     && (s.endedAt === undefined || sessionVisible && s.lifecycle === 'ENDED' && !!s.startedAt
       && validTime(s.endedAt) && Date.parse(s.endedAt) >= Date.parse(s.startedAt))
     && (s.lifecycle === 'IDLE' || !!s.goal)

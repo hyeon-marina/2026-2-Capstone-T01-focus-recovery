@@ -1,4 +1,4 @@
-import type { UserCommand, UserSnapshot } from './protocol';
+import type { FixedAlertStatus, UserCommand, UserSnapshot } from './protocol';
 import { Button, Notice, StatusBadge } from './ui';
 
 export const timeFormat = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -14,6 +14,18 @@ const analysis: Record<UserSnapshot['analysis'], string> = {
   completed: '분석 완료',
 };
 const decisions = { NORMAL: '정상 탐색', TRANSITION: '전환 탐색', DRIFT: '목표 확인 필요' };
+const fixedAlerts = {
+  waiting: ['neutral', '예정 회차 대기'],
+  checking: ['info', '알림 확인 중'],
+  confirmed: ['positive', '현재 회차 후보 확인 완료'],
+  delayed: ['attention', '알림 확인 지연'],
+  disabled: ['error', '알림 사용 불가'],
+  unavailable: ['error', '알림 사용 불가'],
+  unverified: ['attention', '알림 상태 확인 필요'],
+  skipped: ['neutral', '예정 회차 대기'],
+  suspended: ['attention', '알림 일시 중지'],
+  'notification-denied': ['attention', 'Chrome 알림 권한 꺼짐'],
+} as const satisfies Record<FixedAlertStatus, readonly [string, string]>;
 type Request = (command: UserCommand) => void;
 
 function duration(startedAt: string, end: number) {
@@ -39,6 +51,8 @@ export function ActiveSession({ session: s, showDetails, ready, busy, request }:
   session: UserSnapshot; showDetails: boolean; ready: boolean; busy?: UserCommand['type']; request: Request;
 }) {
   const attention = s.finalState === 'DRIFT' || s.finalState === 'TRANSITION' || ['delayed', 'failed', 'invalidated', 'unavailable'].includes(s.analysis);
+  const fixedStatus = !s.collecting || s.reconnectRequired ? 'suspended' : s.fixedAlertStatus ?? 'unverified';
+  const [fixedTone, fixedLabel] = fixedAlerts[fixedStatus];
   return <>
     {showDetails && s.startedAt && <SessionTimes startedAt={s.startedAt} active={busy !== 'stop'} />}
     <dl className="facts">
@@ -51,7 +65,16 @@ export function ActiveSession({ session: s, showDetails, ready, busy, request }:
             {s.finalState ? decisions[s.finalState] : analysis[s.analysis]}
           </StatusBadge>}
       </dd></div>}
+      {showDetails && s.alertMode === 'FIXED_INTERVAL' && <div><dt>알림 상태</dt><dd role="status">
+        <StatusBadge tone={fixedTone}>{fixedLabel}</StatusBadge>
+      </dd></div>}
     </dl>
+    {showDetails && s.alertMode === 'FIXED_INTERVAL' && fixedStatus === 'disabled' && <Notice tone="error">
+      서버에서 고정 주기 알림을 허용하지 않았어요. 다음 회차에 다시 확인해요.
+    </Notice>}
+    {showDetails && s.alertMode === 'FIXED_INTERVAL' && fixedStatus === 'skipped' && <Notice>
+      이번 회차는 건너뛰었어요. 다음 회차에 다시 확인해요.
+    </Notice>}
     {s.privacyHold && s.access !== 'withdrawn' && <Notice tone="attention">개인정보 보호를 위해 수집과 전송을 멈췄어요. 종료를 선택해 격리된 작업을 정리해 주세요.</Notice>}
     {s.reconnectRequired && !s.privacyHold && <Button disabled={!ready || !!busy} onClick={() => request({ type: 'reconnect' })}>기존 작업 재연결</Button>}
     {s.deliveryIssue && !s.privacyHold && <>

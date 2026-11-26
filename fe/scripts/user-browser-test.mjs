@@ -27,13 +27,15 @@ let mock = await startMock();
 const temp = await mkdtemp(join(tmpdir(), 'focus-user-133-'));
 const evidence = process.env.USER_TEST_EVIDENCE ? resolve(process.env.USER_TEST_EVIDENCE) : undefined;
 if (evidence) await mkdir(evidence, { recursive: true });
-const viewport = { width: 380, height: 560 };
+const viewport = { width: 388, height: 560 };
+const guideGoal = '합성 문서를 읽고 비교 기준을 정리하기';
 let context, worker, id, popup, page, version;
 const fixture = letter => `${FIXTURE_ORIGIN}/__focus_synthetic__/${letter}`;
 
 async function launch(profile = 'profile', directory = extension, viewportSize = viewport) {
   context = await chromium.launchPersistentContext(join(temp, profile), {
     channel: 'chromium', executablePath: process.env.CHROMIUM_PATH, headless: !process.env.HEADED, viewport: viewportSize,
+    ...(evidence && viewportSize ? { deviceScaleFactor: 2 } : {}),
     args: [`--disable-extensions-except=${directory}`, `--load-extension=${directory}`],
   });
   worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker');
@@ -445,7 +447,7 @@ async function verifySubmissionRecovery() {
 
 async function verifyAnalysisAndAlerts() {
   await launchNotificationTest('alerts');
-  await start('합성 Chrome 알림에서 최초 작업 목표 확인하기');
+  await start(guideGoal);
   const [first] = mock.sessions.values();
   const submitted = () => worker.evaluate(() => globalThis.notificationTest.submitted);
   const listed = () => worker.evaluate(() => chrome.notifications.getAll());
@@ -474,20 +476,27 @@ async function verifyAnalysisAndAlerts() {
     }, `analysis ${analysis} ${finalState ?? ''}`);
   };
   await refresh('empty');
-  for (const [state, analysis, windowIndex] of [
-    ['NORMAL', 'completed', 1], ['TRANSITION', 'completed', 2], ['PENDING', 'pending', 3],
-    ['FAILED', 'failed', 3], ['INVALIDATED', 'invalidated', 3], ['DRIFT', 'completed', 4],
+  for (const [state, analysis, windowIndex, label] of [
+    ['NORMAL', 'completed', 1, '정상 탐색'], ['TRANSITION', 'completed', 2, '전환 탐색'],
+    ['PENDING', 'pending', 3, '분석 대기'], ['FAILED', 'failed', 3, '분석 실패'],
+    ['INVALIDATED', 'invalidated', 3, '분석 무효화'], ['DRIFT', 'completed', 4, '목표 확인 필요'],
   ]) {
     setAnalysis(first, { windowIndex, state });
     await refresh(analysis, analysis === 'completed' ? state : undefined);
     assert.equal((await submitted()).length, 0);
+    await popup.getByText(label, { exact: true }).waitFor();
+    if (evidence) await screen('analysis-' + state.toLowerCase());
   }
   mock.faults.offlineAnalysis = true;
   await refresh('delayed');
   assert.equal((await state()).connection, 'unreachable');
+  await popup.getByText('분석 지연', { exact: true }).waitFor();
+  if (evidence) await screen('analysis-delayed');
   delete mock.faults.offlineAnalysis;
   mock.faults.analysisResponse = payload => ({ ...payload, sessionId: 'wrong' });
   await refresh('unavailable');
+  await popup.getByText('분석 상태 확인 불가', { exact: true }).waitFor();
+  if (evidence) await screen('analysis-unavailable');
   delete mock.faults.analysisResponse;
   await refresh('completed', 'DRIFT');
 
@@ -556,6 +565,7 @@ async function verifyAnalysisAndAlerts() {
   mock.faults.dropSelection = 'always';
   await detail.getByRole('button', { name: '목표로 돌아가기' }).click();
   await detail.getByText(/서버 확인을 기다리고 있어요/).waitFor();
+  if (evidence) await screen('selection-ack-pending', detail);
   await waitFor(() => candidate.selection, 'first response committed mock-side');
   assert.equal(candidate.selection.action, 'RETURN_TO_GOAL');
   const viewId = new URL(detail.url()).searchParams.get('alert');
@@ -579,6 +589,7 @@ async function verifyAnalysisAndAlerts() {
     await waitFor(async () => (await submitted()).some(a => a.id.endsWith(other.alertId)), 'new session window 1 submitted');
     held.release();
     await detail.getByText('현재 확인할 수 있는 알림이 없어요.').waitFor();
+    if (evidence) await screen('alert-expired', detail);
     await waitFor(async () => (await receiptFor(candidate))?.selectionDelivery.phase === 'retry-wait', 'lost ACK backoff recorded');
     const previous = await receiptFor(candidate);
     assert.equal(previous.sessionId, first.session.sessionId);
@@ -707,10 +718,11 @@ async function verifyNormalEvaluation(mode, source) {
     await setWorkerTime(mock.faults.now);
   };
   await clock(0);
-  await start('같은 합성 목표에서 표시와 선택의 정상 저장 확인하기');
+  await start(guideGoal);
   const record = lastSession();
   if (evidence) await screen('active-' + mode);
   for (const [slot, action] of [[1, '목표로 돌아가기'], [2, '탐색 계속하기']]) {
+    await popup.close();
     await clock(slot * FIXED_INTERVAL_MS);
     let candidate = mode === 'AI' ? setAnalysis(record, { windowIndex: slot, state: 'DRIFT', candidate: true }) : undefined;
     const alert = await waitFor(async () => {
@@ -718,6 +730,7 @@ async function verifyNormalEvaluation(mode, source) {
       candidate ??= record.fixedSlots.get(slot);
       return candidate && await nativeListed(candidate) && candidate;
     }, 'normal Chrome submission');
+    await openPopup();
     const detail = await openComparedDetail(mode, record, alert);
     await waitFor(async () => (await receiptFor(alert))?.shownAck, 'normal shown acknowledgement');
     if (evidence && slot === 1) {
@@ -729,9 +742,9 @@ async function verifyNormalEvaluation(mode, source) {
     await clock(slot * FIXED_INTERVAL_MS + slot * 1000);
     await detail.getByRole('button', { name: action }).click();
     await waitFor(async () => (await receiptFor(alert))?.selectionAck, 'normal selection acknowledgement');
-    if (evidence && slot === 1) {
+    if (evidence) {
       await detail.getByText(/서버에 기록했어요/).waitFor();
-      await screen('selection-' + mode, detail);
+      await screen(`selection-${mode}-${slot}`, detail);
     }
     await detail.close();
   }
@@ -914,6 +927,7 @@ async function verifyFixedValidity(fixedExtension) {
       } finally { held.release(); }
       assert.equal((await shown).detail, undefined);
       assert.equal(await receiptFor(alert), undefined);
+      assert.equal((await state()).fixedAlertStatus, intent === 'new-session' ? 'waiting' : undefined);
     }]);
   }
   for (const [label, probe] of probes) {
@@ -927,6 +941,143 @@ async function verifyFixedValidity(fixedExtension) {
     }
   }
   assert.deepEqual(failures, []);
+}
+
+async function verifyFixedUi(fixedExtension) {
+  await launchNotificationTest('fixed-ui', fixedExtension, 'FIXED_INTERVAL');
+  const began = Date.now();
+  const clock = async (elapsed, serverElapsed = elapsed) => {
+    mock.faults.now = began + serverElapsed;
+    await setWorkerTime(began + elapsed);
+  };
+  const status = async (expected, label) => {
+    await waitFor(async () => {
+      if ((await state()).fixedAlertStatus === expected) return true;
+      if (expected === 'confirmed') await alarm();
+      return false;
+    }, 'fixed UI ' + expected);
+    await popup.getByText(label, { exact: true }).waitFor();
+    assert.equal(await popup.getByText('분석 미연결', { exact: true }).count(), 0);
+  };
+  await clock(0);
+  await start(guideGoal);
+  const record = lastSession();
+  await clock(FIXED_INTERVAL_MS - 1);
+  await alarm();
+  await screen('fixed-waiting');
+  assert.equal(await popup.getByText('예정 회차 대기', { exact: true }).count(), 1, 'first fixed slot is visibly waiting');
+  await status('waiting', '예정 회차 대기');
+  assert.equal(fixedRequests(record).length, 0);
+  console.log('PASS fixed UI: local waiting without POST');
+
+  const post = holdResponse('holdFixed');
+  try {
+    await clock(FIXED_INTERVAL_MS);
+    await alarm();
+    await post.received();
+    await status('checking', '알림 확인 중');
+    await screen('fixed-checking');
+    assert.equal(fixedRequests(record).length, 1);
+    mock.faults.dropFixed = 'always';
+  } finally { post.release(); }
+  await status('delayed', '알림 확인 지연');
+  await screen('fixed-delayed');
+  const failedPostCount = fixedRequests(record).length;
+  delete mock.faults.dropFixed;
+  await alarm();
+  await status('confirmed', '현재 회차 후보 확인 완료');
+  await screen('fixed-confirmed');
+  const first = record.fixedSlots.get(1);
+  await waitFor(() => nativeListed(first), 'fixed candidate submitted');
+  assert.equal(record.alerts.size, 1);
+  assert.ok(fixedRequests(record).length > failedPostCount);
+  console.log('PASS fixed UI: POST checking, connection loss, retry and same candidate');
+
+  for (const [i, [fault, value, expected, label]] of [
+    ['offlineAnalysis', true, 'delayed', '알림 확인 지연'],
+    ['analysisResponse', () => ({}), 'unverified', '알림 상태 확인 필요'],
+    ['analysisResponse', payload => ({ ...payload, alert: null }), 'unavailable', '알림 사용 불가'],
+  ].entries()) {
+    mock.faults[fault] = value;
+    await clock(FIXED_INTERVAL_MS + (i + 1) * 61_000);
+    await alarm();
+    await status(expected, label);
+    await screen(`fixed-get-${expected}`);
+    delete mock.faults[fault];
+    await alarm();
+    await status('confirmed', '현재 회차 후보 확인 완료');
+  }
+  const timed = holdResponse('holdAnalysis');
+  try {
+    await clock(FIXED_INTERVAL_MS + 4 * 61_000);
+    await alarm();
+    await timed.received();
+    await status('checking', '알림 확인 중');
+    await status('delayed', '알림 확인 지연');
+  } finally { timed.release(); }
+  await alarm();
+  await status('confirmed', '현재 회차 후보 확인 완료');
+  await screen('fixed-recovered');
+  assert.deepEqual(await worker.evaluate(() => globalThis.notificationTest.attempts), [nativeId(first)]);
+  console.log('PASS fixed UI: GET 503, invalid response, missing candidate, timeout and recovery without duplicate submission');
+
+  await worker.evaluate(() => {
+    globalThis.notificationTest.denied = true;
+    globalThis.notificationTest.permission('denied');
+  });
+  await status('notification-denied', 'Chrome 알림 권한 꺼짐');
+  assert.equal((await state()).collecting, true);
+  await screen('fixed-notification-denied');
+  await worker.evaluate(() => {
+    globalThis.notificationTest.denied = false;
+    globalThis.notificationTest.permission('granted');
+  });
+  await status('confirmed', '현재 회차 후보 확인 완료');
+  assert.deepEqual(await worker.evaluate(() => globalThis.notificationTest.attempts), [nativeId(first)]);
+  console.log('PASS fixed UI: Chrome notification denial and restoration without disabling collection');
+
+  const late = holdResponse('holdAnalysis');
+  const beforeSkipped = fixedRequests(record).length;
+  try {
+    await clock(FIXED_INTERVAL_MS + 5 * 61_000);
+    await alarm();
+    await late.received();
+    await clock(2 * FIXED_INTERVAL_MS, 2 * FIXED_INTERVAL_MS - 1);
+    await status('unverified', '알림 상태 확인 필요');
+  } finally { late.release(); }
+  await status('skipped', '예정 회차 대기');
+  assert.ok((await disk()).userFixedAlerts.skipped);
+  assert.equal(fixedRequests(record).length, beforeSkipped + 1);
+  await alarm();
+  assert.equal(fixedRequests(record).length, beforeSkipped + 1);
+  await screen('fixed-skipped');
+
+  mock.faults.disableFixed = true;
+  await clock(3 * FIXED_INTERVAL_MS);
+  await alarm();
+  await status('disabled', '알림 사용 불가');
+  await screen('fixed-disabled');
+  delete mock.faults.disableFixed;
+  await alarm();
+  assert.equal(fixedRequests(record).length, beforeSkipped + 2);
+  assert.equal((await state()).alertMode, 'FIXED_INTERVAL');
+  await clock(4 * FIXED_INTERVAL_MS);
+  await alarm();
+  await status('confirmed', '현재 회차 후보 확인 완료');
+  assert.deepEqual([...record.fixedSlots.keys()], [1, 4]);
+
+  await mock.offline();
+  try {
+    assert.equal((await command({ type: 'access' })).error, 'network');
+    await status('suspended', '알림 일시 중지');
+    await screen('fixed-suspended');
+  } finally { await mock.online(); }
+  await command({ type: 'reconnect' });
+  await status('confirmed', '현재 회차 후보 확인 완료');
+
+  await end();
+  assert.equal((await state()).fixedAlertStatus, undefined);
+  console.log('PASS fixed UI: late slot response fenced, skipped slots stay skipped, mode disabled, next slot recovers and end clears status');
 }
 
 async function verifyEvaluationMode(mode, source) {
@@ -1553,6 +1704,7 @@ async function verifyUserFlow() {
   } finally { logoutDelay.release(); accessDelay.release(); }
   await logoutView.close();
   await heading('합성 계정으로 시작');
+  if (evidence) await screen('logout');
   await login(ALICE, '작업 진행 중');
   await waitFor(async () => (await state()).collecting, 'same owned session after logout and reauthentication');
   const interruptedLogout = holdResponse('holdLogout');
@@ -1691,6 +1843,11 @@ async function verifyUserFlow() {
   assert.equal(mock.requests.filter(r => r.url.endsWith('/end')).length, priorEnds);
   assert.ok(mock.requests.some(r => r.method === 'GET' && r.url === `/api/sessions/${third.session.sessionId}`));
   await screen('07-ended');
+  if (evidence) {
+    await button('새 작업 준비').click();
+    await heading('오늘의 작업 목표');
+    await screen('08-next');
+  }
   await start('인증 만료와 권한 차단 검증하기');
   const fourth = lastSession();
   const fourthHandle = (await state()).sessionHandle;
@@ -1704,6 +1861,10 @@ async function verifyUserFlow() {
   }), { id, access });
   await siteAccess('ON_CLICK');
   await waitFor(async () => !(await state()).permission && !(await state()).collecting, 'Chrome host permission withheld');
+  if (evidence) {
+    await popup.getByText(/사이트 권한이 꺼져 있어요/).waitFor();
+    await screen('host-permission-denied');
+  }
   await page.goto(fixture('a')); await page.bringToFront();
   await new Promise(resolve => setTimeout(resolve, 5500));
   assert.equal(writes().length, beforePrivacy);
@@ -1801,6 +1962,7 @@ async function verifyUserFlow() {
   await privacyView.close();
   await heading('수집 동의 철회됨');
   assert.equal((await state()).collecting, false);
+  if (evidence) await screen('withdrawn');
   await page.goto(fixture('c')); await page.bringToFront();
   await new Promise(resolve => setTimeout(resolve, 5500));
   assert.equal(writes().length, beforeWithdrawal);
@@ -1951,6 +2113,7 @@ async function verifyUiPresentation() {
 
 try {
   if (process.argv.includes('--evaluation')) await verifyComparison();
+  else if (process.argv.includes('--fixed-ui')) await verifyFixedUi(resolve(process.env.USER_FIXED_EXTENSION));
   else if (process.argv.includes('--fixed-validity')) await verifyFixedValidity(resolve(process.env.USER_FIXED_EXTENSION));
   else if (process.argv.includes('--recovery-only')) await verifySubmissionRecovery();
   else if (process.argv.includes('--outbox-only')) await verifyOutboxRecovery();
