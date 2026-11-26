@@ -99,7 +99,8 @@ export class NotificationStore {
             existing.onsuccess = () => {
               if (existing.result !== undefined) return;
               store.add({
-                ...source, apiOrigin: this.origin, alertId: receipt.alertId, shownAt: receipt.shownAt, shownAck: receipt.shownAck,
+                ...source, apiOrigin: this.origin, alertId: receipt.alertId, alertType: state.start?.alertMode ?? 'AI',
+                shownAt: receipt.shownAt, shownAck: receipt.shownAck,
                 ...(receipt.selection ? { selection: receipt.selection, selectionAck: receipt.selectionAck,
                   selectionDelivery: initialDelivery(receipt.selectionAck) } : {}),
                 shownDelivery: initialDelivery(receipt.shownAck),
@@ -171,7 +172,7 @@ export class NotificationStore {
           const next = update(structuredClone(old));
           if (!next) return done(undefined);
           this.check(next, key);
-          if (old && (next.shownAt !== old.shownAt || old.shownAck && !next.shownAck
+          if (old && (next.alertType !== old.alertType || next.shownAt !== old.shownAt || old.shownAck && !next.shownAck
             || old.selection && canonical(next.selection) !== canonical(old.selection)
             || old.selectionAck && !next.selectionAck || old.feedbackId && old.feedbackId !== next.feedbackId)) {
             throw new StorageFailure('corrupt');

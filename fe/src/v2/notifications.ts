@@ -2,8 +2,10 @@ import { AccessError, authenticatedFetch } from '../api/auth-fetch';
 import { API_BASE_URL } from '../api/client';
 import { UUID4 } from './contract';
 import { validTime } from '../api/visit';
+import type { AlertMode } from './state';
 export interface NotificationReceipt {
   alertId: string; shownAt: string; shownAck: boolean;
+  alertType?: AlertMode;
   selection?: { action: 'RETURN_TO_GOAL' | 'CONTINUE_BROWSING'; selectedAt: string };
   selectionAck?: boolean;
 }
@@ -12,6 +14,7 @@ export function notificationPending(receipt: NotificationReceipt) {
 }
 export function validNotification(r: NotificationReceipt) {
   return !!r && typeof r.alertId === 'string' && UUID4.test(r.alertId) && validTime(r.shownAt) && typeof r.shownAck === 'boolean'
+    && (r.alertType === undefined || ['AI', 'FIXED_INTERVAL'].includes(r.alertType))
     && (!r.selection || ['RETURN_TO_GOAL', 'CONTINUE_BROWSING'].includes(r.selection.action) && validTime(r.selection.selectedAt)
       && r.selection.selectedAt >= r.shownAt) && (r.selectionAck === undefined || r.selectionAck === true && !!r.selection);
 }
@@ -42,6 +45,8 @@ function validSelectionAck(ack: Record<string, unknown> | null | undefined, rece
 
 const alertPath = (sessionId: string) => `${API_BASE_URL}/api/sessions/${sessionId}/alerts`;
 const ackMismatch = () => new NotificationError('V2_NOTIFICATION_ACK_MISMATCH');
+const matchesAlertType = (value: unknown, receipt: NotificationReceipt) =>
+  receipt.alertType === undefined || value === receipt.alertType;
 
 export async function sendNotificationLeg(sessionId: string, receipt: NotificationReceipt, leg: 'shown' | 'selection',
   allowed?: () => boolean, strict = true): Promise<{ feedbackId?: string }> {
@@ -65,7 +70,8 @@ export async function sendNotificationLeg(sessionId: string, receipt: Notificati
         || ack.shownAt !== undefined && ack.shownAt !== receipt.shownAt)) throw ackMismatch();
     return { feedbackId: ack.feedbackId };
   }
-  if (ack?.alertId !== receipt.alertId || ack.shownAt !== receipt.shownAt || strict && ack.sessionId !== sessionId) throw ackMismatch();
+  if (ack?.alertId !== receipt.alertId || ack.shownAt !== receipt.shownAt || strict && ack.sessionId !== sessionId
+    || !matchesAlertType(ack?.alertType, receipt)) throw ackMismatch();
   return {};
 }
 
@@ -88,7 +94,8 @@ export async function findNotificationHistory(sessionId: string, receipt: Notifi
     if (matches.length > 1) throw ackMismatch();
     const item = matches[0];
     if (item) {
-      if (item.sessionId !== sessionId || item.shownAt !== null && !validTime(item.shownAt)) throw ackMismatch();
+      if (item.sessionId !== sessionId || item.shownAt !== null && !validTime(item.shownAt)
+        || !matchesAlertType(item.alertType, receipt)) throw ackMismatch();
       if (item.shownAt === null) return;
       if (item.shownAt !== receipt.shownAt) return { conflict: 'ALERT_SHOWN_AT_CONFLICT' } as const;
       if (item.response === null || !receipt.selection) return { shown: true } as const;

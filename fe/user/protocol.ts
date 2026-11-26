@@ -1,6 +1,6 @@
 import { validGoal } from '../src/shared/goal';
 import type { ReceiptPhase } from '../src/v2/notification-store';
-import type { V2State } from '../src/v2/state';
+import type { AlertMode, V2State } from '../src/v2/state';
 import type { Decision } from '../src/v2/status';
 import { UUID4 } from '../src/v2/contract';
 import { USER_POPUP } from './mock-config';
@@ -46,6 +46,7 @@ export type AlertAction = typeof actions[number];
 export type AlertCommand = { type: typeof detailCommands[number]; viewId: string }
   | { type: 'alert-select'; viewId: string; action: AlertAction };
 export interface AlertDetail {
+  alertType: AlertMode;
   goal: string;
   shown: boolean;
   action?: AlertAction;

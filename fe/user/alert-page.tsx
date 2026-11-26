@@ -6,6 +6,7 @@ async function message(command: AlertCommand): Promise<AlertDetail | undefined> 
   const reply = await chrome.runtime.sendMessage(command);
   const detail = reply?.detail;
   if (typeof detail?.goal === 'string' && validGoal(detail.goal) && typeof detail.shown === 'boolean'
+    && ['AI', 'FIXED_INTERVAL'].includes(detail.alertType)
     && (detail.action === undefined || ['RETURN_TO_GOAL', 'CONTINUE_BROWSING'].includes(detail.action)
       && typeof detail.acknowledged === 'boolean')) return detail;
 }
@@ -91,9 +92,10 @@ export function AlertPage({ viewId }: { viewId: string }) {
   return <main>
     <header><span className="brand"><span className="mark" aria-hidden="true" />Focus Recovery</span></header>
     <section className="workspace" aria-busy={loading}>
-      <h1>목표 이탈 알림</h1>
+      <h1>{detail?.alertType === 'FIXED_INTERVAL' ? '고정 주기 알림' : detail ? '목표 이탈 알림' : '작업 목표 알림'}</h1>
       {detail ? <>
-        <p>현재 탐색이 작업 목표에서 벗어났어요. 최초 목표를 다시 확인해 보세요.</p>
+        <p>{detail.alertType === 'FIXED_INTERVAL' ? '작업 중간 점검 시간이에요. 최초 목표를 다시 확인해 보세요.'
+          : '현재 탐색이 작업 목표에서 벗어났어요. 최초 목표를 다시 확인해 보세요.'}</p>
         <p>최초 작업 목표</p>
         <p className="goal">{detail.goal}</p>
         {detail.action ? <p role="status">

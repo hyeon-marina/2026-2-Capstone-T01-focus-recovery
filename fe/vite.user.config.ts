@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { assertMockOrigin, MOCK_ORIGIN, USER_POPUP } from './user/mock-config';
+import { assertMockOrigin, MOCK_ORIGIN, syntheticAlertMode, USER_POPUP } from './user/mock-config';
 
 export default defineConfig(({ mode }) => {
   if (mode !== 'user-mock') throw new Error('Use user-mock mode');
@@ -10,7 +10,10 @@ export default defineConfig(({ mode }) => {
   return {
     base: './',
     publicDir: false,
-    define: { 'import.meta.env.VITE_API_BASE_URL': JSON.stringify(MOCK_ORIGIN) },
+    define: {
+      'import.meta.env.VITE_API_BASE_URL': JSON.stringify(MOCK_ORIGIN),
+      __USER_ALERT_MODE__: JSON.stringify(syntheticAlertMode(process.env.USER_ALERT_MODE)),
+    },
     plugins: [{ name: 'user-mock-manifest', generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'alert-icon.png', source: readFileSync(resolve(import.meta.dirname, 'user/alert-icon.png')) });
       this.emitFile({ type: 'asset', fileName: 'manifest.json', source: JSON.stringify({
