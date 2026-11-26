@@ -690,6 +690,234 @@ const nativeListed = alert => worker.evaluate(id => chrome.notifications.getAll(
 const fixedRequests = record => mock.requests.filter(r => r.url === `/api/sessions/${record.session.sessionId}/alerts/fixed-interval`);
 const testHook = (key, value) => worker.evaluate(([key, value]) => { globalThis.notificationTest[key] = value; }, [key, value]);
 
+async function openComparedDetail(mode, record, alert) {
+  const opened = context.waitForEvent('page');
+  await worker.evaluate(id => globalThis.notificationTest.click(id), nativeId(alert));
+  const detail = await opened;
+  await detail.getByRole('heading', { name: mode === 'FIXED_INTERVAL' ? '고정 주기 알림' : '목표 이탈 알림' }).waitFor();
+  await detail.getByText(record.session.goalText, { exact: true }).waitFor();
+  return detail;
+}
+
+async function verifyNormalEvaluation(mode, source) {
+  await launchNotificationTest('normal-' + mode.toLowerCase(), source, mode);
+  const startedAt = Date.now();
+  const clock = async elapsed => {
+    mock.faults.now = startedAt + elapsed;
+    await setWorkerTime(mock.faults.now);
+  };
+  await clock(0);
+  await start('같은 합성 목표에서 표시와 선택의 정상 저장 확인하기');
+  const record = lastSession();
+  for (const [slot, action] of [[1, '목표로 돌아가기'], [2, '탐색 계속하기']]) {
+    await clock(slot * FIXED_INTERVAL_MS);
+    let candidate = mode === 'AI' ? setAnalysis(record, { windowIndex: slot, state: 'DRIFT', candidate: true }) : undefined;
+    const alert = await waitFor(async () => {
+      await alarm();
+      candidate ??= record.fixedSlots.get(slot);
+      return candidate && await nativeListed(candidate) && candidate;
+    }, 'normal Chrome submission');
+    const detail = await openComparedDetail(mode, record, alert);
+    await waitFor(async () => (await receiptFor(alert))?.shownAck, 'normal shown acknowledgement');
+    await clock(slot * FIXED_INTERVAL_MS + slot * 1000);
+    await detail.getByRole('button', { name: action }).click();
+    await waitFor(async () => (await receiptFor(alert))?.selectionAck, 'normal selection acknowledgement');
+    await detail.close();
+  }
+  await clock(2 * FIXED_INTERVAL_MS + 3000);
+  await end();
+  const savedState = await disk();
+  const submissions = mode === 'AI' ? savedState.userAnalysis.submissions : savedState.userFixedAlerts.submissions;
+  console.log(`PASS normal evaluation ${mode}: two notifications and choices acknowledged without fault injection`);
+  return { mode, ...await endedAlertHistory(record.session.sessionId, ALICE), submissions, receipts: await outbox() };
+}
+
+async function fixedValiditySession(fixedExtension, profile, options = {}) {
+  const { denied = false, holdCallback = false } = options;
+  await launchNotificationTest(profile, fixedExtension, 'FIXED_INTERVAL');
+  const startTime = Date.now();
+  const clock = async elapsed => {
+    mock.faults.now = startTime + elapsed;
+    await setWorkerTime(mock.faults.now);
+  };
+  await clock(0);
+  await testHook('denied', denied);
+  if (holdCallback) await testHook('pause', 'withheld-callback');
+  await start('합성 세션에서 고정 주기 후보의 최신성 확인하기');
+  const record = lastSession();
+  await clock(FIXED_INTERVAL_MS);
+  const submission = await waitFor(async () => {
+    await alarm();
+    return (await disk()).userFixedAlerts?.submissions.find(a => a.phase === (denied ? 'reserved' : holdCallback ? 'submitting' : 'presented'));
+  }, 'fixed candidate reached the expected local phase');
+  return { record, submission, alert: record.fixedSlots.get(1), clock };
+}
+
+async function controlledFixedDetail(submission) {
+  const detail = await context.newPage();
+  await detail.addInitScript(() => {
+    const send = chrome.runtime.sendMessage.bind(chrome.runtime);
+    globalThis.sendFixedTestMessage = send;
+    chrome.runtime.sendMessage = (request, ...args) => request?.type === 'alert-shown'
+      ? new Promise(resolve => { globalThis.releaseFixedShown = () => send(request, ...args).then(resolve); })
+      : send(request, ...args);
+  });
+  await detail.goto(`chrome-extension://${id}/${USER_POPUP}?alert=${submission.viewId}`);
+  await detail.bringToFront();
+  await detail.waitForFunction(() => !!globalThis.releaseFixedShown);
+  return detail;
+}
+const fixedDetailCommand = (detail, submission, type, fields = {}) => detail.evaluate(
+  data => globalThis.sendFixedTestMessage(data), { type, viewId: submission.viewId, ...fields });
+const endOnServer = record => {
+  record.session.status = 'ENDED';
+  record.session.endedAt = new Date(record.now()).toISOString();
+};
+
+async function verifyFixedValidity(fixedExtension) {
+  const getChecks = record => mock.requests.filter(r => r.url === `/api/sessions/${record.session.sessionId}/analysis-status`);
+  const releasePermission = () => worker.evaluate(() => {
+    const bridge = globalThis.notificationTest;
+    bridge.denied = false;
+    bridge.permission('granted');
+  });
+  const failures = [];
+  const probes = [
+    ['ended reservation', async () => {
+      const { record, alert } = await fixedValiditySession(fixedExtension, 'stale-ended', { denied: true });
+      endOnServer(record);
+      await releasePermission();
+      await waitFor(async () => await nativeListed(alert) || !(await state()).collecting, 'ended reservation processed');
+      assert.equal(await nativeListed(alert), false, 'ended reservation reached Chrome');
+      assert.equal(fixedRequests(record).length, 1);
+    }],
+    ['valid reservation recovered once', async () => {
+      const { record, alert, clock } = await fixedValiditySession(fixedExtension, 'valid-reservation', { denied: true });
+      await clock(FIXED_INTERVAL_MS + 100);
+      await releasePermission();
+      await waitFor(() => nativeListed(alert), 'current reservation revalidated and submitted');
+      await Promise.all([alarm(), alarm(), alarm()]);
+      assert.equal(fixedRequests(record).length, 1);
+      assert.ok(getChecks(record).length > 0);
+      assert.deepEqual(await worker.evaluate(() => globalThis.notificationTest.attempts), [nativeId(alert)]);
+    }],
+    ['Chrome confirmation survives a newer detail check', async () => {
+      const { submission, alert } = await fixedValiditySession(fixedExtension, 'fixed-submitting', { holdCallback: true });
+      await waitFor(() => nativeListed(alert), 'Chrome accepted the submission with its callback withheld');
+      await controlledFixedDetail(submission);
+      await worker.evaluate(() => globalThis.notificationTest.release());
+      await waitFor(async () => (await disk()).userFixedAlerts.submissions[0].chromeSubmitted,
+        'positive Chrome callback evidence was committed independently of the latest interaction grant');
+      assert.deepEqual(await worker.evaluate(() => globalThis.notificationTest.attempts), [nativeId(alert)]);
+    }],
+    ['failed verification', async () => {
+      const { record, submission, alert } = await fixedValiditySession(fixedExtension, 'stale-query');
+      const detail = await controlledFixedDetail(submission);
+      mock.faults.offlineQuery = true;
+      mock.faults.offlineAnalysis = true;
+      assert.equal((await fixedDetailCommand(detail, submission, 'alert-open')).detail, undefined);
+      const checks = getChecks(record).length;
+      assert.equal((await fixedDetailCommand(detail, submission, 'alert-view')).detail, undefined, 'view reused a stale positive result');
+      assert.equal((await fixedDetailCommand(detail, submission, 'alert-view')).detail, undefined);
+      assert.equal(getChecks(record).length, checks, 'passive view refresh did not call the server');
+      assert.equal((await fixedDetailCommand(detail, submission, 'alert-shown')).detail, undefined);
+      assert.equal((await fixedDetailCommand(detail, submission, 'alert-select', { action: 'RETURN_TO_GOAL' })).detail, undefined);
+      assert.equal(await receiptFor(alert), undefined);
+      delete mock.faults.offlineQuery;
+      delete mock.faults.offlineAnalysis;
+      assert.equal((await fixedDetailCommand(detail, submission, 'alert-open')).detail?.goal, record.session.goalText);
+      assert.equal((await fixedDetailCommand(detail, submission, 'alert-shown')).detail?.shown, true);
+      await waitFor(async () => (await receiptFor(alert))?.shownAck, 'recovered detailed view acknowledged');
+      assert.deepEqual(await worker.evaluate(() => globalThis.notificationTest.attempts), [nativeId(alert)]);
+    }],
+    ['ended before shown', async () => {
+      const { record, submission, alert, clock } = await fixedValiditySession(fixedExtension, 'stale-shown');
+      const detail = await controlledFixedDetail(submission);
+      endOnServer(record);
+      await clock(FIXED_INTERVAL_MS + 1);
+      await fixedDetailCommand(detail, submission, 'alert-shown');
+      assert.equal(await receiptFor(alert), undefined, 'shown admitted a receipt after server end');
+    }],
+  ];
+  const account = () => mock.accounts.get('Bearer ' + ALICE);
+  for (const [label, change] of [
+    ['expired authentication', () => { account().expiresAt = '2000-01-01T00:00:00.000Z'; }],
+    ['changed consent', () => { account().consentId = crypto.randomUUID(); }],
+    ['withdrawn consent', () => { account().withdrawn = true; }],
+    ['quarantined session', record => { record.quarantined = true; }],
+    ['disabled collection', () => { account().enabled = false; }],
+    ['server access denied', record => { record.owner = crypto.randomUUID(); }],
+  ]) {
+    probes.push([`reservation rejected for ${label}`, async () => {
+      const { record, alert } = await fixedValiditySession(fixedExtension, 'deny-' + label.replaceAll(' ', '-'), { denied: true });
+      change(record);
+      await releasePermission();
+      await waitFor(async () => await nativeListed(alert) || !(await state()).collecting, label);
+      assert.equal(await nativeListed(alert), false);
+      assert.deepEqual(await worker.evaluate(() => globalThis.notificationTest.attempts), []);
+    }]);
+  }
+  probes.push(['reservation rejected for a different candidate', async () => {
+    const { record, alert } = await fixedValiditySession(fixedExtension, 'replace-candidate', { denied: true });
+    mock.faults.analysisResponse = payload => ({ ...payload, alert: { ...payload.alert, alertId: crypto.randomUUID() } });
+    await releasePermission();
+    await waitFor(() => getChecks(record).length > 0, 'the server returned a different candidate');
+    assert.equal((await disk()).userFixedAlerts.submissions[0].phase, 'reserved');
+    assert.equal(await nativeListed(alert), false);
+    assert.equal(fixedRequests(record).length, 1);
+  }]);
+  probes.push(['withdrawn before shown', async () => {
+    const { submission, alert } = await fixedValiditySession(fixedExtension, 'withdraw-before-shown');
+    const detail = await controlledFixedDetail(submission);
+    account().withdrawn = true;
+    assert.equal((await fixedDetailCommand(detail, submission, 'alert-shown')).detail, undefined);
+    assert.equal(await receiptFor(alert), undefined);
+  }]);
+  for (const [label, change] of [
+    ['expired authentication', () => { account().expiresAt = '2000-01-01T00:00:00.000Z'; }],
+    ['changed round', clock => clock(2 * FIXED_INTERVAL_MS)],
+  ]) {
+    probes.push([`selection rejected for ${label}`, async () => {
+      const { submission, alert, clock } = await fixedValiditySession(fixedExtension, 'select-' + label.replaceAll(' ', '-'));
+      const detail = await controlledFixedDetail(submission);
+      assert.equal((await fixedDetailCommand(detail, submission, 'alert-shown')).detail?.shown, true);
+      await waitFor(async () => (await receiptFor(alert))?.shownAck, 'existing shown receipt acknowledged');
+      await change(clock);
+      assert.equal((await fixedDetailCommand(detail, submission, 'alert-select', { action: 'RETURN_TO_GOAL' })).detail, undefined);
+      assert.equal((await receiptFor(alert)).selection, undefined);
+    }]);
+  }
+  for (const intent of ['access', 'logout', 'withdraw', 'new-session']) {
+    probes.push([`late candidate recheck fenced after ${intent}`, async () => {
+      const { record, submission, alert } = await fixedValiditySession(fixedExtension, 'late-' + intent);
+      const detail = await controlledFixedDetail(submission);
+      const held = holdResponse('holdAnalysis', value => value.sessionId === record.session.sessionId);
+      const shown = fixedDetailCommand(detail, submission, 'alert-shown');
+      try {
+        await held.received();
+        if (intent === 'access') { account().enabled = false; await command({ type: 'access' }); }
+        else if (intent === 'new-session') {
+          await end();
+          await start('오래된 알림 응답 이후 새 합성 세션 확인하기');
+        } else await command({ type: intent });
+      } finally { held.release(); }
+      assert.equal((await shown).detail, undefined);
+      assert.equal(await receiptFor(alert), undefined);
+    }]);
+  }
+  for (const [label, probe] of probes) {
+    try {
+      await probe();
+      console.log('PASS validity: ' + label);
+    } catch (error) {
+      if (!(error instanceof assert.AssertionError)) throw error;
+      failures.push(label);
+      console.error(`FAIL validity: ${label} — ${error.message}`);
+    }
+  }
+  assert.deepEqual(failures, []);
+}
+
 async function verifyEvaluationMode(mode, source) {
   const fixed = mode === 'FIXED_INTERVAL';
   const profile = 'evaluation-' + mode.toLowerCase();
@@ -765,16 +993,8 @@ async function verifyEvaluationMode(mode, source) {
   assert.equal((await disk()).start.alertMode, mode);
   assert.deepEqual(await worker.evaluate(() => globalThis.notificationTest.attempts), []);
 
-  async function openDetail(alert) {
-    const opened = context.waitForEvent('page');
-    await worker.evaluate(id => globalThis.notificationTest.click(id), nativeId(alert));
-    const detail = await opened;
-    await detail.getByRole('heading', { name: fixed ? '고정 주기 알림' : '목표 이탈 알림' }).waitFor();
-    await detail.getByText(record.session.goalText, { exact: true }).waitFor();
-    return detail;
-  }
   mock.faults.dropShown = 'always';
-  const firstDetail = await openDetail(first);
+  const firstDetail = await openComparedDetail(mode, record, first);
   const firstRetry = await waitFor(async () => {
     const receipt = await receiptFor(first);
     return receipt?.shownDelivery.phase === 'retry-wait' && receipt.shownDelivery.nextRetryAt;
@@ -796,11 +1016,10 @@ async function verifyEvaluationMode(mode, source) {
   assert.equal(await nativeListed(first), false);
   assert.deepEqual(await worker.evaluate(() => globalThis.notificationTest.attempts), []);
 
-  // A failed analysis and an unavailable status endpoint must not gate the fixed POST.
+  // A failed AI decision does not affect the validity of the fixed candidate.
   if (fixed) {
     setAnalysis(record, { windowIndex: 1, state: 'FAILED' });
     assert.equal((await analysisStatus()).currentDecision.decisionStatus, 'FAILED');
-    mock.faults.offlineAnalysis = true;
   }
   const secondTime = startedAt + 3 * FIXED_INTERVAL_MS + 7500;
   await clock(secondTime);
@@ -814,13 +1033,14 @@ async function verifyEvaluationMode(mode, source) {
     assert.equal(Date.parse(second.createdAt), secondTime);
     assert.equal((await disk()).userFixedAlerts.submissions.find(a => a.slot === 3).analysisId, undefined);
   }
-  const secondDetail = await openDetail(second);
+  const secondDetail = await openComparedDetail(mode, record, second);
   await waitFor(async () => (await receiptFor(second))?.shownAck, 'second shown ACK');
-  mock.faults.dropSelection = 'always';
+  mock.faults.receiptRequest = ({ kind, alert }) => kind === 'responses' && alert === second
+    ? { status: 429, retryAfter: '1200' } : undefined;
   await clock(secondTime + 1300);
   await secondDetail.getByRole('button', { name: '탐색 계속하기' }).click();
-  await waitFor(async () => (await receiptFor(second))?.selectionDelivery?.phase === 'retry-wait', 'selection ACK lost');
-  assert.equal(second.selection.action, 'CONTINUE_BROWSING');
+  await waitFor(async () => (await receiptFor(second))?.selectionDelivery?.phase === 'retry-wait', 'selection failed before server storage');
+  assert.equal(second.selection, undefined);
   await secondDetail.close();
 
   const finalTime = startedAt + 4 * FIXED_INTERVAL_MS + 2000;
@@ -846,12 +1066,29 @@ async function verifyEvaluationMode(mode, source) {
   const snapshot = await disk();
   const submissions = fixed ? snapshot.userFixedAlerts.submissions : snapshot.userAnalysis.submissions;
   const sessionReceipts = async () => (await outbox()).filter(r => r.sessionId === record.session.sessionId);
-  const sample = { mode, ...await endedAlertHistory(record.session.sessionId, ALICE), submissions, receipts: await sessionReceipts() };
-  assert.equal(compareAlerts([sample]).totals[mode].unconfirmedReceipts, 1);
-  assert.equal(compareAlerts([sample]).totals[mode].shownWithoutLocalChoice, 0);
+  const sample = async () => ({
+    mode, ...await endedAlertHistory(record.session.sessionId, ALICE), submissions, receipts: await sessionReceipts(),
+  });
+  const beforeStorage = await sample();
+  const missing = compareAlerts([beforeStorage]).totals[mode];
+  assert.equal(missing.localChoiceRate, 1);
+  assert.equal(missing.serverChoiceRate, 0.5);
+  assert.equal(missing.serverReturnToGoalRate, 1);
+  assert.equal(missing.unconfirmedReceipts, 1);
+  assert.equal(missing.shownWithoutLocalChoice, 0);
 
   await start('이전 작업에서 저장한 선택 영수증 복구하기');
   const previous = (await receiptFor(second)).selection;
+  delete mock.faults.receiptRequest;
+  mock.faults.dropSelection = 'always';
+  await clock((await receiptFor(second)).selectionDelivery.nextRetryAt + 1);
+  await until(async () => second.selection && (await receiptFor(second))?.selectionDelivery.attempts === 2
+    && (await receiptFor(second))?.selectionDelivery.phase === 'retry-wait', 'server saved the selection but its ACK was lost');
+  const beforeRecovery = await sample();
+  const lostAck = compareAlerts([beforeRecovery]).totals[mode];
+  assert.equal(lostAck.serverChoiceRate, 1);
+  assert.equal(lostAck.choiceAck, 1);
+  assert.equal(lostAck.unconfirmedReceipts, 1);
   const feedbackId = second.selection.feedbackId;
   delete mock.faults.dropSelection;
   await clock((await receiptFor(second)).selectionDelivery.nextRetryAt + 1);
@@ -861,7 +1098,7 @@ async function verifyEvaluationMode(mode, source) {
   assert.equal(await nativeListed(second), false);
   await end();
   console.log(`PASS evaluation ${mode}: real Chrome submission, two detail choices, ACK loss, restart, no duplicates, verified END`);
-  return { beforeRecovery: sample, afterRecovery: { ...sample, receipts: await sessionReceipts() } };
+  return { beforeStorage, beforeRecovery, afterRecovery: await sample() };
 }
 
 async function verifyFixedPrivacy(fixedExtension) {
@@ -955,8 +1192,22 @@ async function verifyModeMismatch(fixedExtension) {
 async function verifyComparison() {
   assert.ok(process.env.USER_FIXED_EXTENSION, 'Set USER_FIXED_EXTENSION to the fixed synthetic build directory');
   const fixedExtension = resolve(process.env.USER_FIXED_EXTENSION);
+  const normal = compareAlerts([
+    await verifyNormalEvaluation('AI', extension),
+    await verifyNormalEvaluation('FIXED_INTERVAL', fixedExtension),
+  ]);
+  for (const stats of Object.values(normal.totals)) {
+    assert.equal(stats.sessions, 1);
+    assert.equal(stats.backendCandidates, 2);
+    assert.equal(stats.chromeSubmitted, 2);
+    assert.equal(stats.detailShownRate, 1);
+    assert.equal(stats.localChoiceRate, 1);
+    assert.equal(stats.serverChoiceRate, 1);
+    assert.equal(stats.choiceAck, 2);
+  }
   const ai = await verifyEvaluationMode('AI', extension);
   const fixed = await verifyEvaluationMode('FIXED_INTERVAL', fixedExtension);
+  await verifyFixedValidity(fixedExtension);
   const excluded = [await verifyModeMismatch(fixedExtension), await verifyFixedPrivacy(fixedExtension)];
   const before = [ai.beforeRecovery, fixed.beforeRecovery, ...excluded];
   const after = [ai.afterRecovery, fixed.afterRecovery, ...excluded];
@@ -972,12 +1223,17 @@ async function verifyComparison() {
     assert.equal(stats.serverChoices, 2);
     assert.equal(stats.shownAck, 2);
     assert.equal(stats.choiceAck, 2);
+    assert.equal(stats.detailShownRate, 1);
+    assert.equal(stats.localChoiceRate, 1);
+    assert.equal(stats.serverChoiceRate, 1);
     assert.equal(stats.returnToGoalRate, 0.5);
     assert.equal(stats.continueBrowsingRate, 0.5);
     assert.equal(stats.conflictRecords, 0);
   }
   assert.deepEqual(results.records.map(row => row.reason), ['ALERT_MODE_MISMATCH', 'PRIVACY_WITHDRAWN']);
-  const report = { chrome: version, clock: 'synthetic', beforeRecovery: compareAlerts(before), afterRecovery: results };
+  const report = { chrome: version, clock: 'synthetic', normal,
+    beforeStorage: compareAlerts([ai.beforeStorage, fixed.beforeStorage, ...excluded]),
+    beforeRecovery: compareAlerts(before), afterRecovery: results };
   if (evidence) await writeFile(join(evidence, 'comparison.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report));
 }
@@ -1564,6 +1820,7 @@ async function verifyUserFlow() {
 }
 try {
   if (process.argv.includes('--evaluation')) await verifyComparison();
+  else if (process.argv.includes('--fixed-validity')) await verifyFixedValidity(resolve(process.env.USER_FIXED_EXTENSION));
   else if (process.argv.includes('--recovery-only')) await verifySubmissionRecovery();
   else if (process.argv.includes('--outbox-only')) await verifyOutboxRecovery();
   else if (process.env.USER_LEGACY_EXTENSION) await verifyArchiveUpgrade(process.env.USER_LEGACY_EXTENSION);

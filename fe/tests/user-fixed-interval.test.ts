@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fixedCandidate, fixedSlot, requestFixedCandidate } from '../user/fixed-interval';
+import { fixedCandidate, fixedSlot, readFixedCandidate, requestFixedCandidate } from '../user/fixed-interval';
 import { FIXED_INTERVAL_MS, syntheticAlertMode } from '../user/mock-config';
 import { session } from './v2-fixture';
 
@@ -43,6 +43,44 @@ describe('fixed interval POST boundary', () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ code }, { status: 409 }));
     try {
       await expect(requestFixedCandidate(session, () => true)).rejects.toMatchObject({ kind: 'consent', status: 409 });
+    } finally { fetchMock.mockRestore(); }
+  });
+});
+
+describe('fixed interval read-only verification', () => {
+  const v2 = { ...alert, windowId: null, stateVersion: null };
+  const status = { apiContractVersion: 2, sessionId: session.sessionId, sessionStatus: 'ACTIVE',
+    currentDecision: { decisionStatus: 'FAILED' }, alert: v2 };
+  it.each([
+    [status, false, alert.alertId],
+    [{ ...status, alert: null }, false, undefined],
+    [{ ...status, alert }, false, undefined],
+    [{ ...status, alert: { ...v2, goalText: 'another work goal' } }, false, undefined],
+    [{ ...status, sessionStatus: 'ENDED', alert: null }, true, undefined],
+  ])('checks the v2 session envelope and candidate independently of the AI decision (%j)', async (value, ended, alertId) => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(value));
+    try {
+      await expect(readFixedCandidate(session, () => true)).resolves.toEqual({ ended, alertId });
+      expect(fetchMock.mock.calls[0][0]).toMatch(/\/analysis-status$/);
+      expect(fetchMock.mock.calls[0][1]?.method).toBeUndefined();
+    } finally { fetchMock.mockRestore(); }
+  });
+  it.each([
+    [401, 'INVALID_REQUEST', 'authentication'],
+    [403, 'INVALID_REQUEST', 'consent'],
+    [404, 'SESSION_NOT_FOUND', 'consent'],
+    [409, 'PRIVACY_RETRACTED', 'consent'],
+    [503, 'SERVICE_UNAVAILABLE', 'network'],
+  ])('refuses to authorize from HTTP %i %s', async (http, code, kind) => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ code }, { status: http }));
+    try {
+      await expect(readFixedCandidate(session, () => true)).rejects.toMatchObject({ kind, status: http });
+    } finally { fetchMock.mockRestore(); }
+  });
+  it('rejects an envelope for a different session', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ ...status, sessionId: alert.alertId }));
+    try {
+      await expect(readFixedCandidate(session, () => true)).rejects.toThrow('FIXED_INTERVAL_RESPONSE_INVALID');
     } finally { fetchMock.mockRestore(); }
   });
 });
