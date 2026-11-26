@@ -8,7 +8,7 @@ import { FIXTURE_ORIGIN } from '../synthetic/catalog.ts';
 import { FIXED_INTERVAL_MS, MOCK_ORIGIN, USER_DB, USER_POPUP } from '../user/mock-config.ts';
 import { compareAlerts, endedAlertHistory } from './user-evaluation.mjs';
 
-const extension = resolve('dist-user');
+const extension = resolve(process.env.USER_EXTENSION ?? 'dist-user');
 const manifest = JSON.parse(await readFile(join(extension, 'manifest.json'), 'utf8'));
 assert.equal(manifest.manifest_version, 3);
 assert.match(manifest.name, /합성 테스트/);
@@ -31,9 +31,9 @@ const viewport = { width: 380, height: 560 };
 let context, worker, id, popup, page, version;
 const fixture = letter => `${FIXTURE_ORIGIN}/__focus_synthetic__/${letter}`;
 
-async function launch(profile = 'profile', directory = extension) {
+async function launch(profile = 'profile', directory = extension, viewportSize = viewport) {
   context = await chromium.launchPersistentContext(join(temp, profile), {
-    channel: 'chromium', executablePath: process.env.CHROMIUM_PATH, headless: !process.env.HEADED, viewport,
+    channel: 'chromium', executablePath: process.env.CHROMIUM_PATH, headless: !process.env.HEADED, viewport: viewportSize,
     args: [`--disable-extensions-except=${directory}`, `--load-extension=${directory}`],
   });
   worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker');
@@ -61,10 +61,10 @@ async function waitFor(check, reason, timeout = 22000) {
   }
   throw new Error(`${reason}: ${JSON.stringify(await state().catch(() => null))}`);
 }
-async function screen(name) {
-  await popup.bringToFront();
-  assert.ok(await popup.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'popup horizontal overflow');
-  if (evidence) await popup.locator('main').screenshot({ path: join(evidence, name + '.png') });
+async function screen(name, view = popup) {
+  await view.bringToFront();
+  assert.ok(await view.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'extension horizontal overflow');
+  if (evidence) await view.locator('main').screenshot({ path: join(evidence, name + '.png') });
 }
 async function login(token = ALICE, expectHeading = '합성 수집 동의') {
   await popup.getByLabel('합성 테스트 자격정보').fill(token);
@@ -709,6 +709,7 @@ async function verifyNormalEvaluation(mode, source) {
   await clock(0);
   await start('같은 합성 목표에서 표시와 선택의 정상 저장 확인하기');
   const record = lastSession();
+  if (evidence) await screen('active-' + mode);
   for (const [slot, action] of [[1, '목표로 돌아가기'], [2, '탐색 계속하기']]) {
     await clock(slot * FIXED_INTERVAL_MS);
     let candidate = mode === 'AI' ? setAnalysis(record, { windowIndex: slot, state: 'DRIFT', candidate: true }) : undefined;
@@ -719,9 +720,19 @@ async function verifyNormalEvaluation(mode, source) {
     }, 'normal Chrome submission');
     const detail = await openComparedDetail(mode, record, alert);
     await waitFor(async () => (await receiptFor(alert))?.shownAck, 'normal shown acknowledgement');
+    if (evidence && slot === 1) {
+      await screen('alert-' + mode, detail);
+      await detail.setViewportSize({ width: 920, height: 700 });
+      await screen('alert-desktop-' + mode, detail);
+      await detail.setViewportSize(viewport);
+    }
     await clock(slot * FIXED_INTERVAL_MS + slot * 1000);
     await detail.getByRole('button', { name: action }).click();
     await waitFor(async () => (await receiptFor(alert))?.selectionAck, 'normal selection acknowledgement');
+    if (evidence && slot === 1) {
+      await detail.getByText(/서버에 기록했어요/).waitFor();
+      await screen('selection-' + mode, detail);
+    }
     await detail.close();
   }
   await clock(2 * FIXED_INTERVAL_MS + 3000);
@@ -1307,6 +1318,8 @@ async function verifyOutboxRecovery() {
   await alarm();
   assert.equal(receiptRequests(a, 'responses').length, 3);
   delete mock.faults.receiptRequest;
+  await button('미확인 알림 기록 다시 보내기').waitFor();
+  if (evidence) await screen('receipt-recovery');
   await button('미확인 알림 기록 다시 보내기').click();
   await waitFor(async () => (await receiptFor(a))?.selectionAck, 'manual recovery with the first action and timestamps');
   assert.equal(a.selection.feedbackId, (await receiptFor(a)).feedbackId);
@@ -1424,6 +1437,7 @@ async function verifyUserFlow() {
   assert.equal((await command({ type: 'start', goal: 'Blocked unauthenticated goal' })).error, 'auth');
   assert.deepEqual(await command({ type: 'start', goal: 123 }), { error: 'invalid' });
   await login();
+  if (evidence) await screen('consent');
   assert.equal((await command({ type: 'start', goal: 'Blocked incomplete consent' })).error, 'consent');
   await popup.getByRole('checkbox').check();
   await button('합성 동의 저장').click();
@@ -1449,6 +1463,7 @@ async function verifyUserFlow() {
   await heading('작업 진행 중');
   const first = lastSession();
   const firstHandle = (await state()).sessionHandle;
+  assert.equal((await state()).alertMode, 'AI');
   assert.match(firstHandle, /^[a-f0-9]{64}$/);
   assert.ok(!JSON.stringify(await state()).includes((await disk()).start.idempotencyKey));
   assert.equal(first.session.goalText, goal);
@@ -1514,6 +1529,7 @@ async function verifyUserFlow() {
   const heldAccess = command({ type: 'access' });
   await accessDelay.received();
   await popup.getByText('연결 및 동의 설정', { exact: true }).click();
+  if (evidence) await screen('settings');
   await button('접근 상태 확인').click();
   assert.equal(await button('접근 상태 확인').isDisabled(), true);
   const logoutRequests = () => mock.requests.filter(r => r.url === '/api/auth/logout').length;
@@ -1661,6 +1677,7 @@ async function verifyUserFlow() {
   await button('작업 종료').click();
   await heading('작업 종료 확인 중');
   await waitFor(() => third.session.status === 'ENDED', 'server applied END before client ACK');
+  assert.equal((await state()).endedAt, undefined, 'server completion without a verified ACK is hidden');
   await screen('06-ending');
   assert.equal((await command({ type: 'start', goal: 'Do not replace pending data' })).error, 'blocked');
   const priorEnds = mock.requests.filter(r => r.url.endsWith('/end')).length;
@@ -1670,6 +1687,7 @@ async function verifyUserFlow() {
   mock.faults.dropEnd = false;
   await button('전송 및 종료 다시 확인').click();
   await heading('작업 종료 완료');
+  assert.equal((await state()).endedAt, third.session.endedAt);
   assert.equal(mock.requests.filter(r => r.url.endsWith('/end')).length, priorEnds);
   assert.ok(mock.requests.some(r => r.method === 'GET' && r.url === `/api/sessions/${third.session.sessionId}`));
   await screen('07-ended');
@@ -1818,11 +1836,125 @@ async function verifyUserFlow() {
   await verifySubmissionRecovery();
   console.log(JSON.stringify({ result: 'PASS', chrome: version, scenarios: 18, firstSessionVisits: first.visits.size, posts, patches }));
 }
+
+async function verifyUiPresentation() {
+  await launch('ui', extension, process.env.HEADED ? null : viewport);
+  await openPopup();
+  await popup.setViewportSize({ width: 320, height: 550 });
+  await heading('합성 계정으로 시작');
+  const credential = popup.getByLabel('합성 테스트 자격정보');
+  await credential.fill(ALICE);
+  await credential.press('Enter');
+  await heading('합성 수집 동의');
+  const checkbox = popup.getByRole('checkbox');
+  assert.equal(await checkbox.isChecked(), false);
+  assert.equal(await button('합성 동의 저장').isDisabled(), true);
+  await checkbox.focus();
+  await popup.keyboard.press('Space');
+  await popup.keyboard.press('Tab');
+  assert.equal(await button('합성 동의 저장').evaluate(el => el === document.activeElement && getComputedStyle(el).outlineStyle !== 'none'), true);
+  await popup.keyboard.press('Enter');
+  await heading('오늘의 작업 목표');
+  const field = popup.getByLabel('최초 작업 목표');
+  for (const [value, length, valid] of [
+    ['    ', 0, false], ['한글두개', 4, false], ['  한글다섯자  ', 5, true],
+    [`  ${'한'.repeat(147)}\nAB  `, 150, true], ['한'.repeat(151), 151, false],
+  ]) {
+    await field.fill(value);
+    assert.match(await popup.locator('#goal-length').textContent(), new RegExp(length + ' / 150'));
+    assert.equal(await button('작업 시작').isEnabled(), valid);
+  }
+  const longGoal = '합성 목표를 길게 입력해서 다시 확인하기 '.repeat(9).slice(0, 150).trim();
+  await field.fill(longGoal);
+  await button('작업 시작').click();
+  await heading('작업 진행 중');
+  await screen('active-320px');
+  await popup.setViewportSize({ width: 640, height: 850 });
+  const tab = await popup.evaluate(() => chrome.tabs.getCurrent());
+  await worker.evaluate(tabId => chrome.tabs.setZoom(tabId, 2), tab.id);
+  assert.equal(await worker.evaluate(tabId => chrome.tabs.getZoom(tabId), tab.id), 2);
+  assert.ok(await popup.evaluate(() => innerWidth === 320 && document.documentElement.scrollWidth <= innerWidth));
+  if (evidence) await popup.screenshot({ path: join(evidence, 'active-200-percent.png') });
+  await worker.evaluate(tabId => chrome.tabs.setZoom(tabId, 1), tab.id);
+  await popup.setViewportSize({ width: 320, height: 550 });
+
+  if (process.env.HEADED) {
+    const openToolbar = () => worker.evaluate(() => chrome.action.openPopup());
+    const toolbar = () => popup.evaluate(() => {
+      const view = chrome.extension.getViews({ type: 'popup' })[0];
+      return view && {
+        width: view.innerWidth,
+        height: view.innerHeight,
+        scrollWidth: view.document.documentElement.scrollWidth,
+        scrollHeight: view.document.documentElement.scrollHeight,
+        scrollTop: view.scrollY,
+        contentWidth: view.document.querySelector('main')?.offsetWidth,
+        goal: view.document.querySelector('.goal-text')?.textContent,
+      };
+    });
+    await openToolbar();
+    const actual = await waitFor(async () => {
+      const dimensions = await toolbar();
+      return dimensions?.goal && dimensions;
+    }, 'actual toolbar popup restores the goal');
+    assert.equal(actual.goal, longGoal);
+    assert.ok(actual.contentWidth >= 360 && actual.contentWidth <= 400, `native dimensions ${actual.width} × ${actual.height}, content width ${actual.contentWidth}`);
+    assert.ok(actual.scrollWidth <= actual.width, `native horizontal overflow: ${actual.scrollWidth} > ${actual.width}`);
+    await popup.evaluate(() => {
+      const [view] = chrome.extension.getViews({ type: 'popup' });
+      view.document.querySelector('summary').click();
+      view.scrollTo(0, view.document.documentElement.scrollHeight);
+    });
+    const expanded = await waitFor(async () => {
+      const dimensions = await toolbar();
+      return dimensions?.scrollTop > 0 && dimensions;
+    }, 'actual toolbar popup scrolls to expanded settings');
+    assert.ok(expanded.scrollHeight > expanded.height);
+    await popup.evaluate(() => chrome.extension.getViews({ type: 'popup' })[0].close());
+    await waitFor(async () => !(await toolbar()), 'actual popup closed');
+    await openToolbar();
+    await waitFor(async () => (await toolbar())?.goal === longGoal, 'actual popup reopened with the same goal');
+    await popup.evaluate(() => chrome.extension.getViews({ type: 'popup' })[0].close());
+    console.log(`PASS native toolbar popup: ${actual.width}×${actual.height}, settings scroll, close and restore`);
+  }
+
+  await popup.locator('summary').focus();
+  await popup.keyboard.press('Enter');
+  const withdraw = button('합성 동의 철회');
+  await withdraw.focus();
+  await popup.keyboard.press('Enter');
+  const dialog = popup.getByRole('dialog', { name: '수집 동의를 철회할까요?' });
+  await dialog.waitFor();
+  const cancel = dialog.getByRole('button', { name: '취소' });
+  assert.equal(await cancel.evaluate(el => el === document.activeElement), true);
+  await popup.keyboard.press('Tab');
+  assert.equal(await dialog.getByRole('button', { name: '동의 철회하기' }).evaluate(el => el === document.activeElement), true);
+  await popup.keyboard.press('Shift+Tab');
+  assert.equal(await cancel.evaluate(el => el === document.activeElement), true);
+  if (evidence) await popup.screenshot({ path: join(evidence, 'withdraw-dialog.png') });
+  await popup.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden' });
+  assert.equal(await withdraw.evaluate(el => el === document.activeElement), true);
+  assert.equal((await state()).collecting, true);
+  await popup.keyboard.press('Enter');
+  await cancel.press('Enter');
+  await dialog.waitFor({ state: 'hidden' });
+  assert.equal((await state()).collecting, true);
+  await withdraw.press('Enter');
+  await dialog.getByRole('button', { name: '동의 철회하기' }).press('Enter');
+  await heading('수집 동의 철회됨');
+  assert.equal((await state()).collecting, false);
+  assert.equal(await popup.getByText(longGoal, { exact: true }).count(), 0);
+  await screen('withdrawn-320px');
+  console.log('PASS UI: goal boundaries, 320px reflow, 200% Chrome zoom, keyboard consent/withdrawal, privacy masking');
+}
+
 try {
   if (process.argv.includes('--evaluation')) await verifyComparison();
   else if (process.argv.includes('--fixed-validity')) await verifyFixedValidity(resolve(process.env.USER_FIXED_EXTENSION));
   else if (process.argv.includes('--recovery-only')) await verifySubmissionRecovery();
   else if (process.argv.includes('--outbox-only')) await verifyOutboxRecovery();
+  else if (process.argv.includes('--ui')) await verifyUiPresentation();
   else if (process.env.USER_LEGACY_EXTENSION) await verifyArchiveUpgrade(process.env.USER_LEGACY_EXTENSION);
   else await verifyUserFlow();
 } finally {

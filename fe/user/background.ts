@@ -54,15 +54,18 @@ installV2Browser({
         if (own && s.lifecycle === 'ACTIVE' && s.session?.sessionId !== handle?.sessionId) return snapshot();
         const server = serverStatus();
         if (!access.authenticated && ['verified', 'stale'].includes(server.connection)) server.connection = 'auth-required';
+        const accessState: UserSnapshot['access'] = s.accessError === 'account' ? 'account'
+          : !access.authenticated ? 'auth'
+          : access.withdrawn || s.withdrawal ? 'withdrawn'
+          : server.connection === 'denied' ? 'denied'
+          : s.accessError === 'network' ? 'ready'
+          : !access.consentValid ? 'consent'
+          : !access.collectionEnabled ? 'denied' : 'ready';
+        const sessionDetails = own && s.session && accessState === 'ready' && permitted
+          && !access.privacyPending && !s.quarantine && !s.storageFailed;
         return {
           lifecycle: visible ? s.lifecycle : 'IDLE',
-          access: s.accessError === 'account' ? 'account'
-            : !access.authenticated ? 'auth'
-            : access.withdrawn || s.withdrawal ? 'withdrawn'
-            : server.connection === 'denied' ? 'denied'
-            : s.accessError === 'network' ? 'ready'
-            : !access.consentValid ? 'consent'
-            : !access.collectionEnabled ? 'denied' : 'ready',
+          access: accessState,
           ...server,
           privacyPending: access.privacyPending,
           collecting: permitted && runtime.collecting(),
@@ -78,6 +81,11 @@ installV2Browser({
           ...(!access.privacyPending && receipts ? { receipts } : {}),
           ...(own && s.start ? { goal: s.start.goalText, startedAt: s.session?.startedAt,
             ...(s.lifecycle === 'ACTIVE' ? { sessionHandle } : {}) } : {}),
+          ...(sessionDetails ? {
+            alertMode: s.start?.alertMode ?? 'AI',
+            ...(s.lifecycle === 'ENDED' && s.end?.phase === 'acked' && s.end.ack?.endedAt
+              ? { endedAt: s.end.ack.endedAt } : {}),
+          } : {}),
         };
       }
       async function refresh(restoreReceiptAccess = true) {

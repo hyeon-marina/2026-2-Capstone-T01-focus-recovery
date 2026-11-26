@@ -3,6 +3,7 @@ import type { ReceiptPhase } from '../src/v2/notification-store';
 import type { AlertMode, V2State } from '../src/v2/state';
 import type { Decision } from '../src/v2/status';
 import { UUID4 } from '../src/v2/contract';
+import { validTime } from '../src/api/visit';
 import { USER_POPUP } from './mock-config';
 
 const simple = ['status', 'analysis-refresh', 'access', 'agree', 'retry-start', 'reconnect', 'retry', 'retry-receipts', 'logout', 'withdraw'] as const;
@@ -91,6 +92,8 @@ export interface UserSnapshot {
   receipts?: Record<typeof receiptCounts[number], number>;
   goal?: string;
   startedAt?: string;
+  endedAt?: string;
+  alertMode?: AlertMode;
   sessionHandle?: string;
 }
 export type UserReply = { snapshot: UserSnapshot; error?: UserError } | { error: 'invalid' };
@@ -100,9 +103,11 @@ const receiptCounts = ['pending', 'previousPending', 'acknowledged', 'retryWaiti
 export function isUserSnapshot(value: unknown): value is UserSnapshot {
   if (!value || typeof value !== 'object') return false;
   const s = value as UserSnapshot;
+  const sessionVisible = s.access === 'ready' && s.permission && !s.privacyPending && !s.withdrawalPending && !s.privacyHold && !s.storageFailed;
   return ['IDLE', 'START_PENDING', 'ACTIVE', 'END_PENDING', 'ENDED'].includes(s.lifecycle) && accessStates.includes(s.access)
     && connectionStates.includes(s.connection)
-    && (s.serverCheckedAt === undefined || Number.isSafeInteger(s.serverCheckedAt) && s.serverCheckedAt > 0)
+    && (s.serverCheckedAt === undefined || Number.isSafeInteger(s.serverCheckedAt) && s.serverCheckedAt > 0
+      && Number.isFinite(new Date(s.serverCheckedAt).getTime()))
     && (!['verified', 'stale'].includes(s.connection) || s.serverCheckedAt !== undefined)
     && ['unconnected', 'empty', 'pending', 'delayed', 'failed', 'invalidated', 'unavailable', 'completed'].includes(s.analysis)
     && (s.analysis === 'completed' ? ['NORMAL', 'TRANSITION', 'DRIFT'].includes(s.finalState!) : s.finalState === undefined)
@@ -111,6 +116,9 @@ export function isUserSnapshot(value: unknown): value is UserSnapshot {
       Number.isSafeInteger(s.receipts?.[key]) && s.receipts![key] >= 0))
     && (s.goal === undefined || typeof s.goal === 'string' && validGoal(s.goal))
     && (s.startedAt === undefined || typeof s.startedAt === 'string' && Number.isFinite(Date.parse(s.startedAt)))
+    && (s.alertMode === undefined || sessionVisible && !!s.startedAt && ['AI', 'FIXED_INTERVAL'].includes(s.alertMode))
+    && (s.endedAt === undefined || sessionVisible && s.lifecycle === 'ENDED' && !!s.startedAt
+      && validTime(s.endedAt) && Date.parse(s.endedAt) >= Date.parse(s.startedAt))
     && (s.lifecycle === 'IDLE' || !!s.goal)
     && (['IDLE', 'START_PENDING'].includes(s.lifecycle) === (s.startedAt === undefined))
     && (s.lifecycle === 'ACTIVE' ? validHandle(s.sessionHandle) : s.sessionHandle === undefined)
