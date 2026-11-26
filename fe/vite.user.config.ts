@@ -15,6 +15,10 @@ export default defineConfig(({ mode }) => {
       __USER_ALERT_MODE__: JSON.stringify(syntheticAlertMode(process.env.USER_ALERT_MODE)),
     },
     plugins: [{ name: 'user-mock-manifest', generateBundle() {
+      const icons = { 16: 'icons/icon-16.png', 32: 'icons/icon-32.png', 48: 'icons/icon-48.png', 128: 'icons/icon-128.png' };
+      for (const fileName of Object.values(icons)) {
+        this.emitFile({ type: 'asset', fileName, source: readFileSync(resolve(import.meta.dirname, 'user/assets', fileName)) });
+      }
       this.emitFile({ type: 'asset', fileName: 'alert-icon.png', source: readFileSync(resolve(import.meta.dirname, 'user/alert-icon.png')) });
       this.emitFile({ type: 'asset', fileName: 'manifest.json', source: JSON.stringify({
         manifest_version: 3, name: 'Focus Recovery · 사용자 합성 테스트', version: '0.2.0',
@@ -22,7 +26,8 @@ export default defineConfig(({ mode }) => {
         permissions: ['storage', 'alarms', 'webNavigation', 'notifications'],
         host_permissions: ['http://127.0.0.1/*'],
         background: { service_worker: 'background.js', type: 'module' },
-        action: { default_popup: USER_POPUP },
+        icons,
+        action: { default_popup: USER_POPUP, default_icon: icons },
         content_scripts: [{ matches: ['http://127.0.0.1/__focus_synthetic__/*'], js: ['content.js'], run_at: 'document_idle' }],
         content_security_policy: { extension_pages: `script-src 'self'; object-src 'none'; connect-src ${MOCK_ORIGIN}` },
       }, null, 2) });
